@@ -1,0 +1,49 @@
+{
+  "slug": "airflow-retry-hides-real-error",
+  "title": "Airflow retry hides real error",
+  "difficulty": "Intermediate",
+  "section": "Airflow",
+  "short_description": "The final Airflow attempt is green, but one expected partner file never landed in the warehouse.",
+  "access_tier": "premium",
+  "topics": [
+    "Airflow",
+    "Data Quality",
+    "Airflow",
+    "Observability",
+    "Backfills"
+  ],
+  "business_context": "A daily Airflow ingestion DAG pulls partner files from SFTP into the landing zone and then loads them into analytics tables. The on-call team sees a green DAG after a retry, but partner support reports a missing partition in downstream reporting.",
+  "problem_statement": "The current monitoring logic only inspects the final Airflow task state, so it misses cases where the last retry succeeds after silently skipping a bad file. Use the expected file manifest, load audit table, and Airflow retry history to identify which file still needs backfill even though the DAG ended in success.",
+  "student_task": "Write a single read-only SQL query that returns the expected files that were never loaded, along with the latest non-null Airflow error message for that partition.",
+  "learning_objectives": [
+    "Understand why a green Airflow DAG does not guarantee complete data.",
+    "Join operational logs with data completeness checks.",
+    "Use retry history to surface the last meaningful error signal.",
+    "Think about backfill queues, not just task state dashboards."
+  ],
+  "broken_pipeline_sql": "SELECT run_id, partition_date, status\nFROM airflow_task_attempts\nQUALIFY ROW_NUMBER() OVER (\n  PARTITION BY dag_id, task_id, run_id\n  ORDER BY try_number DESC\n) = 1;",
+  "production_logs": [
+    "2026-05-03 01:00:12 INFO load_partner_files try_number=1 started for partition_date=2026-05-03",
+    "2026-05-03 01:00:19 ERROR gzip EOF while reading partner_orders_2026-05-03_002.csv.gz",
+    "2026-05-03 01:05:02 INFO load_partner_files try_number=2 succeeded after loading 2 files",
+    "2026-05-03 01:05:02 WARN final task state is success but one file was skipped due to prior decompression failure"
+  ],
+  "submission_instructions": "Return the missing file backlog for the affected partition. Match the expected output columns exactly.",
+  "explanation": "Retries improve resilience, but they can also hide incomplete data if the final success state is treated as the only health signal. The right check combines the expected file manifest, actual load audit, and the retry history so on-call engineers know exactly what still needs a backfill.",
+  "common_mistakes": [
+    "Looking only at the final successful task attempt and ignoring earlier non-null errors.",
+    "Returning missing partitions without identifying the specific file that failed to land.",
+    "Joining on partition date alone and marking a partition healthy even when one expected file is still absent."
+  ],
+  "hints": [
+    "One table says what should have arrived, another says what actually landed, and the retry history explains why they differ.",
+    "A successful final retry does not erase earlier evidence of a skipped file.",
+    "The business needs a file-level backfill queue, not just a partition-level health flag."
+  ],
+  "validation_logic": "The validator expects the missing file rows that still require backfill, plus the most recent non-null Airflow error for that partition. It checks the exact file-level backlog, not just the partition.",
+  "table_names": [
+    "expected_partner_files",
+    "loaded_partner_files",
+    "airflow_task_attempts"
+  ]
+}

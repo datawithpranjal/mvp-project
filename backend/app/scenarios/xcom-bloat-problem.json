@@ -1,0 +1,54 @@
+{
+  "id": "xcom-bloat-problem",
+  "slug": "xcom-bloat-problem",
+  "title": "The XCom Bloat Problem",
+  "difficulty": "intermediate",
+  "section": "Airflow",
+  "access_tier": "premium",
+  "topic_tags": ["Airflow", "Code Review", "Orchestration"],
+  "short_description": "A DAG is pushing large payloads through XCom instead of sharing lightweight metadata.",
+  "business_context": "A data platform team built a convenience pattern where one Airflow task prepares a payload and pushes it through XCom for the next task. The payload kept growing until scheduler and metadata database performance started degrading.",
+  "problem_statement": "Review the DAG code and explain why using XCom for large payloads is unhealthy. Recommend a safer design using external storage and lightweight metadata passing.",
+  "student_task": "Write a code-review answer that explains the XCom misuse and proposes a better pattern.",
+  "learning_goals": [
+    "Use XCom for metadata, not data payloads.",
+    "Recognize scheduler and metadata DB pressure caused by oversized XCom values.",
+    "Prefer object storage paths or table references for large intermediate outputs."
+  ],
+  "broken_code": "def build_payload(**context):\n    records = expensive_extract()\n    context['ti'].xcom_push(key='records', value=records)\n\ndef consume_payload(**context):\n    records = context['ti'].xcom_pull(task_ids='build_payload', key='records')\n    load_records(records)",
+  "production_logs": [
+    "2026-06-20 06:00:02 INFO partner_sync started",
+    "2026-06-20 06:03:18 WARN xcom table row exceeded normal payload size by 120x",
+    "2026-06-20 06:03:18 WARN scheduler metadata DB latency increased during partner_sync DAG"
+  ],
+  "sample_tables": [
+    {
+      "name": "xcom_metrics",
+      "columns": ["dag_id", "avg_payload_kb", "max_payload_kb"],
+      "rows": [
+        ["partner_sync", 4800, 9500]
+      ]
+    }
+  ],
+  "expected_output": [],
+  "solution_query": "Model answer:\n- XCom is meant for small metadata such as object paths, partition IDs, or status flags, not full datasets.\n- Persist the extracted records to external storage such as S3, a staging table, or a durable file path, then push only that location through XCom.\n- The downstream task should read from the shared storage path instead of deserializing a huge Python object out of the metadata database.",
+  "explanation": "Oversized XCom payloads turn the Airflow metadata store into a transport layer for data, which it is not designed to be. Passing a storage pointer keeps orchestration lightweight and separates scheduling metadata from actual data movement.",
+  "common_mistakes": [
+    "Recommending compression of the XCom payload instead of removing the anti-pattern.",
+    "Suggesting Variables or Params as alternative storage for the large payload.",
+    "Failing to propose a concrete external-storage handoff pattern."
+  ],
+  "validation_type": "CODE_REVIEW_RUBRIC",
+  "rubric": [
+    {"point": "Explains that XCom should carry lightweight metadata rather than large datasets.", "weight": 35},
+    {"point": "Connects oversized XCom usage to metadata DB or scheduler stress.", "weight": 25},
+    {"point": "Proposes passing an external storage path or table reference instead.", "weight": 30},
+    {"point": "Describes how the downstream task would consume the pointer safely.", "weight": 10}
+  ],
+  "hints": [
+    "The issue is not that tasks communicate; it is how much they are sending.",
+    "Think about what Airflow stores XCom in.",
+    "A path can be enough when the data itself lives elsewhere."
+  ]
+}
+

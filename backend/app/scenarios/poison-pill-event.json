@@ -1,0 +1,53 @@
+{
+  "id": "poison-pill-event",
+  "slug": "poison-pill-event",
+  "title": "The Poison Pill Event",
+  "difficulty": "advanced",
+  "section": "Kafka",
+  "access_tier": "premium",
+  "topic_tags": ["Kafka", "Streaming", "Data Quality"],
+  "short_description": "One malformed Kafka event keeps breaking the stream because there is no DLQ or quarantine path.",
+  "business_context": "A real-time order stream powers fraud scoring and customer messaging. A malformed event is repeatedly replayed by the consumer, causing the stream to fail the same micro-batch over and over.",
+  "problem_statement": "Review the stream logs and payload summary. Explain why the same bad event keeps poisoning the stream and describe a safer DLQ or quarantine design.",
+  "student_task": "Write a debugging answer that explains the poison-pill failure mode and proposes a replay-safe DLQ strategy.",
+  "learning_goals": [
+    "Recognize why one malformed event can repeatedly break a streaming consumer.",
+    "Design a DLQ or quarantine path instead of endless retries.",
+    "Preserve replay safety and auditability for bad events."
+  ],
+  "broken_code": "parsed = raw_df.select(from_json(col('value'), order_schema).alias('payload'))\nvalid = parsed.select('payload.*')\nvalid.writeStream.format('delta').start(output_path)",
+  "production_logs": [
+    "2026-06-22 14:00:03 INFO order_stream_microbatch started at offset 992001",
+    "2026-06-22 14:00:05 ERROR malformed JSON for message key=order-4402 at offset 992117",
+    "2026-06-22 14:05:10 WARN consumer restarted and failed again on the same offset 992117"
+  ],
+  "sample_tables": [
+    {
+      "name": "stream_failure_summary",
+      "columns": ["offset", "message_key", "error_type"],
+      "rows": [
+        [992117, "order-4402", "json_parse_error"]
+      ]
+    }
+  ],
+  "expected_output": [],
+  "solution_query": "Model answer:\n- The consumer keeps replaying the same bad offset because it has no path for isolating malformed records.\n- Add schema validation and route invalid payloads, together with key, offset, partition, and raw payload, into a DLQ or quarantine table.\n- Commit the stream progress only after valid rows are written and invalid rows are safely captured, so the pipeline keeps moving without silently dropping evidence.\n- Provide a replay process that can fix or reprocess quarantined records later if the schema or producer bug is corrected.",
+  "explanation": "Without a DLQ, one malformed event can stop a whole stream indefinitely. The answer is not to ignore the parse failure; it is to separate bad-event handling from good-event throughput while preserving enough metadata for later replay and debugging.",
+  "common_mistakes": [
+    "Suggesting infinite retries on the same malformed payload.",
+    "Dropping the bad event without storing the raw payload and offset metadata.",
+    "Treating the DLQ as a black hole instead of an auditable quarantine path."
+  ],
+  "validation_type": "DEBUG_RUBRIC",
+  "rubric": [
+    {"point": "Explains that the malformed event keeps replaying because there is no isolation path for bad records.", "weight": 30},
+    {"point": "Recommends a DLQ or quarantine sink that stores payload and lineage metadata.", "weight": 30},
+    {"point": "Shows how the stream can continue processing valid events safely.", "weight": 20},
+    {"point": "Mentions replay or remediation for quarantined records.", "weight": 20}
+  ],
+  "hints": [
+    "The same offset keeps failing because nothing changes between retries.",
+    "A strong answer preserves both throughput and auditability.",
+    "Think about what metadata you would want when replaying the bad event later."
+  ]
+}

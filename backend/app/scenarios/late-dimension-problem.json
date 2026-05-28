@@ -1,0 +1,68 @@
+{
+  "id": "late-dimension-problem",
+  "slug": "late-dimension-problem",
+  "title": "The Late Dimension Problem",
+  "difficulty": "beginner",
+  "section": "Data Quality",
+  "access_tier": "premium",
+  "topic_tags": ["Data Quality", "SQL", "Late Arriving Dimensions"],
+  "short_description": "Fact records landed before the matching customer dimension rows existed.",
+  "business_context": "A commerce warehouse loads order facts every five minutes, but customer master data sometimes arrives later from a separate upstream system. Analysts are seeing orphaned facts that cannot resolve to a customer dimension key.",
+  "problem_statement": "The fact load should not silently drop records with missing dimension matches. Use the sample fact and dimension tables to identify the orders whose customer dimension key is currently missing, and mark them for safe handling.",
+  "student_task": "Write a single read-only SQL query that returns the fact rows whose customer dimension is missing. Include a handling recommendation for downstream retry or quarantine.",
+  "learning_goals": [
+    "Recognize late-arriving dimensions in a warehouse load.",
+    "Identify orphaned fact rows with a safe left join pattern.",
+    "Think about unknown-member rows, retries, and quarantine queues."
+  ],
+  "broken_code": "SELECT f.order_id, d.customer_key, f.amount\nFROM fact_orders AS f\nJOIN dim_customer AS d\n  ON f.customer_nk = d.customer_nk;",
+  "production_logs": [
+    "2026-06-05 10:00:02 INFO fact_orders_incremental loaded 4 rows",
+    "2026-06-05 10:04:19 WARN 1 order could not resolve to a dimension key in downstream reporting",
+    "2026-06-05 10:04:19 WARN customer master feed for customer_nk=C003 is delayed"
+  ],
+  "sample_tables": [
+    {
+      "name": "fact_orders",
+      "columns": ["order_id", "customer_nk", "amount", "order_date"],
+      "rows": [
+        [501, "C001", 120.0, "2026-06-05"],
+        [502, "C002", 75.0, "2026-06-05"],
+        [503, "C003", 60.0, "2026-06-05"],
+        [504, "C001", 42.0, "2026-06-05"]
+      ]
+    },
+    {
+      "name": "dim_customer",
+      "columns": ["customer_key", "customer_nk", "customer_name"],
+      "rows": [
+        [1, "C001", "Ava"],
+        [2, "C002", "Ben"]
+      ]
+    }
+  ],
+  "expected_output": [
+    {
+      "order_id": 503,
+      "customer_nk": "C003",
+      "amount": 60.0,
+      "order_date": "2026-06-05",
+      "handling_action": "quarantine_for_dimension_retry"
+    }
+  ],
+  "solution_query": "SELECT\n  f.order_id,\n  f.customer_nk,\n  f.amount,\n  f.order_date,\n  'quarantine_for_dimension_retry' AS handling_action\nFROM fact_orders AS f\nLEFT JOIN dim_customer AS d\n  ON f.customer_nk = d.customer_nk\nWHERE d.customer_key IS NULL",
+  "explanation": "A normal inner join hides the late-dimension problem by dropping orphaned facts. A safer pattern is to identify those rows explicitly so the pipeline can send them to an unknown-member path, a retry queue, or quarantine instead of pretending the load is complete.",
+  "common_mistakes": [
+    "Using an inner join and losing the missing fact rows entirely.",
+    "Returning only the missing customer key without the affected fact record context.",
+    "Assuming the right answer is to discard late-arriving facts."
+  ],
+  "validation_type": "SQL_OUTPUT_MATCH",
+  "rubric": [],
+  "hints": [
+    "You need the fact rows that failed to resolve, not the dimension rows that do exist.",
+    "A left join is usually the fastest way to surface orphaned facts.",
+    "The business wants a safe handling path, not silent data loss."
+  ]
+}
+

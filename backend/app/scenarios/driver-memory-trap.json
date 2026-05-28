@@ -1,0 +1,56 @@
+{
+  "id": "driver-memory-trap",
+  "slug": "driver-memory-trap",
+  "title": "The Driver Memory Trap",
+  "difficulty": "intermediate",
+  "section": "Spark",
+  "access_tier": "premium",
+  "topic_tags": ["Spark", "Code Review", "Performance"],
+  "short_description": "A PySpark job keeps pulling large datasets back to the driver with collect and toPandas.",
+  "business_context": "A feature-validation notebook grew into a production support script. It still uses driver-side collection patterns that worked on small samples, but it now destabilizes the cluster when run on full production data.",
+  "problem_statement": "Review the code and explain why the driver is at risk. Recommend distributed alternatives that preserve the intent without collecting unbounded data locally.",
+  "student_task": "Write a code-review answer that flags the driver-memory issue and proposes safer distributed alternatives.",
+  "learning_goals": [
+    "Differentiate driver memory from executor memory.",
+    "Recognize when `collect()` or `toPandas()` is unsafe.",
+    "Recommend bounded sampling or distributed write paths instead."
+  ],
+  "broken_code": "top_customers = features_df.orderBy(F.desc('lifetime_value')).collect()\npandas_preview = features_df.toPandas()\nprint(len(top_customers), pandas_preview.head())",
+  "production_logs": [
+    "2026-06-16 11:00:02 INFO feature_validation started",
+    "2026-06-16 11:08:19 WARN driver memory usage reached 92%",
+    "2026-06-16 11:08:19 WARN unbounded collect/toPandas detected in validation script"
+  ],
+  "sample_tables": [
+    {
+      "name": "runtime_metrics",
+      "columns": ["metric_name", "value"],
+      "rows": [
+        ["input_row_count", "48000000"],
+        ["driver_memory_peak_gb", "14.7"],
+        ["executor_memory_peak_gb", "6.1"]
+      ]
+    }
+  ],
+  "expected_output": [],
+  "solution_query": "Model answer:\n- `collect()` and `toPandas()` move data from executors to the driver, which is unsafe for tens of millions of rows.\n- The code should only collect bounded samples or aggregated summaries to the driver.\n- For example, use `limit()` before collection for a small preview, or write the full dataset to distributed storage for offline inspection.\n- If the goal is validation, compute distributed aggregates such as counts, null rates, or top-N summaries inside Spark instead of materializing the full DataFrame locally.",
+  "explanation": "Driver crashes are often caused by small-scale notebook habits leaking into production workflows. The distributed engine is supposed to hold and process the large dataset; the driver should coordinate work, not absorb the whole result set.",
+  "common_mistakes": [
+    "Assuming the driver can handle the full DataFrame because executors processed it successfully.",
+    "Recommending a larger driver without fixing the unbounded collection pattern.",
+    "Flagging `collect()` as bad without suggesting a safe alternative."
+  ],
+  "validation_type": "CODE_REVIEW_RUBRIC",
+  "rubric": [
+    {"point": "Identifies driver-side collection as the core instability risk.", "weight": 30},
+    {"point": "Explains why the pattern is unsafe at production scale.", "weight": 25},
+    {"point": "Suggests bounded sampling, distributed aggregates, or distributed writes as alternatives.", "weight": 30},
+    {"point": "Connects the recommendation to the observed driver memory warning.", "weight": 15}
+  ],
+  "hints": [
+    "Ask where the full dataset ends up after `collect()` or `toPandas()`.",
+    "The driver is the bottleneck here, not the executors.",
+    "A good answer offers distributed substitutes, not just criticism."
+  ]
+}
+

@@ -1,0 +1,64 @@
+{
+  "id": "null-trap",
+  "slug": "null-trap",
+  "title": "The NULL Trap",
+  "difficulty": "beginner",
+  "section": "SQL",
+  "access_tier": "free",
+  "topic_tags": ["SQL", "Data Quality", "NULL Handling"],
+  "short_description": "A NOT IN filter returns no rows because the subquery contains a NULL customer key.",
+  "business_context": "The CRM team wants a list of customers who have never placed an order so they can launch a reactivation campaign. An analyst wrote a simple anti-join query, but the result set is empty even though the business knows there are inactive customers.",
+  "problem_statement": "The anti-join logic uses `NOT IN` against the orders table. Unfortunately, one bad order row has a NULL `customer_id`, and the filter now behaves unexpectedly. Use the sample tables to return the customers who truly never placed an order.",
+  "student_task": "Write a single read-only SQL query that returns the customers who never placed an order. Match the expected output columns exactly.",
+  "learning_goals": [
+    "Understand why NULL values break naive `NOT IN` anti-joins.",
+    "Use `NOT EXISTS` for safer anti-join logic.",
+    "Recognize production data quality issues hiding in reference keys."
+  ],
+  "broken_code": "SELECT customer_id, customer_name\nFROM customers\nWHERE customer_id NOT IN (\n  SELECT customer_id\n  FROM orders\n);",
+  "production_logs": [
+    "2026-05-15 08:00:11 INFO dormant_customer_extract completed in 0.2s",
+    "2026-05-15 08:00:11 WARN dormant_customer_extract returned 0 rows",
+    "2026-05-15 08:02:41 WARN orders.customer_id contains 1 NULL value from a malformed order event"
+  ],
+  "sample_tables": [
+    {
+      "name": "customers",
+      "columns": ["customer_id", "customer_name"],
+      "rows": [
+        [1, "Ava"],
+        [2, "Ben"],
+        [3, "Cleo"],
+        [4, "Dev"]
+      ]
+    },
+    {
+      "name": "orders",
+      "columns": ["order_id", "customer_id", "order_status"],
+      "rows": [
+        [101, 1, "paid"],
+        [102, 2, "paid"],
+        [103, null, "failed"]
+      ]
+    }
+  ],
+  "expected_output": [
+    {"customer_id": 3, "customer_name": "Cleo"},
+    {"customer_id": 4, "customer_name": "Dev"}
+  ],
+  "solution_query": "SELECT c.customer_id, c.customer_name\nFROM customers AS c\nWHERE NOT EXISTS (\n  SELECT 1\n  FROM orders AS o\n  WHERE o.customer_id = c.customer_id\n)",
+  "explanation": "The NULL in `orders.customer_id` poisons the `NOT IN` comparison, so the predicate never evaluates to true for any customer. `NOT EXISTS` is safer because it checks row-by-row correlation instead of comparing against a set that includes NULL.",
+  "common_mistakes": [
+    "Using `NOT IN` without first filtering NULLs out of the subquery.",
+    "Converting the query to an inner join and losing the anti-join behavior entirely.",
+    "Returning only customer IDs and forgetting the campaign needs customer names too."
+  ],
+  "validation_type": "SQL_OUTPUT_MATCH",
+  "rubric": [],
+  "hints": [
+    "Look for suspicious values in the orders table before trusting the anti-join.",
+    "Ask what `NOT IN` does when one of the compared values is NULL.",
+    "A correlated anti-join is often the safest pattern here."
+  ]
+}
+

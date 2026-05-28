@@ -1,0 +1,63 @@
+{
+  "id": "history-table-dilemma",
+  "slug": "history-table-dilemma",
+  "title": "The History Table Dilemma",
+  "difficulty": "intermediate",
+  "section": "Lakehouse",
+  "access_tier": "premium",
+  "topic_tags": ["Lakehouse", "SQL", "Slowly Changing Dimensions"],
+  "short_description": "A customer dimension needs a safe SCD Type 2 design when incoming changes arrive for current rows.",
+  "business_context": "The analytics warehouse keeps customer tier history for retention and finance reporting. Product managers recently changed a customer's loyalty tier and city, and the ingestion team needs a correct SCD Type 2 pattern instead of overwriting the dimension in place.",
+  "problem_statement": "The current approach updates the existing row directly, which destroys history. Review the existing dimension rows and the incoming changes, then describe how to expire current rows and insert new versions safely.",
+  "student_task": "Write a design answer describing how you would implement SCD Type 2 for this table. Call out which rows should be expired, which new rows should be inserted, and how surrogate keys, effective dates, and `current_flag` should behave.",
+  "learning_goals": [
+    "Recognize when SCD Type 2 is more appropriate than an in-place update.",
+    "Use surrogate keys separately from business keys.",
+    "Model `effective_start_date`, `effective_end_date`, and `current_flag` correctly."
+  ],
+  "broken_code": "MERGE INTO dim_customer AS d\nUSING incoming_customer_changes AS s\nON d.customer_id = s.customer_id AND d.current_flag = true\nWHEN MATCHED THEN\n  UPDATE SET city = s.city, loyalty_tier = s.loyalty_tier;",
+  "production_logs": [
+    "2026-06-18 04:00:09 INFO dim_customer merge succeeded",
+    "2026-06-18 09:22:31 WARN audit query shows no prior history for customer_id=1002 after tier change",
+    "2026-06-18 09:22:31 WARN existing current row was overwritten in place"
+  ],
+  "sample_tables": [
+    {
+      "name": "dim_customer",
+      "columns": ["customer_sk", "customer_id", "city", "loyalty_tier", "effective_start_date", "effective_end_date", "current_flag"],
+      "rows": [
+        [11, 1001, "Austin", "silver", "2026-01-01", "9999-12-31", true],
+        [12, 1002, "Seattle", "gold", "2026-02-01", "9999-12-31", true]
+      ]
+    },
+    {
+      "name": "incoming_customer_changes",
+      "columns": ["customer_id", "city", "loyalty_tier", "change_date"],
+      "rows": [
+        [1002, "Portland", "platinum", "2026-06-18"],
+        [1003, "Denver", "silver", "2026-06-18"]
+      ]
+    }
+  ],
+  "expected_output": [],
+  "solution_query": "Model answer:\n1. Compare incoming rows to the current dimension row by business key (`customer_id`) and tracked attributes.\n2. For changed current rows such as customer 1002, expire the existing row by setting `effective_end_date` to the day before the new change date and `current_flag=false`.\n3. Insert a brand-new row with a new surrogate key for the changed version starting on `2026-06-18`, with `effective_end_date='9999-12-31'` and `current_flag=true`.\n4. Insert brand-new customers like 1003 as fresh current rows with their own surrogate keys.\n5. Leave unchanged rows alone so the load stays idempotent.",
+  "explanation": "SCD Type 2 is about preserving history, not just updating current values. The business key identifies the customer, but each historical version should receive its own surrogate key and effective date range. That keeps both current-state analytics and historical point-in-time reporting correct.",
+  "common_mistakes": [
+    "Overwriting the current row in place and losing the prior state.",
+    "Reusing the old surrogate key for a new version of the customer.",
+    "Expiring rows even when tracked attributes did not actually change."
+  ],
+  "validation_type": "DESIGN_RUBRIC",
+  "rubric": [
+    {"point": "Explains that changed current rows must be expired instead of overwritten.", "weight": 30},
+    {"point": "Calls out insertion of a new version with a new surrogate key and correct effective date range.", "weight": 30},
+    {"point": "Describes how `current_flag` should switch from old row to new row.", "weight": 20},
+    {"point": "Mentions no-op handling for unchanged rows and fresh insert handling for brand-new customers.", "weight": 20}
+  ],
+  "hints": [
+    "The business key identifies the customer, but it should not be the row's version identifier.",
+    "Think in terms of expiring the old row and inserting a new row, not mutating history.",
+    "Point-in-time reporting only works if effective date windows do not overlap."
+  ]
+}
+

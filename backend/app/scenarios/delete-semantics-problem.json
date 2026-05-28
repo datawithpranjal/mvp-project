@@ -1,0 +1,56 @@
+{
+  "id": "delete-semantics-problem",
+  "slug": "delete-semantics-problem",
+  "title": "The Delete Semantics Problem",
+  "difficulty": "beginner",
+  "section": "Kafka",
+  "access_tier": "free",
+  "topic_tags": ["Kafka", "SQL", "CDC"],
+  "short_description": "A CDC stream includes delete events, and the current-state table must respect them correctly.",
+  "business_context": "A customer-profile table is rebuilt from CDC events emitted by an upstream transactional database. The current pipeline keeps the latest payload per key, but it does not handle deletes correctly, so removed customers still appear active in analytics.",
+  "problem_statement": "Use the sample CDC events to produce the correct current-state table. Keep only the latest event per `customer_id`, and exclude rows whose latest event is a delete.",
+  "student_task": "Write a single read-only SQL query that returns the current-state customer table from the CDC event stream.",
+  "learning_goals": [
+    "Understand how deletes change current-state reconstruction logic.",
+    "Use latest-event ordering with a stable sequence number.",
+    "Differentiate current-state tables from append-only CDC history."
+  ],
+  "broken_code": "SELECT customer_id, MAX(customer_name) AS customer_name\nFROM cdc_customer_events\nGROUP BY customer_id;",
+  "production_logs": [
+    "2026-06-10 02:00:03 INFO cdc_customer_current rebuild completed",
+    "2026-06-10 08:42:10 WARN deleted customer_id=3002 still appears in the current-state table",
+    "2026-06-10 08:42:10 WARN latest delete event may be ignored by aggregation logic"
+  ],
+  "sample_tables": [
+    {
+      "name": "cdc_customer_events",
+      "columns": ["customer_id", "event_sequence", "op_type", "customer_name", "event_ts"],
+      "rows": [
+        [3001, 1, "INSERT", "Ava", "2026-06-10 01:00:00"],
+        [3001, 2, "UPDATE", "Ava Stone", "2026-06-10 01:05:00"],
+        [3002, 1, "INSERT", "Ben", "2026-06-10 01:01:00"],
+        [3002, 2, "DELETE", null, "2026-06-10 01:07:00"],
+        [3003, 1, "INSERT", "Cleo", "2026-06-10 01:02:00"]
+      ]
+    }
+  ],
+  "expected_output": [
+    {"customer_id": 3001, "customer_name": "Ava Stone", "last_event_sequence": 2},
+    {"customer_id": 3003, "customer_name": "Cleo", "last_event_sequence": 1}
+  ],
+  "solution_query": "WITH latest_events AS (\n  SELECT\n    customer_id,\n    customer_name,\n    op_type,\n    event_sequence,\n    ROW_NUMBER() OVER (\n      PARTITION BY customer_id\n      ORDER BY event_sequence DESC\n    ) AS event_rank\n  FROM cdc_customer_events\n)\nSELECT\n  customer_id,\n  customer_name,\n  event_sequence AS last_event_sequence\nFROM latest_events\nWHERE event_rank = 1\n  AND op_type <> 'DELETE'",
+  "explanation": "CDC reconstruction is about the latest state, not the loudest aggregation. The latest event per business key wins, and if that event is a delete, the row should disappear from the current-state table. Ignoring delete semantics produces stale active records.",
+  "common_mistakes": [
+    "Aggregating by customer without respecting event order.",
+    "Keeping the last non-null name even when the latest event is a delete.",
+    "Using event timestamp without a deterministic sequence when a sequence number already exists."
+  ],
+  "validation_type": "SQL_OUTPUT_MATCH",
+  "rubric": [],
+  "hints": [
+    "First decide which event is latest per customer, then decide whether it should remain in the current-state table.",
+    "Delete events are real state changes, not missing-data edge cases.",
+    "A window function is the cleanest way to isolate the winning event."
+  ]
+}
+

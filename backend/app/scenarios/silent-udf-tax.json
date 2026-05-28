@@ -1,0 +1,53 @@
+{
+  "id": "silent-udf-tax",
+  "slug": "silent-udf-tax",
+  "title": "The Silent UDF Tax",
+  "difficulty": "intermediate",
+  "section": "Spark",
+  "access_tier": "premium",
+  "topic_tags": ["Spark", "Code Review", "Performance"],
+  "short_description": "A Python UDF is making a PySpark pipeline much slower than it needs to be.",
+  "business_context": "A customer-enrichment job normalizes email domains before joining against a marketing segmentation table. The logic is simple, but the job runtime doubled after a Python UDF was introduced.",
+  "problem_statement": "The current PySpark code uses a row-wise Python UDF for string cleanup that Spark could perform with built-in functions. Review the code and recommend a faster rewrite.",
+  "student_task": "Write a code-review answer that identifies the UDF performance issue and proposes a rewrite using Spark SQL built-ins.",
+  "learning_goals": [
+    "Recognize when a Python UDF adds unnecessary serialization overhead.",
+    "Prefer built-in Spark SQL functions for simple transformations.",
+    "Explain performance issues in code-review terms, not only syntax terms."
+  ],
+  "broken_code": "from pyspark.sql import functions as F\nfrom pyspark.sql.types import StringType\n\n@F.udf(StringType())\ndef normalize_domain(email):\n    return email.strip().lower().split('@')[-1]\n\ncustomers = customers.withColumn('email_domain', normalize_domain(F.col('email')))",
+  "production_logs": [
+    "2026-06-07 01:00:02 INFO customer_enrichment started",
+    "2026-06-07 01:24:44 WARN stage 12 spent 78% of task time in Python worker execution",
+    "2026-06-07 01:24:44 WARN no external library dependency detected inside normalize_domain UDF"
+  ],
+  "sample_tables": [
+    {
+      "name": "spark_stage_metrics",
+      "columns": ["stage_name", "python_time_pct", "shuffle_read_gb"],
+      "rows": [
+        ["normalize_email_domain", 78.0, 1.2]
+      ]
+    }
+  ],
+  "expected_output": [],
+  "solution_query": "Model answer:\n- The Python UDF is unnecessary because the transformation is just trim, lowercase, split, and array extraction.\n- Python UDFs force data across the Python boundary and prevent Spark from fully optimizing the expression.\n- Rewrite with built-ins, for example:\n\nfrom pyspark.sql import functions as F\n\ncustomers = customers.withColumn(\n    'email_domain',\n    F.element_at(\n        F.split(F.lower(F.trim(F.col('email'))), '@'),\n        -1\n    )\n)\n\n- This keeps the work in Spark's execution engine and usually reduces Python worker overhead dramatically.",
+  "explanation": "Simple string cleanup should stay inside Spark's built-in expression engine. A Python UDF here adds serialization and prevents Catalyst from optimizing the plan. The faster fix is not a bigger cluster; it is replacing the UDF with native functions.",
+  "common_mistakes": [
+    "Keeping the UDF and trying only to cache the DataFrame.",
+    "Suggesting pandas UDFs even though no vectorized Python logic is needed.",
+    "Flagging the issue without showing what the built-in rewrite would look like."
+  ],
+  "validation_type": "CODE_REVIEW_RUBRIC",
+  "rubric": [
+    {"point": "Identifies the Python UDF as an avoidable performance bottleneck.", "weight": 30},
+    {"point": "Explains that Spark built-ins keep execution inside the optimized engine.", "weight": 25},
+    {"point": "Provides or describes a concrete rewrite using built-in functions.", "weight": 30},
+    {"point": "Connects the recommendation back to observed runtime or Python worker overhead.", "weight": 15}
+  ],
+  "hints": [
+    "Look at how simple the logic is inside the UDF.",
+    "Spark already knows how to trim, lowercase, split, and extract array elements.",
+    "A strong answer should include both the problem and the safer rewrite."
+  ]
+}

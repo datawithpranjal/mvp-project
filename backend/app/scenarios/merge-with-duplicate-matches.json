@@ -1,0 +1,57 @@
+{
+  "id": "merge-with-duplicate-matches",
+  "slug": "merge-with-duplicate-matches",
+  "title": "The MERGE with Duplicate Matches",
+  "difficulty": "beginner",
+  "section": "Lakehouse",
+  "access_tier": "free",
+  "topic_tags": ["Lakehouse", "SQL", "Deduplication"],
+  "short_description": "A merge source contains multiple updates per business key, so the source must be deduplicated first.",
+  "business_context": "A customer-status table is maintained with an incremental merge into the lakehouse. The merge job started failing intermittently because the source update feed can emit multiple rows for the same customer within one batch.",
+  "problem_statement": "The merge source is not unique on `customer_id`, which makes the upsert ambiguous. Use the sample source update table to keep only the latest row per customer before the merge runs.",
+  "student_task": "Write a single read-only SQL query that returns one latest source row per `customer_id`, using `updated_at` and `source_row_id` as deterministic ordering columns.",
+  "learning_goals": [
+    "Understand why merge inputs must be unique on the match key.",
+    "Use `row_number` to deduplicate source updates before an upsert.",
+    "Add deterministic ordering when multiple updates have close timestamps."
+  ],
+  "broken_code": "MERGE INTO customer_status AS tgt\nUSING source_customer_updates AS src\nON tgt.customer_id = src.customer_id\nWHEN MATCHED THEN UPDATE SET status = src.status, updated_at = src.updated_at\nWHEN NOT MATCHED THEN INSERT (customer_id, status, updated_at) VALUES (src.customer_id, src.status, src.updated_at);",
+  "production_logs": [
+    "2026-06-09 03:00:08 INFO customer_status_merge started",
+    "2026-06-09 03:00:09 ERROR merge source contains duplicate matches for customer_id=2002",
+    "2026-06-09 03:00:09 WARN source batch must be deduplicated before merge"
+  ],
+  "sample_tables": [
+    {
+      "name": "source_customer_updates",
+      "columns": ["source_row_id", "customer_id", "status", "updated_at"],
+      "rows": [
+        [1, 2001, "active", "2026-06-09 02:59:00"],
+        [2, 2002, "inactive", "2026-06-09 02:55:00"],
+        [3, 2002, "active", "2026-06-09 02:58:00"],
+        [4, 2003, "trial", "2026-06-09 02:57:00"],
+        [5, 2003, "active", "2026-06-09 02:57:00"]
+      ]
+    }
+  ],
+  "expected_output": [
+    {"customer_id": 2001, "status": "active", "updated_at": "2026-06-09 02:59:00"},
+    {"customer_id": 2002, "status": "active", "updated_at": "2026-06-09 02:58:00"},
+    {"customer_id": 2003, "status": "active", "updated_at": "2026-06-09 02:57:00"}
+  ],
+  "solution_query": "WITH ranked_updates AS (\n  SELECT\n    customer_id,\n    status,\n    updated_at,\n    ROW_NUMBER() OVER (\n      PARTITION BY customer_id\n      ORDER BY updated_at DESC, source_row_id DESC\n    ) AS update_rank\n  FROM source_customer_updates\n)\nSELECT customer_id, status, updated_at\nFROM ranked_updates\nWHERE update_rank = 1",
+  "explanation": "A merge assumes the source has at most one matching row per target key. Deduplicating first with `row_number()` makes the source deterministic and safe. The secondary order on `source_row_id` resolves identical timestamps so the chosen winning row is stable.",
+  "common_mistakes": [
+    "Grouping by `customer_id` and `status`, which still leaves multiple rows per customer.",
+    "Ordering only by `updated_at` and leaving equal timestamps unresolved.",
+    "Trying to merge directly from a non-unique source feed."
+  ],
+  "validation_type": "SQL_OUTPUT_MATCH",
+  "rubric": [],
+  "hints": [
+    "Your output should look like the deduplicated merge source, not the final merged target table.",
+    "The highest `updated_at` wins, but equal timestamps still need a tie-breaker.",
+    "A single window function is enough here."
+  ]
+}
+

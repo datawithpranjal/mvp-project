@@ -1,0 +1,55 @@
+{
+  "id": "small-files-avalanche",
+  "slug": "small-files-avalanche",
+  "title": "The Small Files Avalanche",
+  "difficulty": "intermediate",
+  "section": "Spark",
+  "access_tier": "premium",
+  "topic_tags": ["Spark", "Lakehouse", "File Layout"],
+  "short_description": "A Spark job is creating thousands of tiny output files and slowing every downstream read.",
+  "business_context": "A streaming-to-batch lakehouse table is partitioned by day and merchant, and each load is writing a huge number of tiny parquet files. Query latency is rising because downstream jobs spend more time opening files than scanning useful data.",
+  "problem_statement": "Review the sample file metrics and the current write pattern, then explain why the output layout is unhealthy and how you would fix it.",
+  "student_task": "Write a debugging answer describing the root cause of the tiny-file problem and a practical compaction or repartitioning strategy.",
+  "learning_goals": [
+    "Recognize the operational cost of too many tiny files.",
+    "Reason about partition count, shuffle width, and compaction.",
+    "Recommend file-size targets instead of blindly increasing partitions."
+  ],
+  "broken_code": "orders_df.repartition(2000, 'event_date', 'merchant_id') \\\n  .write.mode('append') \\\n  .partitionBy('event_date', 'merchant_id') \\\n  .parquet('s3://lake/orders_curated/')",
+  "production_logs": [
+    "2026-05-19 02:00:09 INFO orders_curated write completed successfully",
+    "2026-05-19 02:05:31 WARN downstream read scanned 11.2 GB across 18,400 files",
+    "2026-05-19 02:05:31 WARN average parquet file size is 0.6 MB"
+  ],
+  "sample_tables": [
+    {
+      "name": "file_size_metrics",
+      "columns": ["partition_date", "file_count", "avg_file_size_mb", "total_size_gb"],
+      "rows": [
+        ["2026-05-18", 18400, 0.6, 11.2],
+        ["2026-05-17", 17210, 0.7, 10.8]
+      ]
+    }
+  ],
+  "expected_output": [],
+  "solution_query": "Model answer:\n- The job is over-partitioning the write path, which creates thousands of tiny parquet files per day/merchant partition.\n- Tiny files hurt both the writer and every downstream reader because file-open overhead dominates scan time.\n- Reduce shuffle partitions or repartitioning width to match the actual output size, and target healthier file sizes such as tens or hundreds of MB.\n- Add a scheduled compaction step for already-fragmented partitions, especially for high-churn append workloads.",
+  "explanation": "The issue is not a failed Spark job; it is a bad storage layout. Over-partitioning and aggressive repartitioning produce tiny files that make the whole lakehouse slower. Fixing the write pattern and adding compaction is more effective than throwing more cluster resources at downstream reads.",
+  "common_mistakes": [
+    "Suggesting more partitions because the cluster is large, even though the files are already too small.",
+    "Treating file count as a harmless metadata problem instead of a performance issue.",
+    "Ignoring compaction for partitions that are already fragmented."
+  ],
+  "validation_type": "DEBUG_RUBRIC",
+  "rubric": [
+    {"point": "Identifies over-partitioning or excessive shuffle width as the root cause.", "weight": 30},
+    {"point": "Explains why tiny files hurt downstream performance.", "weight": 25},
+    {"point": "Recommends a concrete repartitioning or file-size strategy.", "weight": 25},
+    {"point": "Mentions compaction for already-written small files.", "weight": 20}
+  ],
+  "hints": [
+    "The warning is about file size, not raw dataset size.",
+    "Think about how many output files 11 GB of data should really produce.",
+    "A good answer should address both prevention and cleanup."
+  ]
+}
+

@@ -1,0 +1,49 @@
+{
+  "slug": "duplicate-records-after-rerun",
+  "title": "Duplicate records after rerun",
+  "difficulty": "Beginner",
+  "section": "SQL",
+  "short_description": "A rerun appended the same invoices twice and the warehouse needs a precise cleanup set.",
+  "access_tier": "free",
+  "topics": [
+    "SQL",
+    "Lakehouse",
+    "Idempotency",
+    "Deduplication",
+    "Reruns"
+  ],
+  "business_context": "The finance warehouse loads daily invoice facts from an operational billing system. A batch partially succeeded, operations reran it, and the pipeline appended the same business rows again. Revenue dashboards now double-count the rerun partition.",
+  "problem_statement": "The warehouse table is append-only, and the rerun logic does not check whether the affected business keys are already present. Your goal is to identify the duplicate warehouse rows introduced by the rerun so only the earliest copy of each invoice remains.\n\nAssume the business wants to keep the first successfully loaded copy for each `invoice_id` on the impacted `invoice_date` and delete every later duplicate.",
+  "student_task": "Write a single read-only SQL query that returns the duplicate warehouse rows that should be removed. Keep the earliest loaded row per `invoice_id` and `invoice_date`, and return the extra copies only.",
+  "learning_objectives": [
+    "Recognize why reruns need idempotent load patterns.",
+    "Use window functions to identify duplicates beyond the first kept row.",
+    "Differentiate business keys from technical row identifiers.",
+    "Think about cleanup queries before rerunning a failed partition."
+  ],
+  "broken_pipeline_sql": "INSERT INTO warehouse_invoice_facts (\n  warehouse_row_id,\n  invoice_id,\n  customer_id,\n  amount,\n  invoice_date,\n  loaded_batch_id,\n  loaded_at\n)\nSELECT\n  next_warehouse_row_id,\n  invoice_id,\n  customer_id,\n  amount,\n  invoice_date,\n  '{{ batch_id }}',\n  CURRENT_TIMESTAMP\nFROM source_invoice_items\nWHERE invoice_date = DATE '2026-05-02';",
+  "production_logs": [
+    "2026-05-02 02:00:14 WARN batch_2026_05_02_initial failed after warehouse write timeout",
+    "2026-05-02 02:09:51 INFO rerunning invoice_fact_load for invoice_date=2026-05-02",
+    "2026-05-02 02:10:07 INFO appended 3 rows into warehouse_invoice_facts for batch_2026_05_02_rerun",
+    "2026-05-02 02:20:32 WARN finance reconciliation detected duplicate invoice_ids for 2026-05-02"
+  ],
+  "submission_instructions": "Return the duplicate rows from `warehouse_invoice_facts` that should be deleted. Match the expected output columns and keep your query read-only.",
+  "explanation": "Append-only reruns are only safe when the downstream table is idempotent. Here the warehouse needs either a pre-delete on the affected partition or a merge/upsert keyed by the business grain. The cleanup query identifies every row beyond the first loaded copy for each invoice on the rerun date.",
+  "common_mistakes": [
+    "Grouping by every column except the technical row id and losing the exact duplicate rows that should be removed.",
+    "Keeping the latest copy instead of the earliest successful load without a business reason.",
+    "Filtering only on the rerun batch id and missing duplicates that span multiple batches."
+  ],
+  "hints": [
+    "The warehouse row id is technical; the business duplicate grain is `invoice_id` plus `invoice_date`.",
+    "You need the rows to delete, not just a count of duplicated invoices.",
+    "A window function can help you keep the first loaded row and return everything after it."
+  ],
+  "validation_logic": "The validator compares your returned cleanup rows against the canonical duplicate-detection query. It expects one row per warehouse record that should be deleted, not a deduplicated aggregate.",
+  "table_names": [
+    "source_invoice_items",
+    "warehouse_invoice_facts",
+    "pipeline_runs"
+  ]
+}

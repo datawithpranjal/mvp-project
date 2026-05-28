@@ -1,0 +1,63 @@
+{
+  "id": "distinct-count-at-scale",
+  "slug": "distinct-count-at-scale",
+  "title": "The Distinct Count at Scale",
+  "difficulty": "intermediate",
+  "section": "Lakehouse",
+  "access_tier": "premium",
+  "topic_tags": ["Lakehouse", "SQL", "Data Quality"],
+  "short_description": "A team must choose between exact and approximate distinct counts based on cost and business tolerance.",
+  "business_context": "Growth, product, and finance teams all want daily active user counts. The lakehouse team is paying a heavy price for exact high-cardinality distinct counts everywhere, even when some dashboards would tolerate small approximation error.",
+  "problem_statement": "You are given query-cost metrics and reporting use cases. Recommend where exact distinct counting is required and where an approximate strategy is acceptable, along with the reasoning behind the trade-off.",
+  "student_task": "Write a short design answer explaining which use cases should keep exact `COUNT(DISTINCT ...)`, which can use an approximate approach, and what decision criteria you would apply.",
+  "learning_goals": [
+    "Understand the cost of exact distinct counting at scale.",
+    "Recognize when approximate counts are acceptable.",
+    "Tie technical choices back to business tolerance and SLA."
+  ],
+  "broken_code": "SELECT COUNT(DISTINCT user_id) AS dau\nFROM clickstream_events\nWHERE event_date = CURRENT_DATE - INTERVAL 1 DAY;",
+  "production_logs": [
+    "2026-06-03 01:00:02 INFO daily_distinct_user_jobs started",
+    "2026-06-03 01:42:14 WARN product dashboard query exceeded 40-minute SLA",
+    "2026-06-03 01:42:14 WARN exact distinct count scanned 12.4B rows for a non-financial dashboard"
+  ],
+  "sample_tables": [
+    {
+      "name": "reporting_use_cases",
+      "columns": ["use_case", "consumer_team", "latency_sla_minutes", "error_tolerance_pct"],
+      "rows": [
+        ["daily_finance_recon", "Finance", 180, 0.0],
+        ["growth_dashboard", "Growth", 15, 1.0],
+        ["product_ab_test_monitor", "Product", 10, 0.5]
+      ]
+    },
+    {
+      "name": "query_cost_metrics",
+      "columns": ["metric_name", "exact_runtime_minutes", "approx_runtime_minutes", "observed_relative_error_pct"],
+      "rows": [
+        ["distinct_active_users", 42, 6, 0.7]
+      ]
+    }
+  ],
+  "expected_output": [],
+  "solution_query": "Model answer:\n- Keep exact distinct counting for finance reconciliation because the error tolerance is effectively zero and the downstream use is auditable.\n- Consider approximate counting for the growth dashboard because the 15-minute SLA matters more than sub-1% precision, and the observed 0.7% error is within tolerance.\n- The A/B monitoring case needs a judgment call: if 0.5% error tolerance is strict, either optimize the exact path or use approximation only after validating that the observed error stays below threshold.\n- The governing rule is to choose approximation only when the business explicitly tolerates bounded error and the runtime savings materially improve the SLA.",
+  "explanation": "Approximate counting is a business decision as much as a technical one. The right split depends on who consumes the metric, how quickly they need it, and whether a small error band is acceptable. Blanket exactness everywhere is often too expensive, while blanket approximation can quietly break financially sensitive workflows.",
+  "common_mistakes": [
+    "Assuming approximate counts are automatically acceptable because they are faster.",
+    "Treating finance or compliance use cases the same as exploratory dashboards.",
+    "Making the decision without referencing the observed error band and SLA."
+  ],
+  "validation_type": "DESIGN_RUBRIC",
+  "rubric": [
+    {"point": "Distinguishes between finance-grade exact counts and dashboard-friendly approximate counts.", "weight": 30},
+    {"point": "References SLA and business error tolerance when making the recommendation.", "weight": 30},
+    {"point": "Mentions validating observed approximation error before rollout.", "weight": 20},
+    {"point": "Explains the trade-off instead of recommending one approach everywhere.", "weight": 20}
+  ],
+  "hints": [
+    "Not every consumer needs the same level of precision.",
+    "The interesting trade-off is speed versus acceptable error, not exact versus wrong.",
+    "Use the sample SLA and tolerance numbers to justify your answer."
+  ]
+}
+

@@ -1,0 +1,56 @@
+{
+  "id": "pagination-retry-loop",
+  "slug": "pagination-retry-loop",
+  "title": "The Pagination Retry Loop",
+  "difficulty": "advanced",
+  "section": "SQL",
+  "access_tier": "premium",
+  "topic_tags": ["SQL", "Data Quality", "Idempotency"],
+  "short_description": "An API ingestion loop needs an idempotent checkpoint and dedup design before retries create duplicate slices.",
+  "business_context": "A SaaS ingestion connector pages through an orders API and stores raw responses in the lake. Temporary API failures cause the job to retry pages, and the team is now seeing duplicated records and uncertainty about which page token was last safely committed.",
+  "problem_statement": "Review the fake run history and design a retry-safe ingestion pattern that handles page tokens, request IDs, dedup keys, and checkpoints without double-loading data.",
+  "student_task": "Write a design answer describing how you would make the ingestion idempotent across retries and partial failures.",
+  "learning_goals": [
+    "Design checkpointing around external page tokens.",
+    "Make retries safe with request IDs and dedup keys.",
+    "Separate raw landing from durable ingestion progress tracking."
+  ],
+  "broken_code": "while next_page_token:\n    response = client.get_orders(page_token=next_page_token)\n    write_rows(response.rows)\n    next_page_token = response.next_page_token",
+  "production_logs": [
+    "2026-06-21 04:00:08 INFO orders_api_sync started from checkpoint token=pg_104",
+    "2026-06-21 04:00:19 ERROR request timeout while fetching token=pg_105",
+    "2026-06-21 04:05:11 WARN retry resumed with same token but duplicate raw rows detected for request_id=req_778"
+  ],
+  "sample_tables": [
+    {
+      "name": "api_run_history",
+      "columns": ["request_id", "page_token", "status", "row_count"],
+      "rows": [
+        ["req_777", "pg_104", "success", 500],
+        ["req_778", "pg_105", "failed", 120],
+        ["req_779", "pg_105", "success", 500]
+      ]
+    }
+  ],
+  "expected_output": [],
+  "solution_query": "Model answer:\n- Persist a durable checkpoint only after a page has been fully written and committed.\n- Stamp every landed batch with request ID, page token, and a stable business dedup key so retries can be identified and deduplicated.\n- Keep raw landing append-only, then deduplicate downstream by business key plus source sequence or request lineage.\n- On retry, resume from the last committed checkpoint rather than the last attempted request, and treat page token + request ID as audit metadata rather than the only uniqueness signal.",
+  "explanation": "Retries are safe only when the ingestion design is idempotent. The page token tells you where you are, but not whether a previous write partially landed. You need both durable checkpointing and dedup lineage so the pipeline can tolerate partial failures without silently duplicating slices.",
+  "common_mistakes": [
+    "Updating the checkpoint before the page write is safely committed.",
+    "Assuming page token alone is enough to deduplicate retries.",
+    "Overwriting raw landing instead of keeping auditable request lineage."
+  ],
+  "validation_type": "DESIGN_RUBRIC",
+  "rubric": [
+    {"point": "Describes committing checkpoints only after a successful durable write.", "weight": 30},
+    {"point": "Includes request IDs, page tokens, or other lineage for retry auditability.", "weight": 25},
+    {"point": "Explains a dedup strategy based on stable business keys or source sequence.", "weight": 25},
+    {"point": "Shows how retries resume safely after partial failure.", "weight": 20}
+  ],
+  "hints": [
+    "Think separately about raw ingestion lineage and downstream business deduplication.",
+    "A retry-safe checkpoint should represent the last committed page, not the last attempted request.",
+    "You need both observability and idempotency."
+  ]
+}
+

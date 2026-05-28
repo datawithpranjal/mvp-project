@@ -1,0 +1,86 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useState } from "react";
+
+import { AUTH_UPDATED_EVENT, clearCurrentUser, getCurrentUser, type AuthUser } from "../lib/auth";
+import {
+  PREMIUM_ACCESS_UPDATED_EVENT,
+  getPremiumAccess,
+  type PremiumAccessRecord
+} from "../lib/premium-access";
+import { AuthDialog } from "./auth-dialog";
+
+export function SiteHeader() {
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const [premiumAccess, setPremiumAccess] = useState<PremiumAccessRecord | null>(null);
+  const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
+
+  useEffect(() => {
+    function syncState() {
+      setCurrentUser(getCurrentUser());
+      setPremiumAccess(getPremiumAccess());
+    }
+
+    syncState();
+    window.addEventListener("storage", syncState);
+    window.addEventListener(AUTH_UPDATED_EVENT, syncState);
+    window.addEventListener(PREMIUM_ACCESS_UPDATED_EVENT, syncState);
+
+    return () => {
+      window.removeEventListener("storage", syncState);
+      window.removeEventListener(AUTH_UPDATED_EVENT, syncState);
+      window.removeEventListener(PREMIUM_ACCESS_UPDATED_EVENT, syncState);
+    };
+  }, []);
+
+  return (
+    <>
+      <header className="sticky top-0 z-40 border-b border-slate-800/80 bg-slate-950/70 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-4 sm:px-10">
+          <Link href="/" className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-200">
+              Data Engineering Playground
+            </p>
+            <p className="mt-1 truncate text-sm text-slate-400">
+              Production-style interview labs
+            </p>
+          </Link>
+
+          {currentUser ? (
+            <div className="flex flex-wrap items-center justify-end gap-3">
+              {premiumAccess ? (
+                <span className="rounded-full border border-amber-300/25 bg-amber-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-amber-100">
+                  Premium active
+                </span>
+              ) : null}
+              <div className="rounded-2xl border border-slate-700 bg-slate-950/40 px-4 py-3 text-right">
+                <p className="text-sm font-semibold text-slate-50">{currentUser.name}</p>
+                <p className="text-xs uppercase tracking-[0.16em] text-slate-500">
+                  {currentUser.email}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => clearCurrentUser()}
+                className="rounded-full border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-rose-300/40 hover:text-rose-100"
+              >
+                Logout
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setIsAuthDialogOpen(true)}
+              className="rounded-full bg-teal-300 px-5 py-2 text-sm font-semibold text-slate-950 transition hover:bg-teal-200"
+            >
+              Log in / Sign up
+            </button>
+          )}
+        </div>
+      </header>
+
+      <AuthDialog isOpen={isAuthDialogOpen} onClose={() => setIsAuthDialogOpen(false)} />
+    </>
+  );
+}

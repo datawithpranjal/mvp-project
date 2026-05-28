@@ -1,0 +1,47 @@
+{
+  "slug": "pipeline-succeeds-but-data-is-wrong",
+  "title": "Pipeline succeeds but data is wrong",
+  "difficulty": "Intermediate",
+  "section": "Data Quality",
+  "short_description": "The DAG is green, but the revenue model is inflating totals because refunds are treated as positive.",
+  "access_tier": "premium",
+  "topics": [
+    "SQL",
+    "Data Quality",
+    "Data Quality",
+    "Business Logic",
+    "Aggregations"
+  ],
+  "business_context": "A payments mart publishes daily merchant net revenue. Operations sees a green DAG and healthy task timings, but finance reconciliation shows the warehouse is overstating revenue because the business logic in the aggregation is wrong.",
+  "problem_statement": "The current aggregation sums all posted payment amounts as positive revenue, including refunds. The pipeline succeeds technically, but the resulting data is incorrect for downstream finance users. Use the sample payment event table to return the correct daily net revenue by merchant.",
+  "student_task": "Write a single read-only SQL query that returns daily net revenue by merchant. Count posted charges as positive revenue, posted refunds as negative revenue, and ignore non-posted events.",
+  "learning_objectives": [
+    "Separate pipeline health from data correctness.",
+    "Translate event semantics into correct business metrics.",
+    "Use conditional aggregation for finance-style transformations.",
+    "Reconcile warehouse outputs with business expectations, not just row counts."
+  ],
+  "broken_pipeline_sql": "SELECT CAST(event_at AS DATE) AS revenue_date, merchant_id, SUM(amount) AS net_revenue\nFROM payment_events\nWHERE status = 'posted'\nGROUP BY 1, 2;",
+  "production_logs": [
+    "2026-04-11 02:00:01 INFO merchant_net_revenue finished successfully in 19s",
+    "2026-04-11 02:01:12 INFO output row count matches yesterday's range",
+    "2026-04-11 09:15:44 WARN finance reconciliation found revenue variance on merchants 501 and 502",
+    "2026-04-11 09:15:44 WARN refunds appear to be counted as positive revenue"
+  ],
+  "submission_instructions": "Return one row per merchant and calendar date with the correct `net_revenue` figure.",
+  "explanation": "Not every production issue throws an exception. The DAG can be perfectly green while the business logic is still wrong. Net revenue needs semantic handling: posted charges add revenue, posted refunds subtract it, and failed or pending events should not contribute at all.",
+  "common_mistakes": [
+    "Excluding refunds entirely instead of subtracting them from revenue.",
+    "Including failed or pending payment events because they carry an amount.",
+    "Grouping by the raw timestamp instead of the calendar date."
+  ],
+  "hints": [
+    "This is a semantic bug, not a technical failure: look at what different event types should mean in finance reporting.",
+    "Only posted events count, but not every posted event should have the same sign.",
+    "The final metric is daily net revenue by merchant, so aggregate at the business reporting grain."
+  ],
+  "validation_logic": "The validator compares your aggregated output to the canonical net revenue calculation by merchant and date. Output columns and values must match exactly after sorting.",
+  "table_names": [
+    "payment_events"
+  ]
+}

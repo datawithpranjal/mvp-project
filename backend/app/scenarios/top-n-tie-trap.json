@@ -1,0 +1,63 @@
+{
+  "id": "top-n-tie-trap",
+  "slug": "top-n-tie-trap",
+  "title": "The Top-N Tie Trap",
+  "difficulty": "beginner",
+  "section": "SQL",
+  "access_tier": "free",
+  "topic_tags": ["SQL", "Window Functions", "Data Quality"],
+  "short_description": "A top-products report is unstable because tied revenue rows do not have a deterministic tie-breaker.",
+  "business_context": "Merchandising leaders review the top 3 products by category every morning. The report keeps flipping which product appears third when revenue ties, which undermines trust in the dashboard.",
+  "problem_statement": "The current ranking logic orders only by revenue. When two products tie, the chosen top 3 is unstable. Use the sample product revenue table to return a deterministic top 3 products per category with a clear tie-breaker.",
+  "student_task": "Write a single read-only SQL query that returns the top 3 products by revenue per category. Break ties deterministically with `product_id` ascending.",
+  "learning_goals": [
+    "Use window functions to rank rows within a category.",
+    "Understand the difference between `row_number`, `rank`, and `dense_rank`.",
+    "Add deterministic ordering so repeated runs return stable results."
+  ],
+  "broken_code": "SELECT category, product_id, revenue\nFROM product_revenue\nQUALIFY ROW_NUMBER() OVER (\n  PARTITION BY category\n  ORDER BY revenue DESC\n) <= 3;",
+  "production_logs": [
+    "2026-05-22 07:00:01 INFO category_top_products refreshed successfully",
+    "2026-05-22 07:12:17 WARN category='Accessories' product rank 3 changed between reruns without source data changes",
+    "2026-05-22 07:12:17 WARN likely cause: nondeterministic tie ordering"
+  ],
+  "sample_tables": [
+    {
+      "name": "product_revenue",
+      "columns": ["category", "product_id", "revenue"],
+      "rows": [
+        ["Accessories", "A10", 300.0],
+        ["Accessories", "A20", 250.0],
+        ["Accessories", "A30", 250.0],
+        ["Accessories", "A40", 200.0],
+        ["Shoes", "S10", 500.0],
+        ["Shoes", "S20", 450.0],
+        ["Shoes", "S30", 450.0],
+        ["Shoes", "S40", 100.0]
+      ]
+    }
+  ],
+  "expected_output": [
+    {"category": "Accessories", "product_id": "A10", "revenue": 300.0, "rank_in_category": 1},
+    {"category": "Accessories", "product_id": "A20", "revenue": 250.0, "rank_in_category": 2},
+    {"category": "Accessories", "product_id": "A30", "revenue": 250.0, "rank_in_category": 3},
+    {"category": "Shoes", "product_id": "S10", "revenue": 500.0, "rank_in_category": 1},
+    {"category": "Shoes", "product_id": "S20", "revenue": 450.0, "rank_in_category": 2},
+    {"category": "Shoes", "product_id": "S30", "revenue": 450.0, "rank_in_category": 3}
+  ],
+  "solution_query": "WITH ranked_products AS (\n  SELECT\n    category,\n    product_id,\n    revenue,\n    ROW_NUMBER() OVER (\n      PARTITION BY category\n      ORDER BY revenue DESC, product_id ASC\n    ) AS rank_in_category\n  FROM product_revenue\n)\nSELECT category, product_id, revenue, rank_in_category\nFROM ranked_products\nWHERE rank_in_category <= 3",
+  "explanation": "Top-N logic must be deterministic when ties happen. `ROW_NUMBER()` with a secondary sort key guarantees exactly three rows per category and stable output across reruns. If the business wanted all tied rows instead, `RANK()` or `DENSE_RANK()` would change the behavior.",
+  "common_mistakes": [
+    "Ordering only by revenue and leaving the tie resolution nondeterministic.",
+    "Using `RANK()` when the requirement is exactly three rows per category.",
+    "Applying a global top 3 instead of ranking within each category."
+  ],
+  "validation_type": "SQL_OUTPUT_MATCH",
+  "rubric": [],
+  "hints": [
+    "The issue is not the partitioning; it is the tie behavior inside the order by clause.",
+    "The business wants exactly three rows per category.",
+    "A secondary sort key is enough to stabilize the ranking."
+  ]
+}
+

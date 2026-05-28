@@ -1,0 +1,61 @@
+{
+  "id": "timezone-boundary-bug",
+  "slug": "timezone-boundary-bug",
+  "title": "The Timezone Boundary Bug",
+  "difficulty": "beginner",
+  "section": "Data Quality",
+  "access_tier": "free",
+  "topic_tags": ["Data Quality", "SQL", "Timezone Reporting"],
+  "short_description": "A daily report is grouped on the UTC date instead of the business's local date boundary.",
+  "business_context": "A retail team closes revenue by local business day, but the warehouse report is grouping on raw UTC event timestamps. Orders near midnight are landing on the wrong reporting date.",
+  "problem_statement": "The source event timestamps are stored in UTC. The business day is defined by a store-specific UTC offset. Use the sample data to convert each event into the local business date and aggregate total revenue correctly.",
+  "student_task": "Write a single read-only SQL query that returns daily revenue by `store_id` and local business date using the configured UTC offset.",
+  "learning_goals": [
+    "Understand why UTC dates and local business dates are not interchangeable.",
+    "Apply timezone offsets before casting to the reporting date.",
+    "Handle midnight boundary rows safely in reporting logic."
+  ],
+  "broken_code": "SELECT CAST(event_ts_utc AS DATE) AS business_date, store_id, SUM(amount) AS total_amount\nFROM purchase_events\nGROUP BY 1, 2;",
+  "production_logs": [
+    "2026-07-02 06:00:01 INFO daily_store_revenue completed successfully",
+    "2026-07-02 08:10:33 WARN store_id=10 revenue is lower than expected for 2026-07-01 local close",
+    "2026-07-02 08:10:33 WARN events around 00:00 UTC may be assigned to the wrong local business date"
+  ],
+  "sample_tables": [
+    {
+      "name": "purchase_events",
+      "columns": ["event_id", "store_id", "amount", "event_ts_utc"],
+      "rows": [
+        [1, 10, 100.0, "2026-07-02 01:30:00"],
+        [2, 10, 40.0, "2026-07-02 03:50:00"],
+        [3, 10, 60.0, "2026-07-02 04:10:00"]
+      ]
+    },
+    {
+      "name": "store_timezones",
+      "columns": ["store_id", "utc_offset_hours"],
+      "rows": [
+        [10, -4]
+      ]
+    }
+  ],
+  "expected_output": [
+    {"business_date": "2026-07-01", "store_id": 10, "total_amount": 140.0},
+    {"business_date": "2026-07-02", "store_id": 10, "total_amount": 60.0}
+  ],
+  "solution_query": "SELECT\n  CAST(event_ts_utc + (utc_offset_hours * INTERVAL '1 hour') AS DATE) AS business_date,\n  purchase_events.store_id,\n  SUM(amount) AS total_amount\nFROM purchase_events\nJOIN store_timezones\n  ON purchase_events.store_id = store_timezones.store_id\nGROUP BY 1, 2",
+  "explanation": "The local business date has to be derived after shifting the UTC timestamp into the business timezone. Casting the raw UTC timestamp directly to a date assigns late-night transactions to the wrong day and quietly distorts close-of-business reporting.",
+  "common_mistakes": [
+    "Casting the UTC timestamp to a date before applying the timezone offset.",
+    "Applying the offset in the wrong direction and shifting events even farther away from the business day.",
+    "Aggregating by store only and losing the date boundary entirely."
+  ],
+  "validation_type": "SQL_OUTPUT_MATCH",
+  "rubric": [],
+  "hints": [
+    "The fix is about the order of operations: shift first, cast second.",
+    "The timezone table tells you how many hours to move from UTC into local time.",
+    "Look closely at the two events just before 04:00 UTC."
+  ]
+}
+

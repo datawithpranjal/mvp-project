@@ -1,0 +1,56 @@
+{
+  "id": "sensor-gridlock",
+  "slug": "sensor-gridlock",
+  "title": "The Sensor Gridlock",
+  "difficulty": "intermediate",
+  "section": "Airflow",
+  "access_tier": "premium",
+  "topic_tags": ["Airflow", "Orchestration", "Performance"],
+  "short_description": "Long-running Airflow sensors are blocking worker slots instead of yielding them.",
+  "business_context": "A central ingestion DAG waits for partner drops before launching downstream loads. As more partners were added, the DAG started clogging the Airflow cluster even though most tasks were just waiting, not computing.",
+  "problem_statement": "The current sensors run in blocking poke mode and tie up worker slots for hours. Review the logs and explain why the cluster is stuck and what sensor strategy would be healthier.",
+  "student_task": "Write a debugging answer that identifies the worker-slot issue and recommends a better sensor mode or deferrable pattern.",
+  "learning_goals": [
+    "Understand the operational difference between poke, reschedule, and deferrable sensors.",
+    "Recognize that idle waiting can still exhaust worker capacity.",
+    "Recommend orchestration fixes that free slots for real work."
+  ],
+  "broken_code": "wait_for_partner_file = S3KeySensor(\n    task_id='wait_for_partner_file',\n    bucket_key='landing/{{ ds }}/partner.csv',\n    poke_interval=60,\n    timeout=21600,\n    mode='poke'\n)",
+  "production_logs": [
+    "2026-06-08 05:00:03 INFO 24 sensor tasks entered running state",
+    "2026-06-08 05:45:11 WARN celery worker slots exhausted while most tasks are sensors",
+    "2026-06-08 05:45:11 WARN downstream compute tasks queued behind long-lived poke-mode waits"
+  ],
+  "sample_tables": [
+    {
+      "name": "airflow_cluster_metrics",
+      "columns": ["metric_name", "metric_value"],
+      "rows": [
+        ["running_sensor_tasks", "24"],
+        ["available_worker_slots", "0"],
+        ["queued_compute_tasks", "17"]
+      ]
+    }
+  ],
+  "expected_output": [],
+  "solution_query": "Model answer:\n- Poke-mode sensors occupy a worker slot for their entire wait time, so a large fleet of long waits can starve the cluster.\n- Switching to `mode='reschedule'` or, better, deferrable sensors lets the task yield the slot while waiting for the external condition.\n- The goal is to keep worker slots available for actual compute tasks rather than idle polling.",
+  "explanation": "Airflow can appear healthy at the DAG level while still being operationally gridlocked. The issue is not the external dependency itself; it is the way the wait is implemented. Reschedule and deferrable patterns prevent passive waiting from blocking the cluster.",
+  "common_mistakes": [
+    "Assuming sensors are cheap because they are not CPU-heavy.",
+    "Recommending more workers without addressing the blocking wait pattern.",
+    "Talking about retries instead of the sensor execution mode."
+  ],
+  "validation_type": "DEBUG_RUBRIC",
+  "rubric": [
+    {"point": "Identifies poke-mode sensors as the source of worker-slot exhaustion.", "weight": 35},
+    {"point": "Explains why idle waiting still blocks downstream work.", "weight": 25},
+    {"point": "Recommends reschedule mode or deferrable sensors as the fix.", "weight": 25},
+    {"point": "Connects the recommendation back to the queued compute tasks in the logs.", "weight": 15}
+  ],
+  "hints": [
+    "The cluster is stuck even though the sensors are mostly just waiting.",
+    "Look for the difference between holding a slot and yielding a slot.",
+    "A better sensor mode is the key idea here."
+  ]
+}
+

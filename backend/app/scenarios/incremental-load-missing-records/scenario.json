@@ -1,0 +1,51 @@
+{
+  "slug": "incremental-load-missing-records",
+  "title": "Incremental load missing records",
+  "difficulty": "Beginner",
+  "section": "SQL",
+  "short_description": "Fix an incremental extract that skips rows when timestamps tie at the watermark.",
+  "access_tier": "free",
+  "topics": [
+    "SQL",
+    "Data Quality",
+    "Incremental Loads",
+    "Watermarking",
+    "Reconciliation"
+  ],
+  "business_context": "A retail analytics team incrementally lands operational order updates into the warehouse every few minutes. The warehouse feed powers customer support dashboards and finance reconciliation checks, so silently missing rows create both trust issues and downstream backfills.",
+  "problem_statement": "A production pipeline incrementally loads orders from an operational database into the warehouse. The current extraction logic filters source rows with `updated_at > last_max_updated_at`. Business users noticed that some order updates never arrive in the warehouse even though the pipeline reports a healthy run. Investigate the sample source data, current warehouse state, and run metadata, then write a query that returns the rows the next incremental run should load.\n\nFocus on why relying on the timestamp alone is brittle when multiple rows share the same update timestamp at the watermark boundary.",
+  "student_task": "Write a single read-only SQL query that returns every source row the next incremental run should load. Your result should include the same columns as the source table and must capture rows that share the saved watermark timestamp but sort after the last loaded primary key.",
+  "learning_objectives": [
+    "Understand how incremental watermarking works.",
+    "See why timestamp-only filters can miss records when multiple rows share the same timestamp.",
+    "Recognize that late or replayed events need extra operational safeguards beyond a simple watermark.",
+    "Use timestamp plus a stable primary key to make incremental ordering deterministic.",
+    "Think about reconciliation checks between source and warehouse tables."
+  ],
+  "broken_pipeline_sql": "SELECT order_id, customer_id, amount, status, updated_at\nFROM source_orders\nWHERE updated_at > (\n  SELECT last_max_updated_at\n  FROM pipeline_run_metadata\n  WHERE pipeline_name = 'orders_incremental_load'\n)\nORDER BY updated_at, order_id;",
+  "production_logs": [
+    "2026-05-01 10:10:01 INFO orders_incremental_load started with watermark updated_at=2026-05-01 10:05:00, order_id=102",
+    "2026-05-01 10:10:02 INFO extracted 2 rows from source_orders using updated_at > 2026-05-01 10:05:00",
+    "2026-05-01 10:10:05 INFO loaded 2 rows into warehouse_orders",
+    "2026-05-01 10:20:10 WARN reconciliation check found 1 source row newer than warehouse at the watermark boundary",
+    "2026-05-01 10:20:10 WARN likely cause: multiple rows share the same updated_at timestamp"
+  ],
+  "submission_instructions": "Write a single read-only SQL query that returns every source row the next incremental run should load. Match the expected column names and include the rows in any order.",
+  "explanation": "The broken pipeline only remembers the last timestamp, so it skips rows that share that timestamp but sort after the last loaded primary key. Adding `order_id` as a tie-breaker makes the extraction deterministic for equal timestamps. This still does not solve every late-arriving-data problem by itself, which is why production pipelines also rely on overlap windows, replay capability, and reconciliation checks.",
+  "common_mistakes": [
+    "Filtering only on `updated_at > last_max_updated_at` and missing rows that tie at the boundary timestamp.",
+    "Using `>=` without a primary-key tie-breaker, which can reprocess already loaded rows on reruns.",
+    "Ignoring reconciliation checks between source and warehouse counts after the incremental load."
+  ],
+  "hints": [
+    "Compare `source_orders` with `pipeline_run_metadata` and look closely at rows that share the saved watermark timestamp.",
+    "Ask yourself what happens when two rows have the same `updated_at` but different primary keys.",
+    "A robust incremental boundary usually needs a deterministic tie-breaker, not just a timestamp."
+  ],
+  "validation_logic": "The validator rebuilds the sample source and metadata tables in DuckDB, runs your query, and compares the returned rows against the canonical incremental fix. Column names, column order, and row content must all match after deterministic sorting.",
+  "table_names": [
+    "source_orders",
+    "warehouse_orders",
+    "pipeline_run_metadata"
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "id": "cache-everything-trap",
+  "slug": "cache-everything-trap",
+  "title": "The Cache Everything Trap",
+  "difficulty": "intermediate",
+  "section": "Spark",
+  "access_tier": "premium",
+  "topic_tags": ["Spark", "Performance", "Lakehouse"],
+  "short_description": "An over-cached Spark pipeline is slower because memory is filled with DataFrames that are barely reused.",
+  "business_context": "A nightly feature-engineering job used to finish comfortably before the morning SLA. Over time, engineers kept adding `.cache()` calls defensively, and now the cluster spills heavily and the job runs slower despite extra memory.",
+  "problem_statement": "Review the code snippet and the storage metrics. Explain which caches are unnecessary, what should be unpersisted, and why over-caching is hurting the job.",
+  "student_task": "Write a debugging answer that identifies the unnecessary cache usage and proposes a safer cache and unpersist strategy.",
+  "learning_goals": [
+    "Cache only DataFrames that are expensive and genuinely reused.",
+    "Understand the trade-off between cache convenience and memory pressure.",
+    "Recognize when `unpersist()` should be part of the lifecycle."
+  ],
+  "broken_code": "base = spark.read.parquet(raw_path).cache()\nclean = transform_base(base).cache()\nenriched = enrich(clean, dim_customers).cache()\nscored = score(enriched).cache()\nfinal = publish(scored)\nfinal.write.mode('overwrite').parquet(output_path)",
+  "production_logs": [
+    "2026-06-11 01:00:04 INFO nightly_feature_build started",
+    "2026-06-11 01:31:20 WARN executor memory spill increased 4.2x week-over-week",
+    "2026-06-11 01:31:20 WARN cached DataFrames remain resident after single downstream use"
+  ],
+  "sample_tables": [
+    {
+      "name": "cache_metrics",
+      "columns": ["dataframe_name", "reuse_count", "cached_size_gb"],
+      "rows": [
+        ["base", 1, 14.0],
+        ["clean", 1, 11.0],
+        ["enriched", 2, 16.0],
+        ["scored", 1, 8.0]
+      ]
+    }
+  ],
+  "expected_output": [],
+  "solution_query": "Model answer:\n- Most of the pipeline is cached even though `base`, `clean`, and `scored` are each consumed only once.\n- Those one-time DataFrames should not be cached because they occupy memory without offsetting recomputation cost.\n- If `enriched` is truly reused in multiple expensive downstream branches, it is the only strong caching candidate in the sample metrics.\n- Add explicit `unpersist()` once a cached DataFrame is no longer needed so long-lived jobs do not retain stale memory pressure.",
+  "explanation": "Caching is not free. Every cached DataFrame competes for memory, and caching one-time intermediates can make the cluster slower through spill and eviction churn. The right pattern is selective caching plus cleanup, not blanket persistence everywhere.",
+  "common_mistakes": [
+    "Treating every transformation stage as a caching candidate by default.",
+    "Ignoring `reuse_count` and cached size when deciding what to persist.",
+    "Forgetting to unpersist expensive intermediates after the last downstream consumer."
+  ],
+  "validation_type": "DEBUG_RUBRIC",
+  "rubric": [
+    {"point": "Identifies that most cached DataFrames are only used once and should not be cached.", "weight": 35},
+    {"point": "Calls out memory spill or eviction churn as the operational consequence.", "weight": 25},
+    {"point": "Selects only truly reused expensive DataFrames as cache candidates.", "weight": 25},
+    {"point": "Mentions unpersisting cached data when it is no longer needed.", "weight": 15}
+  ],
+  "hints": [
+    "Caching pays off only if recomputation cost is avoided more than once.",
+    "The metrics table already tells you which intermediates are barely reused.",
+    "A good answer covers both what to stop caching and what to unpersist."
+  ]
+}
+

@@ -1,0 +1,56 @@
+{
+  "id": "explode-cascade",
+  "slug": "explode-cascade",
+  "title": "The Explode Cascade",
+  "difficulty": "intermediate",
+  "section": "Lakehouse",
+  "access_tier": "premium",
+  "topic_tags": ["Lakehouse", "Spark", "Nested Data"],
+  "short_description": "Flattening nested arrays multiplies row counts much faster than the team expected.",
+  "business_context": "A product analytics pipeline ingests nested order events with line items and discount arrays. The team flattened everything into one wide table, and the row count exploded enough to distort metrics and blow up storage costs.",
+  "problem_statement": "Review the nested cardinality summary and explain why a naive double explode multiplies rows. Propose a safer modeling approach for the child arrays.",
+  "student_task": "Write a design answer that estimates the row explosion and recommends a safer flattened or child-table model.",
+  "learning_goals": [
+    "Understand how multiple explode operations multiply rows.",
+    "Estimate explosion risk before flattening nested arrays.",
+    "Prefer child-table modeling when nested structures represent independent entities."
+  ],
+  "broken_code": "orders_df \\\n  .withColumn('item', F.explode('items')) \\\n  .withColumn('discount_code', F.explode('discount_codes'))",
+  "production_logs": [
+    "2026-06-14 03:00:02 INFO nested_orders_flatten started",
+    "2026-06-14 03:18:11 WARN output row count is 9x larger than input order count",
+    "2026-06-14 03:18:11 WARN double explode likely multiplied item rows by discount rows"
+  ],
+  "sample_tables": [
+    {
+      "name": "nested_cardinality_summary",
+      "columns": ["order_id", "item_count", "discount_code_count"],
+      "rows": [
+        [1, 2, 3],
+        [2, 1, 0],
+        [3, 4, 2]
+      ]
+    }
+  ],
+  "expected_output": [],
+  "solution_query": "Model answer:\n- A naive double explode produces `item_count * discount_code_count` rows for each order when both arrays are exploded independently.\n- In the sample, order 1 alone expands to 6 rows and order 3 expands to 8 rows, even though neither order actually has that many line items.\n- If discount codes belong at the order level, keep them in a separate child table instead of repeating them across every item row.\n- The safer model is usually one item child table and, when needed, a separate order-discount child table rather than a single fully exploded wide table.",
+  "explanation": "Nested arrays do not flatten for free. Exploding unrelated child collections into the same row set causes multiplicative growth, duplicate semantics, and inflated storage. Thinking about entity boundaries early prevents a surprising explosion later.",
+  "common_mistakes": [
+    "Treating each explode as additive instead of multiplicative.",
+    "Forcing unrelated child arrays into one flattened table because it looks simpler.",
+    "Explaining the row growth without proposing a safer model."
+  ],
+  "validation_type": "DESIGN_RUBRIC",
+  "rubric": [
+    {"point": "Explains that multiple independent explodes multiply row counts.", "weight": 35},
+    {"point": "Uses the sample cardinalities to reason about the scale of the explosion.", "weight": 25},
+    {"point": "Recommends a safer child-table or staged modeling pattern.", "weight": 25},
+    {"point": "Connects the row explosion to downstream metric or storage problems.", "weight": 15}
+  ],
+  "hints": [
+    "Think about how many rows each order would generate if items and discount codes are crossed together.",
+    "The safest model may not be a single flat table.",
+    "Use the sample cardinality counts to make your argument concrete."
+  ]
+}
+

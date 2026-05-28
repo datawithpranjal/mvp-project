@@ -1,0 +1,48 @@
+{
+  "slug": "bad-join-explodes-rows",
+  "title": "Bad join explodes rows",
+  "difficulty": "Intermediate",
+  "section": "SQL",
+  "short_description": "A customer-level join multiplies order rows and inflates attributed revenue.",
+  "access_tier": "premium",
+  "topics": [
+    "SQL",
+    "Data Quality",
+    "Joins",
+    "Attribution",
+    "Row Explosions"
+  ],
+  "business_context": "The growth analytics team attributes each order to the most recent marketing click before purchase. A warehouse model recently started joining orders to all qualifying clicks for the customer instead of selecting one best match, and attributed revenue jumped overnight.",
+  "problem_statement": "The current join condition returns multiple click records for the same order, which duplicates order revenue in downstream reports. Use the sample orders and clickstream tables to return exactly one attribution row per order, using the most recent click at or before the order timestamp. Orders without a matching click should still appear with a null campaign.",
+  "student_task": "Write a single read-only SQL query that returns one row per order with the correct campaign attribution. Choose the latest eligible click per order and preserve orders that had no eligible click.",
+  "learning_objectives": [
+    "Recognize join explosions caused by non-unique join keys.",
+    "Use window functions to pick one best match after a join.",
+    "Keep unmatched fact rows with left joins when the business still wants them.",
+    "Validate row counts after a dimensional join."
+  ],
+  "broken_pipeline_sql": "SELECT o.order_id, o.customer_id, o.order_amount, c.campaign_id, o.order_ts\nFROM orders o\nJOIN email_clicks c\n  ON o.customer_id = c.customer_id\nWHERE c.clicked_at <= o.order_ts;",
+  "production_logs": [
+    "2026-05-12 06:00:21 INFO marketing_order_attribution started",
+    "2026-05-12 06:01:05 INFO produced 5 attributed rows from 3 orders",
+    "2026-05-12 06:10:44 WARN attributed revenue is 67% higher than raw order revenue",
+    "2026-05-12 06:10:44 WARN suspected join explosion on customer-level click mapping"
+  ],
+  "submission_instructions": "Return one row per order with the correct campaign attribution. Match the expected output columns exactly.",
+  "explanation": "The broken query joins every prior click for the customer, so each qualifying click duplicates the order. The safer pattern is to join the eligible clicks first, then rank them per order and keep only the most recent one. A left join preserves orders that truly had no attribution candidate.",
+  "common_mistakes": [
+    "Using an inner join and accidentally dropping orders that had no click at all.",
+    "Choosing the earliest click instead of the latest click before the order timestamp.",
+    "Ranking clicks per customer instead of per order, which still misattributes multi-order customers."
+  ],
+  "hints": [
+    "Check the logs: the output row count is larger than the order row count.",
+    "Each order needs at most one click, so think about how to rank eligible click candidates.",
+    "The business wants the most recent click at or before purchase, not any click for the customer."
+  ],
+  "validation_logic": "The validator expects exactly one row per order after deterministic sorting. It checks both the selected campaign and the preservation of unattributed orders.",
+  "table_names": [
+    "orders",
+    "email_clicks"
+  ]
+}

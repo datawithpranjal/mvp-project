@@ -1,0 +1,57 @@
+{
+  "id": "null-key-funnel",
+  "slug": "null-key-funnel",
+  "title": "The Null Key Funnel",
+  "difficulty": "intermediate",
+  "section": "Data Quality",
+  "access_tier": "premium",
+  "topic_tags": ["Data Quality", "Spark", "Skew"],
+  "short_description": "Null and default join keys are collapsing many records into one bad partition.",
+  "business_context": "A fraud-scoring Spark job joins click events to account metadata. Suddenly one task runs far longer than the others because a huge spike of invalid account keys all funnel into the same default join bucket.",
+  "problem_statement": "Use the sample events to identify records with invalid account keys that should be routed out of the main join path instead of being forced through a default key.",
+  "student_task": "Write a single read-only SQL query that returns the records with null or default account keys and labels the validation failure reason.",
+  "learning_goals": [
+    "Recognize bad join-key quality as a cause of skew.",
+    "Route invalid records away from the main distributed join path.",
+    "Treat default keys as data-quality signals, not normal business values."
+  ],
+  "broken_code": "SELECT COALESCE(account_id, 0) AS safe_account_id, *\nFROM click_events;",
+  "production_logs": [
+    "2026-06-12 12:00:01 INFO fraud_feature_join started",
+    "2026-06-12 12:17:44 WARN one shuffle partition is 19x larger than median",
+    "2026-06-12 12:17:44 WARN account_id null/default spike detected"
+  ],
+  "sample_tables": [
+    {
+      "name": "click_events",
+      "columns": ["event_id", "account_id", "country", "spend"],
+      "rows": [
+        [1, 9001, "US", 2.5],
+        [2, null, "US", 1.0],
+        [3, 0, "CA", 0.4],
+        [4, -1, "GB", 0.7],
+        [5, 9002, "US", 3.2]
+      ]
+    }
+  ],
+  "expected_output": [
+    {"event_id": 2, "account_id": null, "country": "US", "spend": 1.0, "validation_reason": "null_account_id"},
+    {"event_id": 3, "account_id": 0, "country": "CA", "spend": 0.4, "validation_reason": "default_account_id"},
+    {"event_id": 4, "account_id": -1, "country": "GB", "spend": 0.7, "validation_reason": "default_account_id"}
+  ],
+  "solution_query": "SELECT\n  event_id,\n  account_id,\n  country,\n  spend,\n  CASE\n    WHEN account_id IS NULL THEN 'null_account_id'\n    ELSE 'default_account_id'\n  END AS validation_reason\nFROM click_events\nWHERE account_id IS NULL OR account_id IN (0, -1)",
+  "explanation": "Replacing invalid keys with a default bucket hides the data-quality problem and often creates severe skew. The safer approach is to isolate those bad records so the main join path handles only valid business keys.",
+  "common_mistakes": [
+    "Coalescing null keys to zero and pretending the records are now safe to join.",
+    "Returning only null keys and forgetting that default sentinels such as 0 or -1 are also invalid.",
+    "Fixing the skew symptom without addressing the underlying data-quality problem."
+  ],
+  "validation_type": "SQL_OUTPUT_MATCH",
+  "rubric": [],
+  "hints": [
+    "Not every bad key is literally NULL.",
+    "The business problem is to identify and route bad records, not to repair them in place.",
+    "A CASE expression can label why each row is invalid."
+  ]
+}
+

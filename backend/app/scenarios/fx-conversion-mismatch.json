@@ -1,0 +1,64 @@
+{
+  "id": "fx-conversion-mismatch",
+  "slug": "fx-conversion-mismatch",
+  "title": "The FX Conversion Mismatch",
+  "difficulty": "intermediate",
+  "section": "SQL",
+  "access_tier": "premium",
+  "topic_tags": ["SQL", "Data Quality", "Finance Reporting"],
+  "short_description": "Transactions are being converted with inconsistent FX logic across currencies and dates.",
+  "business_context": "Finance publishes USD revenue from a multi-currency billing platform. Different teams keep joining transactions to FX rates slightly differently, and the revenue report no longer ties out across dashboards.",
+  "problem_statement": "Transactions must use the FX rate for the same currency and transaction date. Use the sample transaction and daily FX tables to compute USD amounts consistently and flag any transaction date that is missing a rate.",
+  "student_task": "Write a single read-only SQL query that returns each transaction with its matched USD rate, computed USD amount, and a rate status flag.",
+  "learning_goals": [
+    "Use point-in-time rate lookup by currency and transaction date.",
+    "Avoid inconsistent FX joins across reporting pipelines.",
+    "Handle missing daily rates explicitly instead of silently dropping rows."
+  ],
+  "broken_code": "SELECT t.txn_id, t.currency, t.amount_local, r.usd_rate, t.amount_local * r.usd_rate AS amount_usd\nFROM transactions AS t\nJOIN fx_rates AS r\n  ON t.currency = r.currency;",
+  "production_logs": [
+    "2026-05-28 05:00:03 INFO fx_revenue_report completed successfully",
+    "2026-05-28 09:11:18 WARN USD revenue for EUR transactions is higher than finance workbook",
+    "2026-05-28 09:11:18 WARN FX join may be ignoring transaction date"
+  ],
+  "sample_tables": [
+    {
+      "name": "transactions",
+      "columns": ["txn_id", "currency", "amount_local", "txn_date"],
+      "rows": [
+        [1, "EUR", 100.0, "2026-05-27"],
+        [2, "EUR", 120.0, "2026-05-28"],
+        [3, "GBP", 50.0, "2026-05-28"]
+      ]
+    },
+    {
+      "name": "fx_rates",
+      "columns": ["currency", "rate_date", "usd_rate"],
+      "rows": [
+        ["EUR", "2026-05-27", 1.08],
+        ["EUR", "2026-05-28", 1.1],
+        ["GBP", "2026-05-27", 1.25]
+      ]
+    }
+  ],
+  "expected_output": [
+    {"txn_id": 1, "currency": "EUR", "txn_date": "2026-05-27", "amount_local": 100.0, "usd_rate": 1.08, "amount_usd": 108.0, "rate_status": "matched"},
+    {"txn_id": 2, "currency": "EUR", "txn_date": "2026-05-28", "amount_local": 120.0, "usd_rate": 1.1, "amount_usd": 132.0, "rate_status": "matched"},
+    {"txn_id": 3, "currency": "GBP", "txn_date": "2026-05-28", "amount_local": 50.0, "usd_rate": null, "amount_usd": null, "rate_status": "missing_rate"}
+  ],
+  "solution_query": "SELECT\n  t.txn_id,\n  t.currency,\n  t.txn_date,\n  t.amount_local,\n  r.usd_rate,\n  CASE WHEN r.usd_rate IS NULL THEN NULL ELSE t.amount_local * r.usd_rate END AS amount_usd,\n  CASE WHEN r.usd_rate IS NULL THEN 'missing_rate' ELSE 'matched' END AS rate_status\nFROM transactions AS t\nLEFT JOIN fx_rates AS r\n  ON t.currency = r.currency\n AND t.txn_date = r.rate_date",
+  "explanation": "FX conversion has to be point-in-time consistent. Joining only on currency creates duplicate or incorrect matches across dates. A left join plus an explicit missing-rate flag is safer than silently dropping transactions or applying the wrong day's rate.",
+  "common_mistakes": [
+    "Joining on currency alone and accidentally matching multiple rate dates.",
+    "Using an inner join and losing transactions with missing FX coverage.",
+    "Multiplying by the wrong rate grain, such as monthly or latest available instead of transaction date."
+  ],
+  "validation_type": "SQL_OUTPUT_MATCH",
+  "rubric": [],
+  "hints": [
+    "FX rates are only meaningful at the right date grain.",
+    "One transaction in the sample data is intentionally missing a same-day rate.",
+    "Do not hide missing-rate rows with an inner join."
+  ]
+}
+

@@ -1,0 +1,49 @@
+{
+  "slug": "schema-drift-breaks-pipeline",
+  "title": "Schema drift breaks pipeline",
+  "difficulty": "Beginner",
+  "section": "Data Quality",
+  "short_description": "An upstream rename changed the raw schema and the curated transform still expects old columns.",
+  "access_tier": "premium",
+  "topics": [
+    "SQL",
+    "Data Quality",
+    "Schema Drift",
+    "Data Contracts",
+    "Incremental Loads"
+  ],
+  "business_context": "The checkout service publishes raw order updates that feed a curated warehouse table consumed by support and finance analysts. The product team recently renamed a couple of fields in the raw event schema, but the downstream transformation was not updated before the next incremental run.",
+  "problem_statement": "The pipeline still references `amount` and `status`, but the raw table now exposes `total_amount` and `order_status`. The job now fails before loading any new rows. Use the current raw schema and the pipeline metadata to return exactly the rows that should be loaded into the curated table with the expected output column names.",
+  "student_task": "Write a single read-only SQL query that returns the rows the curated model should load next. Preserve the target column names `order_id`, `customer_id`, `amount`, `status`, and `updated_at` while filtering to rows newer than the saved watermark.",
+  "learning_objectives": [
+    "Spot schema drift quickly from logs and table previews.",
+    "Map renamed upstream columns back to the warehouse contract.",
+    "Preserve incremental filters while fixing transformation logic.",
+    "Think about schema contract tests before production deploys."
+  ],
+  "broken_pipeline_sql": "SELECT order_id, customer_id, amount, status, updated_at\nFROM raw_checkout_orders\nWHERE updated_at > (\n  SELECT last_loaded_at\n  FROM pipeline_run_metadata\n  WHERE pipeline_name = 'checkout_orders_curated'\n);",
+  "production_logs": [
+    "2026-06-01 09:15:02 INFO checkout_orders_curated started",
+    "2026-06-01 09:15:03 ERROR Binder Error: Referenced column \"amount\" not found in FROM clause",
+    "2026-06-01 09:15:03 ERROR Candidate bindings: total_amount, order_status, updated_at",
+    "2026-06-01 09:15:03 WARN no rows loaded into curated_orders"
+  ],
+  "submission_instructions": "Return the transformed rows with the target output column names and the incremental watermark filter applied.",
+  "explanation": "Schema drift is a production reality, especially when raw ingestion keeps moving while curated models assume a stable contract. The fix is not just renaming columns in the SELECT list; the query still needs to honor the watermark and preserve the curated schema expected downstream.",
+  "common_mistakes": [
+    "Fixing the column aliases but forgetting to keep the incremental watermark filter.",
+    "Using `SELECT *` from the raw table and leaking raw column names into the curated output.",
+    "Renaming `total_amount` but forgetting that `order_status` also replaced `status`."
+  ],
+  "hints": [
+    "The raw table preview already shows the new column names the pipeline should use.",
+    "The target output contract still expects `amount` and `status`, so aliases matter.",
+    "Do not lose the incremental filter while fixing the schema mismatch."
+  ],
+  "validation_logic": "The validator checks that your query returns only rows newer than the saved watermark and that the output columns are aliased back to the curated schema contract.",
+  "table_names": [
+    "raw_checkout_orders",
+    "curated_orders",
+    "pipeline_run_metadata"
+  ]
+}

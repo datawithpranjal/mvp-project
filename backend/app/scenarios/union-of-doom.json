@@ -1,0 +1,63 @@
+{
+  "id": "union-of-doom",
+  "slug": "union-of-doom",
+  "title": "The Union of Doom",
+  "difficulty": "intermediate",
+  "section": "Lakehouse",
+  "access_tier": "premium",
+  "topic_tags": ["Lakehouse", "SQL", "Schema Contracts"],
+  "short_description": "Two datasets are unioned by position even though the column orders do not match.",
+  "business_context": "A consolidated orders table combines web and marketplace orders. The upstream sources evolved separately, and a positional union silently misaligned columns, corrupting the final dataset without throwing an exception.",
+  "problem_statement": "The two source tables contain the same business fields but in different column orders, and one source lacks a `sales_channel` column. Use the sample tables to produce a safe union with aligned columns.",
+  "student_task": "Write a single read-only SQL query that returns the safely combined order rows with aligned column names and a populated `sales_channel` for both sources.",
+  "learning_goals": [
+    "Avoid positional unions when schemas differ.",
+    "Align columns explicitly by name.",
+    "Fill missing columns intentionally instead of relying on luck."
+  ],
+  "broken_code": "SELECT * FROM web_orders\nUNION ALL\nSELECT * FROM marketplace_orders;",
+  "production_logs": [
+    "2026-06-02 02:00:01 INFO consolidated_orders load completed",
+    "2026-06-02 08:22:19 WARN marketplace order amounts appear under customer_id in the final table",
+    "2026-06-02 08:22:19 WARN likely cause: positional union after schema drift"
+  ],
+  "sample_tables": [
+    {
+      "name": "web_orders",
+      "columns": ["order_id", "customer_id", "amount", "sales_channel"],
+      "rows": [
+        [1, 100, 25.0, "web"],
+        [2, 101, 40.0, "web"]
+      ]
+    },
+    {
+      "name": "marketplace_orders",
+      "columns": ["customer_id", "order_id", "amount"],
+      "rows": [
+        [200, 3, 80.0],
+        [201, 4, 65.0]
+      ]
+    }
+  ],
+  "expected_output": [
+    {"order_id": 1, "customer_id": 100, "amount": 25.0, "sales_channel": "web"},
+    {"order_id": 2, "customer_id": 101, "amount": 40.0, "sales_channel": "web"},
+    {"order_id": 3, "customer_id": 200, "amount": 80.0, "sales_channel": "marketplace"},
+    {"order_id": 4, "customer_id": 201, "amount": 65.0, "sales_channel": "marketplace"}
+  ],
+  "solution_query": "SELECT order_id, customer_id, amount, sales_channel\nFROM web_orders\nUNION ALL\nSELECT order_id, customer_id, amount, 'marketplace' AS sales_channel\nFROM (\n  SELECT order_id, customer_id, amount\n  FROM marketplace_orders\n)",
+  "explanation": "A positional union is dangerous because it assumes schemas match in both order and meaning. The safe pattern is to project each source into a shared contract explicitly, including defaults for missing fields such as `sales_channel`.",
+  "common_mistakes": [
+    "Using `SELECT *` on both sides and trusting positional alignment.",
+    "Forgetting to populate the missing `sales_channel` for marketplace rows.",
+    "Aligning column order for one source but leaving the other unchanged."
+  ],
+  "validation_type": "SQL_OUTPUT_MATCH",
+  "rubric": [],
+  "hints": [
+    "The two sources have the same business content but not the same physical column order.",
+    "Project both sources into the same target schema first.",
+    "One source needs a derived channel label."
+  ]
+}
+
