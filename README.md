@@ -81,7 +81,7 @@ This is the recommended path because Vercel's single-project multi-service setup
 ### Why two projects
 
 - `frontend/` is a standard Next.js app and deploys cleanly on Vercel
-- `backend/` is a standard FastAPI app and now exposes a Vercel entrypoint at `backend/server.py`
+- `backend/` is a standard FastAPI app and now exposes a Vercel entrypoint at `backend/api/index.py`
 - the frontend talks to the backend through `NEXT_PUBLIC_API_BASE_URL`
 
 ### 1. Push the repository to GitHub
