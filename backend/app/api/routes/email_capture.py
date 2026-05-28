@@ -23,7 +23,7 @@ def capture_email(payload: EmailCaptureRequest) -> EmailCaptureResponse:
     except EmailCaptureStoreError as exc:
         raise HTTPException(
             status_code=500,
-            detail="Email capture is temporarily unavailable. Please try again soon.",
+            detail=f"Email capture is temporarily unavailable. {exc}",
         ) from exc
 
 
@@ -47,5 +47,5 @@ def list_email_captures(
     except EmailCaptureStoreError as exc:
         raise HTTPException(
             status_code=500,
-            detail="Email capture records are temporarily unavailable.",
+            detail=f"Email capture records are temporarily unavailable. {exc}",
         ) from exc

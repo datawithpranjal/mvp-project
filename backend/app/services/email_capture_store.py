@@ -14,7 +14,10 @@ from app.schemas.email_capture import (
 
 
 class EmailCaptureStoreError(RuntimeError):
-    pass
+    def __init__(self, message: str, cause: Exception | None = None) -> None:
+        if cause is not None:
+            message = f"{message} Cause: {type(cause).__name__}: {cause}"
+        super().__init__(message)
 
 
 class EmailCaptureStore:
@@ -60,7 +63,8 @@ class EmailCaptureStore:
             import psycopg
         except ImportError as exc:
             raise EmailCaptureStoreError(
-                "Postgres email capture is configured, but psycopg is not installed."
+                "Postgres email capture is configured, but psycopg is not installed.",
+                exc,
             ) from exc
 
         captured_at = datetime.now(timezone.utc)
@@ -98,7 +102,7 @@ class EmailCaptureStore:
                     )
                 connection.commit()
         except Exception as exc:
-            raise EmailCaptureStoreError("Unable to capture email in Postgres.") from exc
+            raise EmailCaptureStoreError("Unable to capture email in Postgres.", exc) from exc
 
     def _list_file_captures(self, limit: int) -> EmailCaptureAdminResponse:
         if not self.storage_path.exists():
@@ -138,7 +142,8 @@ class EmailCaptureStore:
             import psycopg
         except ImportError as exc:
             raise EmailCaptureStoreError(
-                "Postgres email capture is configured, but psycopg is not installed."
+                "Postgres email capture is configured, but psycopg is not installed.",
+                exc,
             ) from exc
 
         try:
@@ -183,7 +188,10 @@ class EmailCaptureStore:
                 rows=rows,
             )
         except Exception as exc:
-            raise EmailCaptureStoreError("Unable to read email captures from Postgres.") from exc
+            raise EmailCaptureStoreError(
+                "Unable to read email captures from Postgres.",
+                exc,
+            ) from exc
 
     def _active_postgres_url(self, postgres_url: str | None) -> str | None:
         if not postgres_url or postgres_url == DEFAULT_POSTGRES_URL:
