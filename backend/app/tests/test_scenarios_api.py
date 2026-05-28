@@ -122,3 +122,12 @@ def test_email_capture_endpoint_unlocks_premium() -> None:
         "email": "student@example.com",
         "unlocked_premium": True,
     }
+
+
+def test_email_capture_admin_endpoint_requires_configuration() -> None:
+    response = client.get("/api/v1/admin/email-captures")
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "detail": "Admin email capture access is not configured."
+    }

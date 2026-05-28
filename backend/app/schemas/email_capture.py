@@ -31,3 +31,17 @@ class EmailCaptureResponse(BaseModel):
     captured: bool
     email: str
     unlocked_premium: bool
+
+
+class EmailCaptureRecord(BaseModel):
+    email: str
+    source: str
+    scenario_slug: str | None = None
+    captured_at: str
+
+
+class EmailCaptureAdminResponse(BaseModel):
+    storage_backend: str
+    table_exists: bool
+    count: int
+    rows: list[EmailCaptureRecord]

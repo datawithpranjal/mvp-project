@@ -5,7 +5,12 @@ import json
 from pathlib import Path
 
 from app.core.config import DEFAULT_POSTGRES_URL, get_settings
-from app.schemas.email_capture import EmailCaptureRequest, EmailCaptureResponse
+from app.schemas.email_capture import (
+    EmailCaptureAdminResponse,
+    EmailCaptureRecord,
+    EmailCaptureRequest,
+    EmailCaptureResponse,
+)
 
 
 class EmailCaptureStoreError(RuntimeError):
@@ -30,6 +35,14 @@ class EmailCaptureStore:
             email=payload.email,
             unlocked_premium=True,
         )
+
+    def list_captures(self, limit: int = 50) -> EmailCaptureAdminResponse:
+        bounded_limit = max(1, min(limit, 200))
+
+        if self.postgres_url:
+            return self._list_postgres_captures(bounded_limit)
+
+        return self._list_file_captures(bounded_limit)
 
     def _capture_in_file(self, payload: EmailCaptureRequest) -> None:
         self.storage_path.parent.mkdir(parents=True, exist_ok=True)
@@ -86,6 +99,91 @@ class EmailCaptureStore:
                 connection.commit()
         except Exception as exc:
             raise EmailCaptureStoreError("Unable to capture email in Postgres.") from exc
+
+    def _list_file_captures(self, limit: int) -> EmailCaptureAdminResponse:
+        if not self.storage_path.exists():
+            return EmailCaptureAdminResponse(
+                storage_backend="file",
+                table_exists=False,
+                count=0,
+                rows=[],
+            )
+
+        records: list[EmailCaptureRecord] = []
+        with self.storage_path.open("r", encoding="utf-8") as handle:
+            for line in handle:
+                try:
+                    record = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+
+                records.append(
+                    EmailCaptureRecord(
+                        email=str(record.get("email", "")),
+                        source=str(record.get("source", "")),
+                        scenario_slug=record.get("scenario_slug"),
+                        captured_at=str(record.get("captured_at", "")),
+                    )
+                )
+
+        return EmailCaptureAdminResponse(
+            storage_backend="file",
+            table_exists=True,
+            count=len(records),
+            rows=list(reversed(records[-limit:])),
+        )
+
+    def _list_postgres_captures(self, limit: int) -> EmailCaptureAdminResponse:
+        try:
+            import psycopg
+        except ImportError as exc:
+            raise EmailCaptureStoreError(
+                "Postgres email capture is configured, but psycopg is not installed."
+            ) from exc
+
+        try:
+            with psycopg.connect(self.postgres_url) as connection:
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT to_regclass('public.email_captures') IS NOT NULL")
+                    table_exists = bool(cursor.fetchone()[0])
+
+                    if not table_exists:
+                        return EmailCaptureAdminResponse(
+                            storage_backend="postgres",
+                            table_exists=False,
+                            count=0,
+                            rows=[],
+                        )
+
+                    cursor.execute("SELECT COUNT(*) FROM public.email_captures")
+                    count = int(cursor.fetchone()[0])
+                    cursor.execute(
+                        """
+                        SELECT email, source, scenario_slug, captured_at
+                        FROM public.email_captures
+                        ORDER BY captured_at DESC
+                        LIMIT %s
+                        """,
+                        (limit,),
+                    )
+                    rows = [
+                        EmailCaptureRecord(
+                            email=row[0],
+                            source=row[1],
+                            scenario_slug=row[2],
+                            captured_at=row[3].isoformat(),
+                        )
+                        for row in cursor.fetchall()
+                    ]
+
+            return EmailCaptureAdminResponse(
+                storage_backend="postgres",
+                table_exists=True,
+                count=count,
+                rows=rows,
+            )
+        except Exception as exc:
+            raise EmailCaptureStoreError("Unable to read email captures from Postgres.") from exc
 
     def _active_postgres_url(self, postgres_url: str | None) -> str | None:
         if not postgres_url or postgres_url == DEFAULT_POSTGRES_URL:

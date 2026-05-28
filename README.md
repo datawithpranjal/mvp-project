@@ -102,6 +102,7 @@ In Vercel:
 BACKEND_CORS_ORIGINS=https://your-frontend-project.vercel.app,http://localhost:3000
 BACKEND_CORS_ORIGIN_REGEX=
 POSTGRES_URL=postgresql://postgres:postgres@postgres:5432/scenario_playground
+ADMIN_API_TOKEN=choose-a-long-random-token
 ```
 
 For production email capture, set `POSTGRES_URL` to your Supabase Postgres connection string instead of the local Docker value. Use the full URI with your database password, for example:
@@ -190,6 +191,15 @@ select email, source, scenario_slug, captured_at
 from email_captures
 order by captured_at desc;
 ```
+
+You can also inspect captures through the backend admin endpoint:
+
+```bash
+curl -H "x-admin-token: YOUR_ADMIN_API_TOKEN" \
+  "https://your-backend-project.vercel.app/api/v1/admin/email-captures"
+```
+
+This returns the active storage backend, whether the table exists, the row count, and the latest captured emails.
 
 ## API Endpoints
 
