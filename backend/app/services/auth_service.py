@@ -17,6 +17,7 @@ from app.schemas.auth import (
 )
 from app.schemas.email_capture import EmailCaptureRequest
 from app.services.email_capture_store import EmailCaptureStore, EmailCaptureStoreError
+from app.services.otp_delivery_service import OtpDeliveryError, OtpDeliveryService
 
 
 class AuthServiceError(RuntimeError):
@@ -46,7 +47,9 @@ class AuthService:
         self.postgres_url = self._active_postgres_url(configured_postgres_url)
         self.otp_ttl = timedelta(minutes=settings.auth_otp_ttl_minutes)
         self.session_ttl = timedelta(days=settings.auth_session_ttl_days)
+        self.show_debug_otp = settings.auth_show_debug_otp
         self.email_capture_store = EmailCaptureStore(postgres_url=configured_postgres_url)
+        self.otp_delivery_service = OtpDeliveryService()
 
     def request_otp(self, payload: AuthRequestOtpRequest) -> AuthRequestOtpResponse:
         otp_code = f"{secrets.randbelow(900000) + 100000}"
@@ -63,13 +66,14 @@ class AuthService:
                 raise AuthNotFoundError("No account exists for this email. Please sign up first.")
 
         self._store_otp(payload.email, otp_code, payload.mode, now, expires_at)
+        self._deliver_otp(payload.email, otp_code)
 
         return AuthRequestOtpResponse(
             email=payload.email,
             otp_required=True,
-            delivery_channel="demo",
+            delivery_channel=self.otp_delivery_service.delivery_channel(),
             expires_in_seconds=int(self.otp_ttl.total_seconds()),
-            debug_otp=otp_code,
+            debug_otp=otp_code if self.show_debug_otp else None,
         )
 
     def verify_otp(self, payload: AuthVerifyOtpRequest) -> AuthSessionResponse:
@@ -258,6 +262,16 @@ class AuthService:
             )
         except EmailCaptureStoreError as exc:
             raise AuthServiceError(f"Unable to capture signup email. {exc}") from exc
+
+    def _deliver_otp(self, email: str, otp_code: str) -> None:
+        try:
+            self.otp_delivery_service.send_otp(
+                email=email,
+                otp_code=otp_code,
+                expires_in_minutes=int(self.otp_ttl.total_seconds() // 60),
+            )
+        except OtpDeliveryError as exc:
+            raise AuthServiceError(f"Unable to send OTP email. {exc}") from exc
 
     def _postgres_connect(self):
         try:

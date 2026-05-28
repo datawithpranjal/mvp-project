@@ -256,12 +256,17 @@ export function AuthForm({ title, description, onSuccess }: AuthFormProps) {
       ) : (
         <form onSubmit={handleVerifyOtp} className="mt-5 space-y-4">
           <div className="rounded-2xl border border-teal-300/20 bg-teal-300/10 px-4 py-3 text-sm text-teal-100">
-            OTP requested for <span className="font-semibold">{email}</span>
+            {demoOtp ? "Demo OTP generated for " : "OTP sent to "}
+            <span className="font-semibold">{email}</span>
             {demoOtp ? (
               <span className="mt-2 block text-lg font-semibold tracking-[0.22em] text-teal-50">
                 {demoOtp}
               </span>
-            ) : null}
+            ) : (
+              <span className="mt-2 block text-sm text-teal-100/80">
+                Check your inbox and enter the 6 digit code.
+              </span>
+            )}
           </div>
 
           <div>

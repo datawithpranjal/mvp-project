@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     admin_api_token: str | None = None
     auth_session_ttl_days: int = 30
     auth_otp_ttl_minutes: int = 10
+    auth_show_debug_otp: bool = True
+    resend_api_key: str | None = None
+    otp_email_from: str = "Data Engineering Scenario Playground <onboarding@resend.dev>"
     postgres_url: str = DEFAULT_POSTGRES_URL
     email_capture_store_path: str = "/tmp/data-engineering-scenario-playground-email-captures.jsonl"
 

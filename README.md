@@ -104,12 +104,21 @@ BACKEND_CORS_ORIGINS=https://your-frontend-project.vercel.app,http://localhost:3
 BACKEND_CORS_ORIGIN_REGEX=
 POSTGRES_URL=postgresql://postgres:postgres@postgres:5432/scenario_playground
 ADMIN_API_TOKEN=choose-a-long-random-token
+RESEND_API_KEY=
+OTP_EMAIL_FROM=Data Engineering Scenario Playground <onboarding@resend.dev>
+AUTH_SHOW_DEBUG_OTP=true
 ```
 
 For production email capture, set `POSTGRES_URL` to your Supabase Postgres connection string instead of the local Docker value. Use the full URI with your database password, for example:
 
 ```text
 POSTGRES_URL=postgresql://postgres.<project-ref>:<password>@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres
+```
+
+For real OTP emails, create a Resend account, add `RESEND_API_KEY`, set `OTP_EMAIL_FROM` to a sender address allowed by Resend, and set:
+
+```text
+AUTH_SHOW_DEBUG_OTP=false
 ```
 
 If you want preview deployments from many Vercel URLs to call the backend, you can optionally set:
@@ -172,7 +181,7 @@ NEXT_PUBLIC_API_BASE_URL=https://api.yourdomain.com
 
 - The app does **not** depend on Postgres for core scenario usage, so the deployed MVP still works without provisioning a production database first.
 - Email capture writes to Supabase/Postgres when `POSTGRES_URL` is set to a real external database URL. If the default local Docker URL is used, it falls back to local file storage for development.
-- Demo login is browser-local only.
+- Login, signup, profile, OTPs, and sessions are backed by Postgres in production.
 - Dummy premium checkout is still a frontend-only placeholder.
 
 ## Email Capture
@@ -228,8 +237,9 @@ For rubric-based scenarios, `answer` is free-form text instead of SQL.
 Auth notes:
 
 - Users, OTPs, and sessions are stored in Postgres when `POSTGRES_URL` points at Supabase.
-- The current OTP delivery mode returns a demo OTP in the API response so the flow works without an email provider.
-- To send real emails later, keep the same OTP endpoints and replace the delivery step with Resend, SendGrid, or Supabase Auth email delivery.
+- If `RESEND_API_KEY` is set, OTPs are sent through Resend.
+- If `RESEND_API_KEY` is not set, OTPs stay in demo mode and the API response includes `debug_otp`.
+- Set `AUTH_SHOW_DEBUG_OTP=false` in production so OTPs are not shown in the browser response.
 
 ## Tests
 
