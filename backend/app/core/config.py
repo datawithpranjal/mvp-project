@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     )
     backend_cors_origin_regex: str | None = None
     admin_api_token: str | None = None
+    auth_session_ttl_days: int = 30
+    auth_otp_ttl_minutes: int = 10
     postgres_url: str = DEFAULT_POSTGRES_URL
     email_capture_store_path: str = "/tmp/data-engineering-scenario-playground-email-captures.jsonl"
 

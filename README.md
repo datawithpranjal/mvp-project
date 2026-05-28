@@ -15,7 +15,7 @@ This release ships 26 scenarios across SQL, Spark, Airflow, Kafka, Lakehouse, an
 ## Current Features
 
 - Scenario library with free and premium tiers
-- Demo login, sign-up, and logout flow in the browser
+- Backend-backed OTP login, sign-up, logout, and editable user profile
 - Dummy premium checkout with annual and monthly pricing plus a placeholder UPI QR
 - Difficulty filters: `Beginner`, `Intermediate`, `Advanced`
 - Topic filters: `SQL`, `Spark`, `Airflow`, `Kafka`, `Lakehouse`, `Data Quality`
@@ -25,6 +25,7 @@ This release ships 26 scenarios across SQL, Spark, Airflow, Kafka, Lakehouse, an
   - `DEBUG_RUBRIC`, `DESIGN_RUBRIC`, and `CODE_REVIEW_RUBRIC` for model-answer comparison
 - Local progress tracking, attempt history, and hint reveal state in the browser
 - Premium unlock tied to the signed-in demo account in the current browser
+- Signup email capture happens immediately when a learner creates an account
 
 ## Project Structure
 
@@ -207,6 +208,11 @@ This returns the active storage backend, whether the table exists, the row count
 - `GET /api/v1/scenarios`
 - `GET /api/v1/scenarios/{slug}`
 - `POST /api/v1/email-captures`
+- `POST /api/v1/auth/request-otp`
+- `POST /api/v1/auth/verify-otp`
+- `GET /api/v1/auth/me`
+- `PATCH /api/v1/auth/profile`
+- `POST /api/v1/auth/logout`
 - `POST /api/v1/scenarios/{slug}/validate`
 
 Validation request body:
@@ -218,6 +224,12 @@ Validation request body:
 ```
 
 For rubric-based scenarios, `answer` is free-form text instead of SQL.
+
+Auth notes:
+
+- Users, OTPs, and sessions are stored in Postgres when `POSTGRES_URL` points at Supabase.
+- The current OTP delivery mode returns a demo OTP in the API response so the flow works without an email provider.
+- To send real emails later, keep the same OTP endpoints and replace the delivery step with Resend, SendGrid, or Supabase Auth email delivery.
 
 ## Tests
 

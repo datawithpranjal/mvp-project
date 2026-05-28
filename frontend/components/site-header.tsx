@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { AUTH_UPDATED_EVENT, clearCurrentUser, getCurrentUser, type AuthUser } from "../lib/auth";
+import { AUTH_UPDATED_EVENT, getCurrentUser, logoutCurrentUser, type AuthUser } from "../lib/auth";
 import {
   PREMIUM_ACCESS_UPDATED_EVENT,
   getPremiumAccess,
@@ -15,6 +15,7 @@ export function SiteHeader() {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [premiumAccess, setPremiumAccess] = useState<PremiumAccessRecord | null>(null);
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useEffect(() => {
     function syncState() {
@@ -60,12 +61,23 @@ export function SiteHeader() {
                   {currentUser.email}
                 </p>
               </div>
+              <Link
+                href="/profile"
+                className="rounded-full border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-teal-300/40 hover:text-teal-100"
+              >
+                Profile
+              </Link>
               <button
                 type="button"
-                onClick={() => clearCurrentUser()}
+                disabled={isLoggingOut}
+                onClick={async () => {
+                  setIsLoggingOut(true);
+                  await logoutCurrentUser();
+                  setIsLoggingOut(false);
+                }}
                 className="rounded-full border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-rose-300/40 hover:text-rose-100"
               >
-                Logout
+                {isLoggingOut ? "Logging out..." : "Logout"}
               </button>
             </div>
           ) : (

@@ -20,7 +20,7 @@ export function AuthDialog({ isOpen, onClose }: AuthDialogProps) {
       <div className="w-full max-w-lg" onClick={(event) => event.stopPropagation()}>
         <AuthForm
           title="Log in to your playground account"
-          description="Create a lightweight demo session so premium access and progress can follow your email in this browser."
+          description="Use an email OTP to access your profile, premium status, and interview prep workspace."
           onSuccess={onClose}
         />
       </div>

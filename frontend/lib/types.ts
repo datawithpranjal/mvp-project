@@ -67,6 +67,53 @@ export interface EmailCaptureResponse {
   unlocked_premium: boolean;
 }
 
+export interface AuthProfileFields {
+  full_name?: string | null;
+  role?: string | null;
+  experience_level?: string | null;
+  target_role?: string | null;
+  country?: string | null;
+  phone?: string | null;
+  linkedin_url?: string | null;
+  preparation_goal?: string | null;
+}
+
+export interface AuthUserProfile extends AuthProfileFields {
+  id: string;
+  email: string;
+  full_name: string;
+  role: string;
+  experience_level: string;
+  created_at: string;
+  updated_at: string;
+  last_login_at?: string | null;
+}
+
+export interface AuthRequestOtpRequest extends AuthProfileFields {
+  email: string;
+  mode: "signin" | "signup";
+}
+
+export interface AuthRequestOtpResponse {
+  email: string;
+  otp_required: boolean;
+  delivery_channel: string;
+  expires_in_seconds: number;
+  debug_otp?: string | null;
+}
+
+export interface AuthVerifyOtpRequest {
+  email: string;
+  otp_code: string;
+}
+
+export interface AuthSessionResponse {
+  token: string;
+  token_type: "bearer";
+  expires_at: string;
+  user: AuthUserProfile;
+}
+
 export interface ValidationResponse {
   validation_type: ValidationType;
   passed: boolean | null;

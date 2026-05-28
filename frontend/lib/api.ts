@@ -1,5 +1,11 @@
 import { API_BASE_URL } from "./config";
 import type {
+  AuthProfileFields,
+  AuthRequestOtpRequest,
+  AuthRequestOtpResponse,
+  AuthSessionResponse,
+  AuthUserProfile,
+  AuthVerifyOtpRequest,
   EmailCaptureRequest,
   EmailCaptureResponse,
   ScenarioDetail,
@@ -8,16 +14,25 @@ import type {
   ValidationResponse
 } from "./types";
 
-async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const hasBody = typeof init?.body !== "undefined";
-  const headers = new Headers(init?.headers ?? undefined);
+interface ApiFetchOptions extends RequestInit {
+  authToken?: string | null;
+}
+
+async function apiFetch<T>(path: string, init?: ApiFetchOptions): Promise<T> {
+  const { authToken, ...requestInit } = init ?? {};
+  const hasBody = typeof requestInit.body !== "undefined";
+  const headers = new Headers(requestInit.headers ?? undefined);
 
   if (hasBody && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
 
+  if (authToken && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${authToken}`);
+  }
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
+    ...requestInit,
     headers
   });
 
@@ -63,5 +78,47 @@ export function captureEmail(
   return apiFetch<EmailCaptureResponse>("/api/v1/email-captures", {
     method: "POST",
     body: JSON.stringify(payload)
+  });
+}
+
+export function requestAuthOtp(
+  payload: AuthRequestOtpRequest
+): Promise<AuthRequestOtpResponse> {
+  return apiFetch<AuthRequestOtpResponse>("/api/v1/auth/request-otp", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function verifyAuthOtp(
+  payload: AuthVerifyOtpRequest
+): Promise<AuthSessionResponse> {
+  return apiFetch<AuthSessionResponse>("/api/v1/auth/verify-otp", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function getAuthProfile(token: string): Promise<AuthUserProfile> {
+  return apiFetch<AuthUserProfile>("/api/v1/auth/me", {
+    authToken: token
+  });
+}
+
+export function updateAuthProfile(
+  token: string,
+  payload: AuthProfileFields
+): Promise<AuthUserProfile> {
+  return apiFetch<AuthUserProfile>("/api/v1/auth/profile", {
+    method: "PATCH",
+    authToken: token,
+    body: JSON.stringify(payload)
+  });
+}
+
+export function logoutAuthSession(token: string): Promise<{ logged_out: boolean }> {
+  return apiFetch<{ logged_out: boolean }>("/api/v1/auth/logout", {
+    method: "POST",
+    authToken: token
   });
 }

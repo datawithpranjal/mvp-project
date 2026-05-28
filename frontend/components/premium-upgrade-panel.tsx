@@ -130,7 +130,7 @@ export function PremiumUpgradePanel({
     return (
       <AuthForm
         title="Create an account to continue"
-        description="Premium access is now tied to a signed-in demo account in this browser. Sign in first, then choose a plan and use the dummy UPI checkout."
+        description="Sign in with OTP first, then choose a plan and use the dummy UPI checkout."
       />
     );
   }

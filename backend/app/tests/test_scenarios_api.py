@@ -131,3 +131,65 @@ def test_email_capture_admin_endpoint_requires_configuration() -> None:
     assert response.json() == {
         "detail": "Admin email capture access is not configured."
     }
+
+
+def test_signup_otp_login_profile_and_logout_flow() -> None:
+    email = "otp.student@example.com"
+
+    otp_response = client.post(
+        "/api/v1/auth/request-otp",
+        json={
+            "mode": "signup",
+            "email": email,
+            "full_name": "OTP Student",
+            "role": "Analytics Engineer",
+            "experience_level": "Intermediate",
+            "target_role": "Data Engineer",
+            "country": "India",
+            "preparation_goal": "Prepare for product company interviews",
+        },
+    )
+
+    assert otp_response.status_code == 200
+    otp_payload = otp_response.json()
+    assert otp_payload["email"] == email
+    assert otp_payload["otp_required"] is True
+    assert len(otp_payload["debug_otp"]) == 6
+
+    session_response = client.post(
+        "/api/v1/auth/verify-otp",
+        json={"email": email, "otp_code": otp_payload["debug_otp"]},
+    )
+
+    assert session_response.status_code == 200
+    session_payload = session_response.json()
+    token = session_payload["token"]
+    assert session_payload["user"]["email"] == email
+    assert session_payload["user"]["full_name"] == "OTP Student"
+    assert session_payload["user"]["target_role"] == "Data Engineer"
+
+    profile_response = client.patch(
+        "/api/v1/auth/profile",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"phone": "+91 9999999999", "linkedin_url": "https://linkedin.com/in/student"},
+    )
+
+    assert profile_response.status_code == 200
+    profile_payload = profile_response.json()
+    assert profile_payload["phone"] == "+91 9999999999"
+    assert profile_payload["linkedin_url"] == "https://linkedin.com/in/student"
+
+    logout_response = client.post(
+        "/api/v1/auth/logout",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert logout_response.status_code == 200
+    assert logout_response.json() == {"logged_out": True}
+
+    me_response = client.get(
+        "/api/v1/auth/me",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert me_response.status_code == 401
