@@ -9,12 +9,16 @@ import type {
 } from "./types";
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const hasBody = typeof init?.body !== "undefined";
+  const headers = new Headers(init?.headers ?? undefined);
+
+  if (hasBody && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers ?? {})
-    }
+    headers
   });
 
   if (!response.ok) {
