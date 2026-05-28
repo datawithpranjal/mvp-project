@@ -104,6 +104,12 @@ BACKEND_CORS_ORIGIN_REGEX=
 POSTGRES_URL=postgresql://postgres:postgres@postgres:5432/scenario_playground
 ```
 
+For production email capture, set `POSTGRES_URL` to your Supabase Postgres connection string instead of the local Docker value. Use the full URI with your database password, for example:
+
+```text
+POSTGRES_URL=postgresql://postgres.<project-ref>:<password>@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres
+```
+
 If you want preview deployments from many Vercel URLs to call the backend, you can optionally set:
 
 ```text
@@ -162,10 +168,28 @@ NEXT_PUBLIC_API_BASE_URL=https://api.yourdomain.com
 
 ### Current production notes
 
-- The app does **not** depend on Postgres yet for core scenario usage, so the deployed MVP still works without provisioning a production database first.
+- The app does **not** depend on Postgres for core scenario usage, so the deployed MVP still works without provisioning a production database first.
+- Email capture writes to Supabase/Postgres when `POSTGRES_URL` is set to a real external database URL. If the default local Docker URL is used, it falls back to local file storage for development.
 - Demo login is browser-local only.
 - Dummy premium checkout is still a frontend-only placeholder.
-- Email capture writes to `/tmp`, which is ephemeral on serverless deployments. That is acceptable for the current MVP, but not for real lead capture.
+
+## Email Capture
+
+Production email captures are stored in the `email_captures` table. The backend creates the table automatically the first time a student submits an email.
+
+To view captured emails in Supabase:
+
+1. Open Supabase.
+2. Go to **Table Editor**.
+3. Open the `email_captures` table.
+
+You can also use SQL:
+
+```sql
+select email, source, scenario_slug, captured_at
+from email_captures
+order by captured_at desc;
+```
 
 ## API Endpoints
 
