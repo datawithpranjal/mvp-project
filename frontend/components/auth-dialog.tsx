@@ -14,10 +14,13 @@ export function AuthDialog({ isOpen, onClose }: AuthDialogProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 px-4 py-10 backdrop-blur-sm"
+      className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/75 px-4 py-6 backdrop-blur-sm sm:py-10"
       onClick={onClose}
     >
-      <div className="w-full max-w-lg" onClick={(event) => event.stopPropagation()}>
+      <div
+        className="mx-auto flex min-h-full w-full max-w-2xl items-start sm:items-center"
+        onClick={(event) => event.stopPropagation()}
+      >
         <AuthForm
           title="Log in to your playground account"
           description="Use an email OTP to access your profile, premium status, and interview prep workspace."

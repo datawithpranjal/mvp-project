@@ -89,6 +89,7 @@ export default function HomePage() {
   ).length;
   const freeCount = scenarios.filter((scenario) => scenario.access_tier === "free").length;
   const premiumCount = scenarios.filter((scenario) => scenario.access_tier === "premium").length;
+  const totalCount = scenarios.length;
 
   return (
     <main className="mx-auto min-h-screen max-w-7xl px-6 py-10 sm:px-10">
@@ -105,7 +106,13 @@ export default function HomePage() {
             Production-style interview practice for aspiring data engineers. Work through SQL bugs,
             Spark performance traps, Airflow failures, Kafka edge cases, and data quality incidents with small realistic labs.
           </p>
-          <div className="mt-8 grid gap-4 sm:grid-cols-3">
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-3xl border border-slate-700/70 bg-slate-950/30 p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
+                Total Scenarios
+              </p>
+              <p className="mt-2 text-3xl font-semibold text-slate-50">{totalCount}</p>
+            </div>
             <div className="rounded-3xl border border-slate-700/70 bg-slate-950/30 p-4">
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
                 Completed
@@ -135,7 +142,7 @@ export default function HomePage() {
           <div>
             <h2 className="text-2xl font-semibold text-slate-50">Scenario Library</h2>
             <p className="mt-2 text-sm text-slate-400">
-              Start with {freeCount} free scenarios and unlock {premiumCount} premium scenarios for deeper interview prep.
+              Browse {totalCount} scenarios: {freeCount} free and {premiumCount} premium labs for deeper interview prep.
             </p>
           </div>
         </div>

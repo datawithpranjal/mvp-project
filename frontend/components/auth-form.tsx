@@ -90,7 +90,7 @@ export function AuthForm({ title, description, onSuccess }: AuthFormProps) {
   }
 
   return (
-    <div className="panel rounded-3xl p-5">
+    <div className="panel w-full rounded-3xl p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="text-lg font-semibold text-slate-50">{title}</h3>
@@ -232,7 +232,7 @@ export function AuthForm({ title, description, onSuccess }: AuthFormProps) {
                   value={preparationGoal}
                   onChange={(event) => setPreparationGoal(event.target.value)}
                   placeholder="Crack data engineering interviews in the next 90 days."
-                  rows={3}
+                  rows={2}
                   className="w-full rounded-2xl border border-slate-700 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-teal-300/50"
                 />
               </div>
