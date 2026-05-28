@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { AUTH_UPDATED_EVENT, getCurrentUser, type AuthUser } from "../lib/auth";
+import { captureEmail } from "../lib/api";
 import {
   PREMIUM_ACCESS_UPDATED_EVENT,
   getPremiumAccess,
@@ -64,6 +65,8 @@ export function PremiumUpgradePanel({
   const [premiumAccess, setPremiumAccessState] = useState<PremiumAccessRecord | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<BillingInterval>("yearly");
   const [paymentReference, setPaymentReference] = useState("");
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [isCompletingPayment, setIsCompletingPayment] = useState(false);
 
   useEffect(() => {
     function syncState() {
@@ -88,21 +91,39 @@ export function PremiumUpgradePanel({
     [selectedPlan]
   );
 
-  function handleCompleteDemoPayment() {
+  async function handleCompleteDemoPayment() {
     if (!currentUser) {
       return;
     }
 
-    savePremiumAccess({
-      email: currentUser.email,
-      unlockedAt: new Date().toISOString(),
-      billing_interval: activePlan.id,
-      amount_inr: activePlan.amountInr,
-      payment_reference: paymentReference.trim() || `DEMO-UPI-${Date.now()}`,
-      plan_label: activePlan.label,
-      payment_method: "upi_dummy"
-    });
-    onUnlocked?.();
+    try {
+      setIsCompletingPayment(true);
+      setCheckoutError(null);
+
+      await captureEmail({
+        email: currentUser.email,
+        source: `premium-upi-${activePlan.id}`,
+      });
+
+      savePremiumAccess({
+        email: currentUser.email,
+        unlockedAt: new Date().toISOString(),
+        billing_interval: activePlan.id,
+        amount_inr: activePlan.amountInr,
+        payment_reference: paymentReference.trim() || `DEMO-UPI-${Date.now()}`,
+        plan_label: activePlan.label,
+        payment_method: "upi_dummy"
+      });
+      onUnlocked?.();
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unable to capture your email right now. Please try again.";
+      setCheckoutError(message);
+    } finally {
+      setIsCompletingPayment(false);
+    }
   }
 
   if (!currentUser) {
@@ -264,12 +285,19 @@ export function PremiumUpgradePanel({
             simply unlocks premium in this browser for the signed-in account.
           </p>
 
+          {checkoutError ? (
+            <div className="mt-4 rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">
+              {checkoutError}
+            </div>
+          ) : null}
+
           <button
             type="button"
             onClick={handleCompleteDemoPayment}
-            className="mt-5 w-full rounded-full bg-amber-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-200"
+            disabled={isCompletingPayment}
+            className="mt-5 w-full rounded-full bg-amber-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:bg-amber-100"
           >
-            I completed the dummy payment
+            {isCompletingPayment ? "Capturing email..." : "I completed the dummy payment"}
           </button>
         </div>
       </div>
