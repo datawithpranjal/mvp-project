@@ -13,12 +13,12 @@ export function DataTable({ title, subtitle, columns, rows }: DataTableProps) {
   }
 
   return (
-    <div className="panel rounded-3xl p-5">
+    <div className="panel min-w-0 rounded-3xl p-5">
       <div className="mb-4">
         <h3 className="text-lg font-semibold text-slate-50">{title}</h3>
         {subtitle ? <p className="mt-1 text-sm text-slate-400">{subtitle}</p> : null}
       </div>
-      <div className="overflow-hidden rounded-2xl border border-slate-800">
+      <div className="max-w-full overflow-hidden rounded-2xl border border-slate-800">
         <div className="overflow-x-auto">
           <table className="min-w-full border-collapse text-left text-sm">
             <thead className="bg-slate-950/85 text-slate-200">

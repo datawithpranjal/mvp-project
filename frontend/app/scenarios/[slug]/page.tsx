@@ -313,8 +313,33 @@ export default function ScenarioDetailPage() {
         </div>
       ) : null}
 
-      <section className="mt-6 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-        <div className="space-y-6">
+      <section className="mx-auto mt-6 max-w-5xl space-y-6">
+        <div className="panel rounded-3xl p-5">
+          <h3 className="text-lg font-semibold text-slate-50">Student Task</h3>
+          <p className="mt-2 whitespace-pre-line break-words text-sm leading-6 text-slate-300">
+            {scenario.student_task}
+          </p>
+          <p className="mt-4 break-words text-sm leading-6 text-slate-400">
+            {scenario.submission_instructions}
+          </p>
+        </div>
+
+        <SqlEditor
+          value={answer}
+          onChange={setAnswer}
+          onSubmit={handleSubmit}
+          isSubmitting={isSubmitting}
+          title={editorConfig.title}
+          description={editorConfig.description}
+          placeholder={editorConfig.placeholder}
+          submitLabel={editorConfig.submitLabel}
+        />
+
+        <ResultPanel scenario={scenario} result={result} />
+      </section>
+
+      <section className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
+        <div className="min-w-0 space-y-6">
           {scenario.tables.map((table) => (
             <DataTable
               key={table.name}
@@ -335,7 +360,7 @@ export default function ScenarioDetailPage() {
                   This is the current implementation or context that is causing the production issue.
                 </p>
               </div>
-              <div className="panel-strong overflow-hidden rounded-2xl">
+              <div className="panel-strong max-w-full overflow-hidden rounded-2xl">
                 <pre className="m-0 overflow-x-auto p-4 text-sm leading-7 text-amber-100">
                   {scenario.broken_code}
                 </pre>
@@ -355,7 +380,7 @@ export default function ScenarioDetailPage() {
           ) : null}
         </div>
 
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           <div className="panel rounded-3xl p-5">
             <h3 className="text-lg font-semibold text-slate-50">Progress Tracking</h3>
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
@@ -390,20 +415,10 @@ export default function ScenarioDetailPage() {
             </div>
           </div>
 
-          <div className="panel rounded-3xl p-5">
-            <h3 className="text-lg font-semibold text-slate-50">Student Task</h3>
-            <p className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-300">
-              {scenario.student_task}
-            </p>
-            <p className="mt-4 text-sm leading-6 text-slate-400">
-              {scenario.submission_instructions}
-            </p>
-          </div>
-
           {scenario.validation_logic ? (
             <div className="panel rounded-3xl p-5">
               <h3 className="text-lg font-semibold text-slate-50">Validation Logic</h3>
-              <p className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-300">
+              <p className="mt-2 whitespace-pre-line break-words text-sm leading-6 text-slate-300">
                 {scenario.validation_logic}
               </p>
             </div>
@@ -414,19 +429,6 @@ export default function ScenarioDetailPage() {
             revealedCount={revealedHintsCount}
             onRevealNext={handleRevealNextHint}
           />
-
-          <SqlEditor
-            value={answer}
-            onChange={setAnswer}
-            onSubmit={handleSubmit}
-            isSubmitting={isSubmitting}
-            title={editorConfig.title}
-            description={editorConfig.description}
-            placeholder={editorConfig.placeholder}
-            submitLabel={editorConfig.submitLabel}
-          />
-
-          <ResultPanel scenario={scenario} result={result} />
 
           <AttemptHistory attempts={attemptHistory} onReuseAttempt={setAnswer} />
         </div>
