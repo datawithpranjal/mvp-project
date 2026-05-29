@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     auth_show_debug_otp: bool = True
     resend_api_key: str | None = None
     otp_email_from: str = "Data Engineering Scenario Playground <onboarding@resend.dev>"
+    frontend_base_url: str = "http://localhost:3000"
+    google_oauth_client_id: str | None = None
+    google_oauth_client_secret: str | None = None
+    google_oauth_redirect_uri: str | None = None
+    google_oauth_state_secret: str | None = None
     postgres_url: str = DEFAULT_POSTGRES_URL
     email_capture_store_path: str = "/tmp/data-engineering-scenario-playground-email-captures.jsonl"
 

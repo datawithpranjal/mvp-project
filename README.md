@@ -18,6 +18,8 @@ This release ships 26 scenarios across SQL, Spark, Airflow, Kafka, Lakehouse, an
 
 - Scenario library with free and premium tiers
 - Backend-backed OTP login, sign-up, logout, and editable user profile
+- Optional Google login using the same backend session/profile model
+- User-selectable light and dark mode
 - Manual premium checkout with annual and monthly pricing plus a Paytm UPI QR
 - Difficulty filters: `Beginner`, `Intermediate`, `Advanced`
 - Topic filters: `SQL`, `Spark`, `Airflow`, `Kafka`, `Lakehouse`, `Data Quality`
@@ -112,6 +114,11 @@ ADMIN_API_TOKEN=choose-a-long-random-token
 RESEND_API_KEY=
 OTP_EMAIL_FROM=Data Engineering Scenario Playground <onboarding@resend.dev>
 AUTH_SHOW_DEBUG_OTP=true
+FRONTEND_BASE_URL=https://your-frontend-project.vercel.app
+GOOGLE_OAUTH_CLIENT_ID=
+GOOGLE_OAUTH_CLIENT_SECRET=
+GOOGLE_OAUTH_REDIRECT_URI=https://your-backend-project.vercel.app/api/v1/auth/google/callback
+GOOGLE_OAUTH_STATE_SECRET=choose-a-long-random-token
 ```
 
 For production email capture, set `POSTGRES_URL` to your Supabase Postgres connection string instead of the local Docker value. Use the full URI with your database password, for example:
@@ -125,6 +132,18 @@ For real OTP emails, create a Resend account, add `RESEND_API_KEY`, set `OTP_EMA
 ```text
 AUTH_SHOW_DEBUG_OTP=false
 ```
+
+For Google login, create OAuth credentials in Google Cloud Console and add:
+
+```text
+GOOGLE_OAUTH_CLIENT_ID=your-google-client-id
+GOOGLE_OAUTH_CLIENT_SECRET=your-google-client-secret
+GOOGLE_OAUTH_REDIRECT_URI=https://your-backend-project.vercel.app/api/v1/auth/google/callback
+FRONTEND_BASE_URL=https://your-frontend-project.vercel.app
+GOOGLE_OAUTH_STATE_SECRET=choose-a-long-random-token
+```
+
+The same redirect URI must be added under **Authorized redirect URIs** in Google Cloud.
 
 If you want preview deployments from many Vercel URLs to call the backend, you can optionally set:
 
@@ -224,6 +243,9 @@ This returns the active storage backend, whether the table exists, the row count
 - `POST /api/v1/email-captures`
 - `POST /api/v1/auth/request-otp`
 - `POST /api/v1/auth/verify-otp`
+- `GET /api/v1/auth/google/start-url`
+- `GET /api/v1/auth/google/start`
+- `GET /api/v1/auth/google/callback`
 - `GET /api/v1/auth/me`
 - `PATCH /api/v1/auth/profile`
 - `POST /api/v1/auth/logout`

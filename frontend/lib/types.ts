@@ -114,6 +114,10 @@ export interface AuthSessionResponse {
   user: AuthUserProfile;
 }
 
+export interface GoogleAuthStartUrlResponse {
+  url: string;
+}
+
 export interface ValidationResponse {
   validation_type: ValidationType;
   passed: boolean | null;

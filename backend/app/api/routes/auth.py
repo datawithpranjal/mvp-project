@@ -1,6 +1,8 @@
 from typing import Annotated
+from urllib.parse import quote
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi.responses import RedirectResponse
 
 from app.schemas.auth import (
     AuthProfileUpdateRequest,
@@ -93,3 +95,52 @@ def logout(authorization: Annotated[str | None, Header()] = None) -> dict[str, b
         raise auth_error_response(exc) from exc
 
     return {"logged_out": True}
+
+
+@router.get("/api/v1/auth/google/start-url")
+@router.get("/v1/auth/google/start-url")
+def google_start_url(return_to: str = "/dashboard") -> dict[str, str]:
+    try:
+        return {"url": auth_service.google_login_url(return_to=return_to)}
+    except AuthServiceError as exc:
+        raise auth_error_response(exc) from exc
+
+
+@router.get("/api/v1/auth/google/start")
+@router.get("/v1/auth/google/start")
+def google_start(return_to: str = "/dashboard") -> RedirectResponse:
+    try:
+        return RedirectResponse(auth_service.google_login_url(return_to=return_to))
+    except AuthServiceError as exc:
+        raise auth_error_response(exc) from exc
+
+
+@router.get("/api/v1/auth/google/callback")
+@router.get("/v1/auth/google/callback")
+def google_callback(
+    code: Annotated[str | None, Query()] = None,
+    state: Annotated[str | None, Query()] = None,
+    error: Annotated[str | None, Query()] = None,
+) -> RedirectResponse:
+    if error:
+        return RedirectResponse(f"{auth_service.frontend_base_url}/auth/callback?error={quote(error)}")
+    if not code or not state:
+        return RedirectResponse(
+            f"{auth_service.frontend_base_url}/auth/callback?error=Missing%20Google%20callback%20code."
+        )
+
+    try:
+        session, return_to = auth_service.authenticate_google_callback(code=code, state=state)
+        user_json = quote(session.user.model_dump_json())
+        redirect_url = (
+            f"{auth_service.frontend_base_url}/auth/callback"
+            f"?token={quote(session.token)}"
+            f"&expires_at={quote(session.expires_at)}"
+            f"&user={user_json}"
+            f"&return_to={quote(return_to)}"
+        )
+        return RedirectResponse(redirect_url)
+    except AuthServiceError as exc:
+        return RedirectResponse(
+            f"{auth_service.frontend_base_url}/auth/callback?error={quote(str(exc))}"
+        )

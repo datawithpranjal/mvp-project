@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+import base64
 from datetime import datetime, timedelta, timezone
+import hmac
 import hashlib
+import json
 import secrets
 from typing import Any
+from urllib.parse import urlencode
 from uuid import uuid4
+
+import httpx
 
 from app.core.config import DEFAULT_POSTGRES_URL, get_settings
 from app.schemas.auth import (
@@ -48,6 +54,15 @@ class AuthService:
         self.otp_ttl = timedelta(minutes=settings.auth_otp_ttl_minutes)
         self.session_ttl = timedelta(days=settings.auth_session_ttl_days)
         self.show_debug_otp = settings.auth_show_debug_otp
+        self.frontend_base_url = settings.frontend_base_url.rstrip("/")
+        self.google_client_id = settings.google_oauth_client_id
+        self.google_client_secret = settings.google_oauth_client_secret
+        self.google_redirect_uri = settings.google_oauth_redirect_uri
+        self.google_state_secret = (
+            settings.google_oauth_state_secret
+            or settings.google_oauth_client_secret
+            or "development-google-oauth-state-secret"
+        )
         self.email_capture_store = EmailCaptureStore(postgres_url=configured_postgres_url)
         self.otp_delivery_service = OtpDeliveryService()
 
@@ -112,6 +127,48 @@ class AuthService:
     def logout(self, token: str) -> None:
         self._revoke_session(token)
 
+    def google_login_url(self, return_to: str | None = None) -> str:
+        if not self.google_client_id or not self.google_client_secret or not self.google_redirect_uri:
+            raise AuthValidationError(
+                "Google login is not configured yet. Add GOOGLE_OAUTH_CLIENT_ID, "
+                "GOOGLE_OAUTH_CLIENT_SECRET, and GOOGLE_OAUTH_REDIRECT_URI."
+            )
+
+        state = self._build_google_state(return_to or "/dashboard")
+        query = urlencode(
+            {
+                "client_id": self.google_client_id,
+                "redirect_uri": self.google_redirect_uri,
+                "response_type": "code",
+                "scope": "openid email profile",
+                "state": state,
+                "access_type": "online",
+                "prompt": "select_account",
+            }
+        )
+        return f"https://accounts.google.com/o/oauth2/v2/auth?{query}"
+
+    def authenticate_google_callback(self, code: str, state: str) -> tuple[AuthSessionResponse, str]:
+        state_payload = self._parse_google_state(state)
+        user_info = self._fetch_google_user_info(code)
+        email = str(user_info.get("email", "")).strip().lower()
+        full_name = str(user_info.get("name") or email).strip()
+
+        if not email or not user_info.get("email_verified", False):
+            raise AuthUnauthorizedError("Google account email is missing or not verified.")
+
+        now = self._now()
+        user = self._upsert_oauth_user(email=email, full_name=full_name, now=now)
+        token = secrets.token_urlsafe(32)
+        expires_at = now + self.session_ttl
+        updated_user = self._record_login_and_session(user["id"], token, now, expires_at)
+        session = AuthSessionResponse(
+            token=token,
+            expires_at=expires_at.isoformat(),
+            user=self._profile_from_row(updated_user),
+        )
+        return session, str(state_payload.get("return_to") or "/dashboard")
+
     def _upsert_user(self, payload: AuthRequestOtpRequest, now: datetime) -> dict[str, Any]:
         existing = self._get_user_by_email(payload.email)
         user_id = existing["id"] if existing else str(uuid4())
@@ -136,6 +193,46 @@ class AuthService:
 
         self._memory_users[payload.email] = profile
         return profile
+
+    def _upsert_oauth_user(self, email: str, full_name: str, now: datetime) -> dict[str, Any]:
+        existing = self._get_user_by_email(email)
+        if existing:
+            payload = AuthProfileUpdateRequest(
+                full_name=existing.get("full_name") or full_name,
+                role=existing.get("role") or "Student",
+                experience_level=existing.get("experience_level") or "Beginner",
+                target_role=existing.get("target_role"),
+                country=existing.get("country"),
+                phone=existing.get("phone"),
+                linkedin_url=existing.get("linkedin_url"),
+                preparation_goal=existing.get("preparation_goal"),
+            )
+            return self._update_user_profile(existing["id"], payload, now)
+
+        profile = {
+            "id": str(uuid4()),
+            "email": email,
+            "full_name": full_name or email,
+            "role": "Student",
+            "experience_level": "Beginner",
+            "target_role": None,
+            "country": None,
+            "phone": None,
+            "linkedin_url": None,
+            "preparation_goal": "Created through Google login.",
+            "created_at": now,
+            "updated_at": now,
+            "last_login_at": None,
+        }
+
+        if self.postgres_url:
+            user = self._postgres_upsert_user(profile)
+        else:
+            self._memory_users[email] = profile
+            user = profile
+
+        self._capture_signup_email(email)
+        return user
 
     def _store_otp(
         self,
@@ -272,6 +369,95 @@ class AuthService:
             )
         except OtpDeliveryError as exc:
             raise AuthServiceError(f"Unable to send OTP email. {exc}") from exc
+
+    def _build_google_state(self, return_to: str) -> str:
+        safe_return_to = return_to if return_to.startswith("/") else "/dashboard"
+        payload = {
+            "return_to": safe_return_to,
+            "created_at": int(self._now().timestamp()),
+            "nonce": secrets.token_urlsafe(12),
+        }
+        payload_json = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+        payload_b64 = self._base64url_encode(payload_json)
+        signature = hmac.new(
+            self.google_state_secret.encode("utf-8"),
+            payload_b64.encode("utf-8"),
+            hashlib.sha256,
+        ).digest()
+        return f"{payload_b64}.{self._base64url_encode(signature)}"
+
+    def _parse_google_state(self, state: str) -> dict[str, Any]:
+        payload_b64, separator, signature_b64 = state.partition(".")
+        if not separator:
+            raise AuthUnauthorizedError("Invalid Google login state.")
+
+        expected_signature = hmac.new(
+            self.google_state_secret.encode("utf-8"),
+            payload_b64.encode("utf-8"),
+            hashlib.sha256,
+        ).digest()
+        provided_signature = self._base64url_decode(signature_b64)
+        if not hmac.compare_digest(expected_signature, provided_signature):
+            raise AuthUnauthorizedError("Invalid Google login state.")
+
+        try:
+            payload = json.loads(self._base64url_decode(payload_b64))
+        except Exception as exc:
+            raise AuthUnauthorizedError("Invalid Google login state.") from exc
+
+        created_at = payload.get("created_at")
+        if not isinstance(created_at, int):
+            raise AuthUnauthorizedError("Invalid Google login state.")
+
+        state_age = self._now() - datetime.fromtimestamp(created_at, timezone.utc)
+        if state_age > timedelta(minutes=15):
+            raise AuthUnauthorizedError("Google login state expired. Please try again.")
+
+        return payload
+
+    def _fetch_google_user_info(self, code: str) -> dict[str, Any]:
+        if not self.google_client_id or not self.google_client_secret or not self.google_redirect_uri:
+            raise AuthValidationError("Google login is not configured yet.")
+
+        try:
+            token_response = httpx.post(
+                "https://oauth2.googleapis.com/token",
+                data={
+                    "code": code,
+                    "client_id": self.google_client_id,
+                    "client_secret": self.google_client_secret,
+                    "redirect_uri": self.google_redirect_uri,
+                    "grant_type": "authorization_code",
+                },
+                timeout=10,
+            )
+            token_response.raise_for_status()
+            access_token = token_response.json().get("access_token")
+            if not access_token:
+                raise AuthUnauthorizedError("Google did not return an access token.")
+
+            user_response = httpx.get(
+                "https://openidconnect.googleapis.com/v1/userinfo",
+                headers={"Authorization": f"Bearer {access_token}"},
+                timeout=10,
+            )
+            user_response.raise_for_status()
+            return user_response.json()
+        except AuthServiceError:
+            raise
+        except httpx.HTTPStatusError as exc:
+            raise AuthUnauthorizedError(
+                f"Google login failed with status {exc.response.status_code}."
+            ) from exc
+        except httpx.HTTPError as exc:
+            raise AuthServiceError(f"Unable to reach Google OAuth. {exc}") from exc
+
+    def _base64url_encode(self, value: bytes) -> str:
+        return base64.urlsafe_b64encode(value).decode("utf-8").rstrip("=")
+
+    def _base64url_decode(self, value: str) -> bytes:
+        padding = "=" * (-len(value) % 4)
+        return base64.urlsafe_b64decode(f"{value}{padding}".encode("utf-8"))
 
     def _postgres_connect(self):
         try:

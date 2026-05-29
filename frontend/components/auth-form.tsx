@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 
-import { requestAuthOtp, verifyAuthOtp } from "../lib/api";
+import { getGoogleAuthStartUrl, requestAuthOtp, verifyAuthOtp } from "../lib/api";
 import { saveAuthSession, type AuthUser } from "../lib/auth";
 
 interface AuthFormProps {
@@ -89,6 +89,22 @@ export function AuthForm({ title, description, onSuccess }: AuthFormProps) {
     }
   }
 
+  async function handleGoogleLogin() {
+    try {
+      setIsSubmitting(true);
+      setError(null);
+      const response = await getGoogleAuthStartUrl("/dashboard");
+      window.location.href = response.url;
+    } catch (googleError) {
+      const message =
+        googleError instanceof Error
+          ? googleError.message
+          : "Google login is not available right now.";
+      setError(message);
+      setIsSubmitting(false);
+    }
+  }
+
   return (
     <div className="panel w-full rounded-3xl p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -120,6 +136,18 @@ export function AuthForm({ title, description, onSuccess }: AuthFormProps) {
           </button>
         ))}
       </div>
+
+      <button
+        type="button"
+        onClick={handleGoogleLogin}
+        disabled={isSubmitting}
+        className="mt-5 flex w-full items-center justify-center gap-3 rounded-full border border-slate-700 bg-slate-950/30 px-5 py-3 text-sm font-semibold text-slate-100 transition hover:border-teal-300/40 disabled:cursor-not-allowed disabled:opacity-70"
+      >
+        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-sm font-bold text-slate-950">
+          G
+        </span>
+        Continue with Google
+      </button>
 
       {step === "details" ? (
         <form onSubmit={handleRequestOtp} className="mt-5 space-y-4">

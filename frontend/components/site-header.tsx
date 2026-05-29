@@ -10,6 +10,7 @@ import {
   type PremiumAccessRecord
 } from "../lib/premium-access";
 import { AuthDialog } from "./auth-dialog";
+import { ThemeToggle } from "./theme-toggle";
 
 export function SiteHeader() {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
@@ -71,6 +72,7 @@ export function SiteHeader() {
 
           {currentUser ? (
             <div className="flex flex-wrap items-center justify-end gap-3">
+              <ThemeToggle />
               {premiumAccess ? (
                 <span className="rounded-full border border-amber-300/25 bg-amber-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-amber-100">
                   Premium active
@@ -102,13 +104,16 @@ export function SiteHeader() {
               </button>
             </div>
           ) : (
-            <button
-              type="button"
-              onClick={() => setIsAuthDialogOpen(true)}
-              className="rounded-full bg-teal-300 px-5 py-2 text-sm font-semibold text-slate-950 transition hover:bg-teal-200"
-            >
-              Log in / Sign up
-            </button>
+            <div className="flex items-center gap-3">
+              <ThemeToggle />
+              <button
+                type="button"
+                onClick={() => setIsAuthDialogOpen(true)}
+                className="rounded-full bg-teal-300 px-5 py-2 text-sm font-semibold text-slate-950 transition hover:bg-teal-200"
+              >
+                Log in / Sign up
+              </button>
+            </div>
           )}
         </div>
       </header>

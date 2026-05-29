@@ -8,6 +8,7 @@ import type {
   AuthVerifyOtpRequest,
   EmailCaptureRequest,
   EmailCaptureResponse,
+  GoogleAuthStartUrlResponse,
   ScenarioDetail,
   ScenarioSummary,
   ValidationRequest,
@@ -121,4 +122,10 @@ export function logoutAuthSession(token: string): Promise<{ logged_out: boolean 
     method: "POST",
     authToken: token
   });
+}
+
+export function getGoogleAuthStartUrl(returnTo: string = "/dashboard"): Promise<GoogleAuthStartUrlResponse> {
+  return apiFetch<GoogleAuthStartUrlResponse>(
+    `/api/v1/auth/google/start-url?return_to=${encodeURIComponent(returnTo)}`
+  );
 }
