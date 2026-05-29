@@ -1,0 +1,30 @@
+{
+  "id": "sql-lab-006",
+  "slug": "sql-lab-running-total-by-date",
+  "title": "SQL Lab 6: Running Total by Date",
+  "difficulty": "intermediate",
+  "section": "SQL Lab",
+  "access_tier": "premium",
+  "topic_tags": ["SQL", "Window Functions", "Revenue"],
+  "short_description": "Aggregate daily revenue first, then calculate cumulative revenue.",
+  "business_context": "Revenue dashboards often receive multiple rows per day. Running totals should accumulate daily totals, not raw transaction rows.",
+  "problem_statement": "Return daily revenue and running revenue by sale_date. The source may contain multiple rows per date.",
+  "student_task": "Write a query returning sale_date, revenue, and running_revenue.",
+  "learning_goals": ["Aggregate to the correct grain before windowing", "Use window SUM for cumulative totals", "Avoid row-level running totals when the business wants daily totals"],
+  "broken_code": "SELECT sale_date, revenue,\n       SUM(revenue) OVER (ORDER BY sale_date) AS running_revenue\nFROM daily_sales;",
+  "production_logs": ["finance-dashboard: duplicate dates visible in running total output", "review-note: daily grain should be established before cumulative window"],
+  "sample_tables": [
+    {
+      "name": "daily_sales",
+      "columns": ["sale_date", "revenue"],
+      "rows": [["2026-01-01", 100], ["2026-01-01", 50], ["2026-01-02", 200], ["2026-01-03", 25], ["2026-01-03", 75]]
+    }
+  ],
+  "expected_output": [],
+  "solution_query": "WITH day_level AS (\n  SELECT sale_date,\n         SUM(revenue) AS revenue\n  FROM daily_sales\n  GROUP BY sale_date\n)\nSELECT sale_date,\n       revenue,\n       SUM(revenue) OVER (\n         ORDER BY sale_date\n         ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW\n       ) AS running_revenue\nFROM day_level;",
+  "explanation": "The CTE first creates one row per day. The window SUM then calculates the cumulative revenue over those daily rows.",
+  "common_mistakes": ["Windowing over raw transaction rows", "Leaving duplicate sale_date rows in the output", "Forgetting an ordered window frame"],
+  "validation_type": "SQL_OUTPUT_MATCH",
+  "rubric": [],
+  "hints": ["Check the output grain first.", "Multiple rows can exist per sale_date.", "Aggregate by date before the running total."]
+}

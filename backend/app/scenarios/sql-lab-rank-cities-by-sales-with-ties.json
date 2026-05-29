@@ -1,0 +1,30 @@
+{
+  "id": "sql-lab-009",
+  "slug": "sql-lab-rank-cities-by-sales-with-ties",
+  "title": "SQL Lab 9: Rank Cities by Sales with Ties",
+  "difficulty": "beginner",
+  "section": "SQL Lab",
+  "access_tier": "premium",
+  "topic_tags": ["SQL", "Ranking", "Ties"],
+  "short_description": "Rank cities by revenue and preserve rank gaps when ties occur.",
+  "business_context": "Sales leaderboards often need visible rank gaps so tied cities do not hide the number of positions occupied.",
+  "problem_statement": "Rank cities by revenue descending. If two cities tie, they should share a rank and the next rank should have a gap.",
+  "student_task": "Write a query returning city, revenue, and city_rank.",
+  "learning_goals": ["Choose RANK when rank gaps matter", "Explain RANK versus DENSE_RANK", "Order leaderboard metrics correctly"],
+  "broken_code": "SELECT city, revenue,\n       ROW_NUMBER() OVER (ORDER BY revenue DESC) AS city_rank\nFROM city_sales;",
+  "production_logs": ["sales-leaderboard: tied cities received different ranks", "review-note: ROW_NUMBER does not model tied leaderboard positions"],
+  "sample_tables": [
+    {
+      "name": "city_sales",
+      "columns": ["city", "revenue"],
+      "rows": [["Mumbai", 5000], ["Bengaluru", 4500], ["Delhi", 4500], ["Pune", 3000], ["Hyderabad", 2500]]
+    }
+  ],
+  "expected_output": [],
+  "solution_query": "SELECT city,\n       revenue,\n       RANK() OVER (ORDER BY revenue DESC) AS city_rank\nFROM city_sales;",
+  "explanation": "RANK gives tied cities the same rank and leaves a gap before the next rank, which matches the prompt.",
+  "common_mistakes": ["Using ROW_NUMBER and splitting ties", "Using DENSE_RANK when the prompt expects rank gaps", "Ordering revenue ascending"],
+  "validation_type": "SQL_OUTPUT_MATCH",
+  "rubric": [],
+  "hints": ["The prompt says ties share a rank.", "The next rank should have a gap.", "Use RANK, not ROW_NUMBER."]
+}

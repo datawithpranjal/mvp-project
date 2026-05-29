@@ -55,6 +55,9 @@ export function SiteHeader() {
             <Link href="/scenarios" className="transition hover:text-teal-100">
               Scenarios
             </Link>
+            <Link href="/labs" className="transition hover:text-teal-100">
+              Labs
+            </Link>
             <Link href="/roadmap" className="transition hover:text-teal-100">
               Roadmap
             </Link>

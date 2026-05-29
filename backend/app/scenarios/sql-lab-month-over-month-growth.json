@@ -1,0 +1,30 @@
+{
+  "id": "sql-lab-008",
+  "slug": "sql-lab-month-over-month-growth",
+  "title": "SQL Lab 8: Month-over-Month Growth",
+  "difficulty": "intermediate",
+  "section": "SQL Lab",
+  "access_tier": "premium",
+  "topic_tags": ["SQL", "Window Functions", "Metrics"],
+  "short_description": "Use LAG to compare each month against the previous month.",
+  "business_context": "Executive dashboards usually include MoM growth, and the first month or zero previous revenue must be handled safely.",
+  "problem_statement": "Return month_start, revenue, prev_revenue, and mom_growth_pct. The first month should have NULL growth.",
+  "student_task": "Write a query returning month_start, revenue, prev_revenue, and mom_growth_pct rounded to 2 decimals.",
+  "learning_goals": ["Use LAG for previous-period comparison", "Avoid divide-by-zero", "Make metric formulas explicit"],
+  "broken_code": "SELECT month_start, revenue,\n       (revenue - LAG(revenue) OVER (ORDER BY month_start)) / revenue AS mom_growth_pct\nFROM monthly_revenue;",
+  "production_logs": ["exec-dashboard: growth percentage looks too small", "review-note: denominator should be previous revenue, not current revenue"],
+  "sample_tables": [
+    {
+      "name": "monthly_revenue",
+      "columns": ["month_start", "revenue"],
+      "rows": [["2026-01-01", 1000], ["2026-02-01", 1250], ["2026-03-01", 1000], ["2026-04-01", 1500]]
+    }
+  ],
+  "expected_output": [],
+  "solution_query": "WITH base AS (\n  SELECT month_start,\n         revenue,\n         LAG(revenue) OVER (ORDER BY month_start) AS prev_revenue\n  FROM monthly_revenue\n)\nSELECT month_start,\n       revenue,\n       prev_revenue,\n       CASE\n         WHEN prev_revenue IS NULL OR prev_revenue = 0 THEN NULL\n         ELSE ROUND((revenue - prev_revenue) * 100.0 / prev_revenue, 2)\n       END AS mom_growth_pct\nFROM base;",
+  "explanation": "The query computes previous revenue once in a CTE, then applies the growth formula using previous revenue as the denominator.",
+  "common_mistakes": ["Using current revenue as denominator", "Repeating LAG many times", "Not handling NULL or zero previous revenue"],
+  "validation_type": "SQL_OUTPUT_MATCH",
+  "rubric": [],
+  "hints": ["Compute previous revenue first.", "Growth uses previous revenue as denominator.", "The first month has no previous month."]
+}

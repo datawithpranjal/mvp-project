@@ -1,0 +1,30 @@
+{
+  "id": "sql-lab-005",
+  "slug": "sql-lab-first-and-last-order-per-customer",
+  "title": "SQL Lab 5: First and Last Order per Customer",
+  "difficulty": "beginner",
+  "section": "SQL Lab",
+  "access_tier": "free",
+  "topic_tags": ["SQL", "Aggregation", "Grain"],
+  "short_description": "Collapse order history to first and last order dates per customer.",
+  "business_context": "Lifecycle reports frequently need customer acquisition and most recent activity dates.",
+  "problem_statement": "For each customer, return their first_order_date and last_order_date.",
+  "student_task": "Write a query returning customer_id, first_order_date, and last_order_date.",
+  "learning_goals": ["Identify the output grain", "Use MIN and MAX for date boundaries", "Avoid unnecessary window logic when aggregation is enough"],
+  "broken_code": "SELECT customer_id, order_date AS first_order_date, order_date AS last_order_date\nFROM orders;",
+  "production_logs": ["lifecycle-report: multiple rows emitted per customer", "review-note: output grain should be one row per customer"],
+  "sample_tables": [
+    {
+      "name": "orders",
+      "columns": ["order_id", "customer_id", "order_date"],
+      "rows": [[1, 101, "2026-01-01"], [2, 101, "2026-01-10"], [3, 102, "2026-01-03"], [4, 102, "2026-02-14"], [5, 103, "2026-01-20"]]
+    }
+  ],
+  "expected_output": [],
+  "solution_query": "SELECT customer_id,\n       MIN(order_date) AS first_order_date,\n       MAX(order_date) AS last_order_date\nFROM orders\nGROUP BY customer_id;",
+  "explanation": "The requested grain is one row per customer, so grouped MIN and MAX directly answer the question.",
+  "common_mistakes": ["Returning order-level rows", "Using window functions but forgetting DISTINCT", "Grouping by order_date accidentally"],
+  "validation_type": "SQL_OUTPUT_MATCH",
+  "rubric": [],
+  "hints": ["One output row per customer.", "You need date boundaries.", "GROUP BY customer_id with MIN and MAX."]
+}

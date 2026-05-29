@@ -1,0 +1,30 @@
+{
+  "id": "sql-lab-002",
+  "slug": "sql-lab-nth-highest-salary",
+  "title": "SQL Lab 2: Nth Highest Salary",
+  "difficulty": "beginner",
+  "section": "SQL Lab",
+  "access_tier": "free",
+  "topic_tags": ["SQL", "Ranking", "Window Functions"],
+  "short_description": "Generalize salary ranking and return the 3rd highest distinct salary.",
+  "business_context": "Interviewers often ask for the nth highest value to see if you can generalize beyond one hard-coded case.",
+  "problem_statement": "Return the 3rd highest distinct salary from the employees table.",
+  "student_task": "Write a single SQL query that returns one column named nth_highest_salary.",
+  "learning_goals": ["Use DENSE_RANK for distinct salary levels", "Avoid hard-coded OFFSET patterns", "State the rank target clearly"],
+  "broken_code": "SELECT salary AS nth_highest_salary\nFROM employees\nORDER BY salary DESC\nLIMIT 1 OFFSET 2;",
+  "production_logs": ["interview-sim: duplicated salaries exist in the source table", "review-note: OFFSET over rows is not the same as nth distinct salary"],
+  "sample_tables": [
+    {
+      "name": "employees",
+      "columns": ["emp_id", "salary"],
+      "rows": [[1, 120000], [2, 120000], [3, 110000], [4, 100000], [5, 95000], [6, 95000]]
+    }
+  ],
+  "expected_output": [],
+  "solution_query": "WITH ranked AS (\n  SELECT DISTINCT salary,\n         DENSE_RANK() OVER (ORDER BY salary DESC) AS rnk\n  FROM employees\n)\nSELECT salary AS nth_highest_salary\nFROM ranked\nWHERE rnk = 3;",
+  "explanation": "The query ranks distinct salary values in descending order and filters to rank 3. This keeps duplicate employee salaries from changing the result.",
+  "common_mistakes": ["Ranking employee rows instead of salary levels", "Using OFFSET without removing duplicates", "Forgetting to alias the output column"],
+  "validation_type": "SQL_OUTPUT_MATCH",
+  "rubric": [],
+  "hints": ["The target n is 3 in this exercise.", "Use distinct salary values before ranking.", "DENSE_RANK is a natural fit for salary bands."]
+}

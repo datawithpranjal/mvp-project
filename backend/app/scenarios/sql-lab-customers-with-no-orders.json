@@ -1,0 +1,35 @@
+{
+  "id": "sql-lab-011",
+  "slug": "sql-lab-customers-with-no-orders",
+  "title": "SQL Lab 11: Customers with No Orders",
+  "difficulty": "beginner",
+  "section": "SQL Lab",
+  "access_tier": "premium",
+  "topic_tags": ["SQL", "Anti Join", "NULL Handling"],
+  "short_description": "Find customers with no orders using a NULL-safe anti-join pattern.",
+  "business_context": "Marketing teams need to identify customers who have never ordered, but NULLs in order data can break NOT IN logic.",
+  "problem_statement": "Return customers who never placed an order. The orders table may contain NULL customer_id values.",
+  "student_task": "Write a query returning customer_id and customer_name.",
+  "learning_goals": ["Use NOT EXISTS safely", "Understand why NOT IN can fail with NULLs", "Write anti-joins that survive dirty source data"],
+  "broken_code": "SELECT customer_id, customer_name\nFROM customers\nWHERE customer_id NOT IN (\n  SELECT customer_id\n  FROM orders\n);",
+  "production_logs": ["campaign-build: no customers returned even though inactive customers exist", "data-quality: orders.customer_id contains NULL"],
+  "sample_tables": [
+    {
+      "name": "customers",
+      "columns": ["customer_id", "customer_name"],
+      "rows": [[1, "Asha"], [2, "Ben"], [3, "Chen"], [4, "Diya"], [5, "Evan"]]
+    },
+    {
+      "name": "orders",
+      "columns": ["order_id", "customer_id"],
+      "rows": [[101, 1], [102, 2], [103, 2], [104, 3], [105, null]]
+    }
+  ],
+  "expected_output": [],
+  "solution_query": "SELECT c.customer_id,\n       c.customer_name\nFROM customers c\nWHERE NOT EXISTS (\n  SELECT 1\n  FROM orders o\n  WHERE o.customer_id = c.customer_id\n);",
+  "explanation": "NOT EXISTS checks for a matching order per customer and is not poisoned by NULL values in the orders subquery.",
+  "common_mistakes": ["Using NOT IN when the subquery can return NULL", "Filtering on the wrong side of a left join", "Returning order columns instead of customer columns"],
+  "validation_type": "SQL_OUTPUT_MATCH",
+  "rubric": [],
+  "hints": ["The orders table has a NULL customer_id.", "NOT IN behaves badly when the subquery contains NULL.", "Use NOT EXISTS or a left anti-join."]
+}

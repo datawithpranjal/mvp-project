@@ -1,0 +1,30 @@
+{
+  "id": "sql-lab-001",
+  "slug": "sql-lab-second-highest-salary",
+  "title": "SQL Lab 1: Second Highest Salary",
+  "difficulty": "beginner",
+  "section": "SQL Lab",
+  "access_tier": "free",
+  "topic_tags": ["SQL", "Ranking", "Interview Basics"],
+  "short_description": "Return the second highest distinct salary while handling duplicate salary values.",
+  "business_context": "HR analytics often needs salary band calculations where duplicate values should not change the rank.",
+  "problem_statement": "The employees table can contain multiple employees with the same salary. Return the second highest distinct salary. If only one distinct salary exists, the result should be NULL.",
+  "student_task": "Write a single SQL query that returns one column named second_highest_salary.",
+  "learning_goals": ["Think in distinct values before ranking", "Handle duplicate salaries correctly", "Avoid ROW_NUMBER when the business asks for distinct salary bands"],
+  "broken_code": "SELECT salary AS second_highest_salary\nFROM employees\nORDER BY salary DESC\nLIMIT 1 OFFSET 1;",
+  "production_logs": ["interview-sim: duplicate salaries found at the highest salary level", "review-note: row offset logic may return the same salary band"],
+  "sample_tables": [
+    {
+      "name": "employees",
+      "columns": ["emp_id", "emp_name", "salary"],
+      "rows": [[1, "Asha", 90000], [2, "Ben", 120000], [3, "Chen", 120000], [4, "Diya", 105000], [5, "Evan", 90000]]
+    }
+  ],
+  "expected_output": [],
+  "solution_query": "SELECT MAX(salary) AS second_highest_salary\nFROM employees\nWHERE salary < (\n  SELECT MAX(salary)\n  FROM employees\n);",
+  "explanation": "The query first finds the maximum salary, then finds the maximum salary below that value. This treats duplicate top salaries as one distinct salary band.",
+  "common_mistakes": ["Using ROW_NUMBER directly on employee rows", "Forgetting that duplicate salaries should not create duplicate ranks", "Returning an employee row instead of the salary value"],
+  "validation_type": "SQL_OUTPUT_MATCH",
+  "rubric": [],
+  "hints": ["Duplicates matter here.", "Think in distinct salary bands, not employee rows.", "Find the maximum salary lower than the overall maximum salary."]
+}

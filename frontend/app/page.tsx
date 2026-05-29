@@ -40,6 +40,12 @@ export default function HomePage() {
               Start Free Scenario
             </Link>
             <Link
+              href="/labs"
+              className="rounded-full border border-slate-700 bg-slate-950/30 px-6 py-3 text-sm font-semibold text-slate-100 transition hover:border-teal-300/50 hover:text-teal-100"
+            >
+              Open Labs
+            </Link>
+            <Link
               href="/roadmap"
               className="rounded-full border border-slate-700 bg-slate-950/30 px-6 py-3 text-sm font-semibold text-slate-100 transition hover:border-teal-300/50 hover:text-teal-100"
             >
@@ -170,6 +176,7 @@ export default function HomePage() {
         <p>{BRAND.name}. {BRAND.trustLine}.</p>
         <div className="flex flex-wrap gap-4">
           <Link href="/dashboard">Dashboard</Link>
+          <Link href="/labs">Labs</Link>
           <Link href="/roadmap">Roadmap</Link>
           <Link href="/projects">Projects</Link>
           <Link href="/mock-interview">Mock Interview</Link>
@@ -178,4 +185,3 @@ export default function HomePage() {
     </main>
   );
 }
-

@@ -1,0 +1,30 @@
+{
+  "id": "sql-lab-004",
+  "slug": "sql-lab-latest-order-per-customer",
+  "title": "SQL Lab 4: Latest Order per Customer",
+  "difficulty": "intermediate",
+  "section": "SQL Lab",
+  "access_tier": "free",
+  "topic_tags": ["SQL", "Window Functions", "Deduplication"],
+  "short_description": "Pick one deterministic latest order per customer.",
+  "business_context": "Customer support dashboards often need each customer's latest order. Ties must be deterministic so reruns do not flip results.",
+  "problem_statement": "Return the latest order for each customer. If two orders have the same order_date, keep the larger order_id.",
+  "student_task": "Write a query returning order_id, customer_id, order_date, and amount.",
+  "learning_goals": ["Use ROW_NUMBER for one surviving row", "Add deterministic tie-breakers", "Avoid duplicate latest rows when dates tie"],
+  "broken_code": "SELECT o.*\nFROM orders o\nJOIN (\n  SELECT customer_id, MAX(order_date) AS max_order_date\n  FROM orders\n  GROUP BY customer_id\n) m\nON o.customer_id = m.customer_id\nAND o.order_date = m.max_order_date;",
+  "production_logs": ["support-dashboard: customer 101 appears twice", "review-note: max-date join does not resolve same-date ties"],
+  "sample_tables": [
+    {
+      "name": "orders",
+      "columns": ["order_id", "customer_id", "order_date", "amount"],
+      "rows": [[1001, 101, "2026-01-01", 80], [1002, 101, "2026-01-10", 120], [1003, 101, "2026-01-10", 150], [1004, 102, "2026-01-03", 60], [1005, 102, "2026-01-09", 75], [1006, 103, "2026-01-04", 40]]
+    }
+  ],
+  "expected_output": [],
+  "solution_query": "WITH ranked AS (\n  SELECT order_id,\n         customer_id,\n         order_date,\n         amount,\n         ROW_NUMBER() OVER (\n           PARTITION BY customer_id\n           ORDER BY order_date DESC, order_id DESC\n         ) AS rn\n  FROM orders\n)\nSELECT order_id, customer_id, order_date, amount\nFROM ranked\nWHERE rn = 1;",
+  "explanation": "ROW_NUMBER keeps exactly one row per customer. Ordering by order_date descending and order_id descending makes the tie behavior deterministic.",
+  "common_mistakes": ["Joining only to MAX(order_date)", "Forgetting a tie-breaker", "Returning all tied latest rows when one row is required"],
+  "validation_type": "SQL_OUTPUT_MATCH",
+  "rubric": [],
+  "hints": ["One output row should represent one customer.", "A max-date join can return duplicates.", "Use ROW_NUMBER and filter rn = 1."]
+}

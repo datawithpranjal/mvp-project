@@ -10,7 +10,7 @@ def test_list_scenarios_returns_full_library() -> None:
 
     assert response.status_code == 200
     payload = response.json()
-    assert len(payload) == 26
+    assert len(payload) >= 38
 
     slugs = {scenario["slug"] for scenario in payload}
     assert {
@@ -20,6 +20,8 @@ def test_list_scenarios_returns_full_library() -> None:
         "merge-with-duplicate-matches",
         "timezone-boundary-bug",
         "poison-pill-event",
+        "sql-lab-second-highest-salary",
+        "sql-lab-customers-with-no-orders",
     }.issubset(slugs)
 
     null_trap_summary = next(scenario for scenario in payload if scenario["slug"] == "null-trap")

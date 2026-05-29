@@ -1,0 +1,30 @@
+{
+  "id": "sql-lab-010",
+  "slug": "sql-lab-top-10-percent-customers-by-spend",
+  "title": "SQL Lab 10: Top 10 Percent Customers by Spend",
+  "difficulty": "advanced",
+  "section": "SQL Lab",
+  "access_tier": "premium",
+  "topic_tags": ["SQL", "Percentiles", "Analytics"],
+  "short_description": "Identify customers in the top spending percentile band.",
+  "business_context": "Retention and loyalty programs often target the highest-spend customers using percentile-based segmentation.",
+  "problem_statement": "Return customers in the top 10 percent by total_spend.",
+  "student_task": "Write a query returning customer_id and total_spend.",
+  "learning_goals": ["Use percent ranking for percentile thresholds", "Understand ascending versus descending percentile logic", "Avoid arbitrary LIMIT when the requirement is percentile-based"],
+  "broken_code": "SELECT customer_id, total_spend\nFROM customer_spend\nORDER BY total_spend DESC\nLIMIT 10;",
+  "production_logs": ["loyalty-job: small cohort table returned too many customers", "review-note: top 10 rows is not the same as top 10 percent"],
+  "sample_tables": [
+    {
+      "name": "customer_spend",
+      "columns": ["customer_id", "total_spend"],
+      "rows": [[1, 100], [2, 150], [3, 200], [4, 250], [5, 300], [6, 350], [7, 400], [8, 450], [9, 500], [10, 1000]]
+    }
+  ],
+  "expected_output": [],
+  "solution_query": "WITH ranked AS (\n  SELECT customer_id,\n         total_spend,\n         PERCENT_RANK() OVER (ORDER BY total_spend) AS pr\n  FROM customer_spend\n)\nSELECT customer_id, total_spend\nFROM ranked\nWHERE pr >= 0.9;",
+  "explanation": "PERCENT_RANK over ascending spend gives the highest spender a percentile rank of 1. Filtering at 0.9 returns the top percentile band.",
+  "common_mistakes": ["Using LIMIT 10 regardless of table size", "Ordering percent rank in the wrong direction", "Not considering ties near the threshold"],
+  "validation_type": "SQL_OUTPUT_MATCH",
+  "rubric": [],
+  "hints": ["This is percentage-based, not row-count-based.", "PERCENT_RANK returns values from 0 to 1.", "With ascending order, high spend has high percent rank."]
+}

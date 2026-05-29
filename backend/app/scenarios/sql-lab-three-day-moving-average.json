@@ -1,0 +1,30 @@
+{
+  "id": "sql-lab-007",
+  "slug": "sql-lab-three-day-moving-average",
+  "title": "SQL Lab 7: 3-Day Moving Average",
+  "difficulty": "intermediate",
+  "section": "SQL Lab",
+  "access_tier": "premium",
+  "topic_tags": ["SQL", "Window Functions", "Analytics"],
+  "short_description": "Calculate a rolling three-row moving average by date.",
+  "business_context": "Operations teams smooth daily metrics with moving averages so spikes are easier to interpret.",
+  "problem_statement": "For each sale_date, return revenue and the 3-day moving average using the current row and two previous rows.",
+  "student_task": "Write a query returning sale_date, revenue, and moving_avg_3.",
+  "learning_goals": ["Use ROWS BETWEEN for moving windows", "Understand current row plus prior rows", "Order time-series windows correctly"],
+  "broken_code": "SELECT sale_date, revenue, AVG(revenue) AS moving_avg_3\nFROM daily_sales\nGROUP BY sale_date, revenue;",
+  "production_logs": ["analytics-review: moving average equals raw revenue for every row", "review-note: aggregate without a window does not create a rolling metric"],
+  "sample_tables": [
+    {
+      "name": "daily_sales",
+      "columns": ["sale_date", "revenue"],
+      "rows": [["2026-01-01", 90], ["2026-01-02", 120], ["2026-01-03", 150], ["2026-01-04", 210], ["2026-01-05", 180]]
+    }
+  ],
+  "expected_output": [],
+  "solution_query": "SELECT sale_date,\n       revenue,\n       AVG(revenue) OVER (\n         ORDER BY sale_date\n         ROWS BETWEEN 2 PRECEDING AND CURRENT ROW\n       ) AS moving_avg_3\nFROM daily_sales;",
+  "explanation": "The window frame includes the current date and up to two earlier rows ordered by sale_date, producing a rolling 3-row average.",
+  "common_mistakes": ["Using GROUP BY instead of a window", "Forgetting ORDER BY in the window", "Using an unbounded frame instead of 2 preceding"],
+  "validation_type": "SQL_OUTPUT_MATCH",
+  "rubric": [],
+  "hints": ["This is a rolling metric.", "Use a window frame, not GROUP BY.", "The frame is 2 PRECEDING through CURRENT ROW."]
+}
