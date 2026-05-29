@@ -15,10 +15,16 @@ import { getScenario, validateScenario } from "../../../lib/api";
 import { AUTH_UPDATED_EVENT } from "../../../lib/auth";
 import {
   getScenarioProgress,
+  markScenarioCompleted,
   recordScenarioAttempt,
+  recordScenarioAiFeedback,
+  saveScenarioDraft,
+  scheduleScenarioReattempt,
   setScenarioHintsRevealed,
+  setScenarioSelfRating,
   summarizeScenarioProgress,
   type AttemptHistoryEntry,
+  type ScenarioSelfRating,
   type ScenarioProgressSummary
 } from "../../../lib/progress";
 import {
@@ -27,6 +33,10 @@ import {
   type PremiumAccessRecord
 } from "../../../lib/premium-access";
 import type { ScenarioDetail, ValidationResponse, ValidationType } from "../../../lib/types";
+import {
+  evaluateScenarioAnswer,
+  type AiEvaluationResult
+} from "../../../services/ai/evaluateScenarioAnswer";
 
 function formatProgressTimestamp(value: string | null): string {
   if (!value) {
@@ -53,6 +63,10 @@ export default function ScenarioDetailPage() {
   const [progress, setProgress] = useState<ScenarioProgressSummary | null>(null);
   const [revealedHintsCount, setRevealedHintsCount] = useState(0);
   const [premiumAccess, setPremiumAccess] = useState<PremiumAccessRecord | null>(null);
+  const [isModelAnswerVisible, setIsModelAnswerVisible] = useState(false);
+  const [isEvaluating, setIsEvaluating] = useState(false);
+  const [aiFeedback, setAiFeedback] = useState<AiEvaluationResult | null>(null);
+  const [draftMessage, setDraftMessage] = useState<string | null>(null);
 
   useEffect(() => {
     function syncPremiumAccess() {
@@ -84,9 +98,13 @@ export default function ScenarioDetailPage() {
         const nextProgress = getScenarioProgress(nextScenario.slug);
         setScenario(nextScenario);
         setAnswer(
-          nextScenario.validation_type === "SQL_OUTPUT_MATCH" ? nextScenario.broken_code : ""
+          nextProgress.draftAnswer ||
+            (nextScenario.validation_type === "SQL_OUTPUT_MATCH" ? nextScenario.broken_code : "")
         );
         setResult(null);
+        setAiFeedback(null);
+        setIsModelAnswerVisible(false);
+        setDraftMessage(null);
         setAttemptHistory(nextProgress.attempts);
         setProgress(summarizeScenarioProgress(nextProgress, nextScenario.slug));
         setRevealedHintsCount(Math.min(nextProgress.hintsRevealed, nextScenario.hints.length));
@@ -136,6 +154,76 @@ export default function ScenarioDetailPage() {
     const nextCount = revealedHintsCount + 1;
     const nextProgress = setScenarioHintsRevealed(slug, nextCount);
     setRevealedHintsCount(nextCount);
+    setProgress(summarizeScenarioProgress(nextProgress, scenario.slug));
+  }
+
+  function handleSaveDraft() {
+    if (!slug || !scenario) {
+      return;
+    }
+
+    const nextProgress = saveScenarioDraft(slug, answer);
+    setProgress(summarizeScenarioProgress(nextProgress, scenario.slug));
+    setDraftMessage("Draft saved in this browser.");
+  }
+
+  async function handleEvaluateWithAi() {
+    if (!slug || !scenario) {
+      return;
+    }
+
+    try {
+      setIsEvaluating(true);
+      setError(null);
+      const evaluation = await evaluateScenarioAnswer({
+        scenario,
+        userAnswer: answer,
+        hasScenarioAccess: true
+      });
+      const nextProgress = recordScenarioAiFeedback(slug, {
+        totalScore: evaluation.totalScore,
+        strengths: evaluation.strengths,
+        missingPoints: evaluation.missingPoints,
+        improvedAnswer: evaluation.improvedAnswerSuggestion,
+        followUpQuestions: evaluation.followUpQuestions
+      });
+      setAiFeedback(evaluation);
+      setProgress(summarizeScenarioProgress(nextProgress, scenario.slug));
+    } catch (evaluationError) {
+      const message =
+        evaluationError instanceof Error
+          ? evaluationError.message
+          : "Unable to evaluate answer right now.";
+      setError(message);
+    } finally {
+      setIsEvaluating(false);
+    }
+  }
+
+  function handleSelfRating(selfRating: ScenarioSelfRating) {
+    if (!slug || !scenario) {
+      return;
+    }
+
+    const nextProgress = setScenarioSelfRating(slug, selfRating);
+    setProgress(summarizeScenarioProgress(nextProgress, scenario.slug));
+  }
+
+  function handleMarkCompleted() {
+    if (!slug || !scenario) {
+      return;
+    }
+
+    const nextProgress = markScenarioCompleted(slug);
+    setProgress(summarizeScenarioProgress(nextProgress, scenario.slug));
+  }
+
+  function handleReattemptLater() {
+    if (!slug || !scenario) {
+      return;
+    }
+
+    const nextProgress = scheduleScenarioReattempt(slug);
     setProgress(summarizeScenarioProgress(nextProgress, scenario.slug));
   }
 
@@ -335,7 +423,50 @@ export default function ScenarioDetailPage() {
           submitLabel={editorConfig.submitLabel}
         />
 
+        <div className="panel rounded-3xl p-5">
+          <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
+            <div>
+              <h3 className="text-lg font-semibold text-slate-50">Practice Controls</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                Save your attempt, get evaluator feedback, then reveal the model answer only
+                after you have thought through the scenario.
+              </p>
+              {draftMessage ? (
+                <p className="mt-2 text-sm font-semibold text-teal-100">{draftMessage}</p>
+              ) : null}
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={handleSaveDraft}
+                className="rounded-full border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-teal-300/40"
+              >
+                Save Draft
+              </button>
+              <button
+                type="button"
+                onClick={handleEvaluateWithAi}
+                disabled={isEvaluating}
+                className="rounded-full bg-teal-300 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-teal-200 disabled:cursor-not-allowed disabled:bg-teal-100"
+              >
+                {isEvaluating ? "Evaluating..." : "Submit for Evaluation"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsModelAnswerVisible(true)}
+                className="rounded-full bg-amber-300 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-amber-200"
+              >
+                Reveal Model Answer
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {aiFeedback ? <AiFeedbackPanel feedback={aiFeedback} /> : null}
+
         <ResultPanel scenario={scenario} result={result} />
+
+        {isModelAnswerVisible ? <ModelAnswerPanel scenario={scenario} /> : null}
       </section>
 
       <section className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
@@ -412,6 +543,45 @@ export default function ScenarioDetailPage() {
             <div className="mt-4 space-y-2 text-sm text-slate-400">
               <p>Last attempt: {formatProgressTimestamp(progress?.lastAttemptedAt ?? null)}</p>
               <p>Last pass: {formatProgressTimestamp(progress?.lastPassedAt ?? null)}</p>
+              <p>Draft saved: {formatProgressTimestamp(progress?.draftSavedAt ?? null)}</p>
+              <p>Re-attempt: {formatProgressTimestamp(progress?.revisitAt ?? null)}</p>
+            </div>
+            <div className="mt-5 border-t border-slate-800 pt-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Self-rating
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {(["Weak", "Okay", "Strong"] as ScenarioSelfRating[]).map((rating) => (
+                  <button
+                    key={rating}
+                    type="button"
+                    onClick={() => handleSelfRating(rating)}
+                    className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                      progress?.selfRating === rating
+                        ? "bg-teal-300 text-slate-950"
+                        : "border border-slate-700 bg-slate-950/30 text-slate-200 hover:border-teal-300/40"
+                    }`}
+                  >
+                    {rating}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={handleMarkCompleted}
+                className="rounded-full bg-teal-300 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-teal-200"
+              >
+                Mark completed
+              </button>
+              <button
+                type="button"
+                onClick={handleReattemptLater}
+                className="rounded-full border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-amber-300/40"
+              >
+                Re-attempt later
+              </button>
             </div>
           </div>
 
@@ -434,6 +604,141 @@ export default function ScenarioDetailPage() {
         </div>
       </section>
     </main>
+  );
+}
+
+function AiFeedbackPanel({ feedback }: { feedback: AiEvaluationResult }) {
+  const dimensions = [
+    ["Problem understanding", feedback.dimensionScores.problemUnderstanding],
+    ["Root-cause thinking", feedback.dimensionScores.rootCauseThinking],
+    ["Solution design", feedback.dimensionScores.solutionDesign],
+    ["Trade-offs", feedback.dimensionScores.tradeOffs],
+    ["Monitoring/testing", feedback.dimensionScores.monitoringTesting],
+    ["Interview clarity", feedback.dimensionScores.interviewClarity]
+  ];
+
+  return (
+    <div className="panel rounded-3xl p-5">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h3 className="text-lg font-semibold text-slate-50">AI Evaluation</h3>
+          <p className="mt-1 text-sm text-slate-400">
+            Mock deterministic evaluator. Replace with a provider later without changing the UI.
+          </p>
+        </div>
+        <span className="rounded-full border border-teal-300/25 bg-teal-300/10 px-4 py-2 text-sm font-semibold text-teal-100">
+          {feedback.totalScore}/100
+        </span>
+      </div>
+      <div className="mt-5 grid gap-3 md:grid-cols-3">
+        {dimensions.map(([label, value]) => (
+          <div key={label} className="rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+              {label}
+            </p>
+            <p className="mt-2 text-2xl font-semibold text-slate-50">{value}</p>
+          </div>
+        ))}
+      </div>
+      <div className="mt-5 grid gap-4 md:grid-cols-2">
+        <FeedbackList title="Strengths" items={feedback.strengths} />
+        <FeedbackList title="Missing points" items={feedback.missingPoints} />
+      </div>
+      <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+          Improved answer structure
+        </p>
+        <p className="mt-3 text-sm leading-6 text-slate-300">
+          {feedback.improvedAnswerSuggestion}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function ModelAnswerPanel({ scenario }: { scenario: ScenarioDetail }) {
+  return (
+    <div className="panel rounded-3xl p-5">
+      <div className="mb-4">
+        <h3 className="text-lg font-semibold text-slate-50">Model Answer</h3>
+        <p className="mt-1 text-sm text-slate-400">
+          Use this after your attempt to compare reasoning, not as the first step.
+        </p>
+      </div>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <AnswerSection title="Understand the problem" body={scenario.problem_statement} />
+        <AnswerSection title="Possible root causes" body={scenario.explanation} />
+        <AnswerSection title="Solution design" body={scenario.solution_answer} preserveFormatting />
+        <AnswerSection
+          title="Trade-offs"
+          body={
+            scenario.common_mistakes.length
+              ? scenario.common_mistakes.join("\n")
+              : "Name correctness, latency, cost, operational risk, and replay safety."
+          }
+        />
+        <AnswerSection
+          title="Monitoring and testing"
+          body="Add reconciliation checks, row-count checks, duplicate/null checks, alerting, and a replay/rollback plan."
+        />
+        <AnswerSection
+          title="Strong interview framing"
+          body="Start with the business symptom, isolate the failing assumption, propose the safest fix, describe validation, and close with how you would prevent recurrence."
+        />
+      </div>
+      {scenario.rubric.length > 0 ? (
+        <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+            Follow-up questions
+          </p>
+          <div className="mt-3 space-y-2">
+            {scenario.rubric.slice(0, 4).map((item) => (
+              <p key={item.point} className="text-sm leading-6 text-slate-300">
+                {item.point}
+              </p>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function AnswerSection({
+  title,
+  body,
+  preserveFormatting = false
+}: {
+  title: string;
+  body: string;
+  preserveFormatting?: boolean;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{title}</p>
+      <p
+        className={`mt-3 break-words text-sm leading-6 text-slate-300 ${
+          preserveFormatting ? "whitespace-pre-wrap" : "whitespace-pre-line"
+        }`}
+      >
+        {body}
+      </p>
+    </div>
+  );
+}
+
+function FeedbackList({ title, items }: { title: string; items: string[] }) {
+  return (
+    <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{title}</p>
+      <div className="mt-3 space-y-2">
+        {(items.length ? items : ["No specific notes yet."]).map((item) => (
+          <p key={item} className="text-sm leading-6 text-slate-300">
+            {item}
+          </p>
+        ))}
+      </div>
+    </div>
   );
 }
 

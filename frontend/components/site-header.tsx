@@ -41,12 +41,30 @@ export function SiteHeader() {
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-4 sm:px-10">
           <Link href="/" className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-200">
-              Data Engineering Playground
+              The Data Foundry
             </p>
             <p className="mt-1 truncate text-sm text-slate-400">
-              Production-style interview labs
+              Built by Data with Pranjal
             </p>
           </Link>
+
+          <nav className="hidden items-center gap-5 text-sm font-semibold text-slate-300 lg:flex">
+            <Link href="/dashboard" className="transition hover:text-teal-100">
+              Dashboard
+            </Link>
+            <Link href="/scenarios" className="transition hover:text-teal-100">
+              Scenarios
+            </Link>
+            <Link href="/roadmap" className="transition hover:text-teal-100">
+              Roadmap
+            </Link>
+            <Link href="/projects" className="transition hover:text-teal-100">
+              Projects
+            </Link>
+            <Link href="/mock-interview" className="transition hover:text-teal-100">
+              Mock Interview
+            </Link>
+          </nav>
 
           {currentUser ? (
             <div className="flex flex-wrap items-center justify-end gap-3">

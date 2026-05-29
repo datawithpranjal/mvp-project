@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { estimateScenarioMinutes, formatValidationMode } from "../lib/product";
 import type { ScenarioSummary } from "../lib/types";
 import type { ScenarioProgressSummary } from "../lib/progress";
 
@@ -11,8 +12,8 @@ interface ScenarioCardProps {
 
 export function ScenarioCard({ scenario, progress, isLocked }: ScenarioCardProps) {
   const extraTopics = scenario.topics.filter((topic) => topic !== scenario.section);
-  const validationLabel =
-    scenario.validation_type === "SQL_OUTPUT_MATCH" ? "SQL Lab" : "Debug Lab";
+  const validationLabel = formatValidationMode(scenario.validation_type);
+  const strengthLabel = progress?.selfRating ?? (progress?.completed ? "Strong" : "Not rated");
 
   return (
     <Link
@@ -34,6 +35,9 @@ export function ScenarioCard({ scenario, progress, isLocked }: ScenarioCardProps
           <div className="flex flex-wrap justify-end gap-2">
             <span className="rounded-full border border-slate-700 bg-slate-950/40 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-300">
               {scenario.difficulty}
+            </span>
+            <span className="rounded-full border border-slate-700 bg-slate-950/40 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-300">
+              {estimateScenarioMinutes(scenario)} min
             </span>
             <span
               className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] ${
@@ -70,15 +74,18 @@ export function ScenarioCard({ scenario, progress, isLocked }: ScenarioCardProps
           <span>
             {isLocked ? "Locked" : progress?.completed ? "Completed" : "Open"}
           </span>
-          <span>{progress?.attemptCount ?? 0} attempts</span>
+          <span>{strengthLabel}</span>
         </div>
         <div className="flex items-center justify-between text-sm text-teal-200">
           <span>
             {isLocked
-              ? "Unlock with email"
+              ? "Preview locked lab"
               : progress?.completed
                 ? "Review scenario"
                 : "Open playground"}
+          </span>
+          <span className="text-xs uppercase tracking-[0.18em] text-slate-500">
+            {progress?.attemptCount ?? 0} attempts
           </span>
           <span className="transition duration-300 group-hover:translate-x-1">
             →

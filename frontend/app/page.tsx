@@ -1,259 +1,181 @@
-"use client";
+import Link from "next/link";
 
-import { useEffect, useState } from "react";
+import { ScenarioLibrary } from "../components/scenario-library";
+import { AUDIENCE_SEGMENTS, BRAND, CORE_LABS } from "../lib/product";
 
-import { AUTH_UPDATED_EVENT } from "../lib/auth";
-import { PremiumUpgradePanel } from "../components/premium-upgrade-panel";
-import { ScenarioCard } from "../components/scenario-card";
-import { getScenarios } from "../lib/api";
-import { getScenarioProgressMap, type ScenarioProgressSummary } from "../lib/progress";
-import {
-  getPremiumAccess,
-  PREMIUM_ACCESS_UPDATED_EVENT,
-  type PremiumAccessRecord
-} from "../lib/premium-access";
-import type { ScenarioSummary } from "../lib/types";
-
-const DIFFICULTY_FILTERS = ["All", "Beginner", "Intermediate", "Advanced"];
-const TOPIC_FILTERS = ["All", "SQL", "Spark", "Airflow", "Kafka", "Lakehouse", "Data Quality"];
+const WORKFLOW_STEPS = [
+  "Think",
+  "Attempt",
+  "Get Feedback",
+  "Reveal Answer",
+  "Practice Follow-ups",
+  "Track Progress"
+];
 
 export default function HomePage() {
-  const [scenarios, setScenarios] = useState<ScenarioSummary[]>([]);
-  const [progressMap, setProgressMap] = useState<Record<string, ScenarioProgressSummary>>({});
-  const [premiumAccess, setPremiumAccess] = useState<PremiumAccessRecord | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedDifficulty, setSelectedDifficulty] = useState("All");
-  const [selectedTopic, setSelectedTopic] = useState("All");
-
-  useEffect(() => {
-    async function loadScenarios() {
-      try {
-        const nextScenarios = await getScenarios();
-        setScenarios(nextScenarios);
-      } catch (loadError) {
-        const message =
-          loadError instanceof Error
-            ? loadError.message
-            : "Failed to load scenarios.";
-        setError(message);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    void loadScenarios();
-  }, []);
-
-  useEffect(() => {
-    function syncProgress() {
-      setProgressMap(getScenarioProgressMap());
-    }
-
-    syncProgress();
-    window.addEventListener("storage", syncProgress);
-
-    return () => window.removeEventListener("storage", syncProgress);
-  }, []);
-
-  useEffect(() => {
-    function syncPremiumAccess() {
-      setPremiumAccess(getPremiumAccess());
-    }
-
-    syncPremiumAccess();
-    window.addEventListener("storage", syncPremiumAccess);
-    window.addEventListener(PREMIUM_ACCESS_UPDATED_EVENT, syncPremiumAccess);
-    window.addEventListener(AUTH_UPDATED_EVENT, syncPremiumAccess);
-
-    return () => {
-      window.removeEventListener("storage", syncPremiumAccess);
-      window.removeEventListener(PREMIUM_ACCESS_UPDATED_EVENT, syncPremiumAccess);
-      window.removeEventListener(AUTH_UPDATED_EVENT, syncPremiumAccess);
-    };
-  }, []);
-
-  const filteredScenarios = scenarios.filter((scenario) => {
-    const difficultyMatches =
-      selectedDifficulty === "All" || scenario.difficulty === selectedDifficulty;
-    const topicMatches =
-      selectedTopic === "All" ||
-      scenario.section === selectedTopic ||
-      scenario.topics.includes(selectedTopic);
-    return difficultyMatches && topicMatches;
-  });
-
-  const completedCount = scenarios.filter((scenario) => progressMap[scenario.slug]?.completed).length;
-  const attemptedCount = scenarios.filter(
-    (scenario) => (progressMap[scenario.slug]?.attemptCount ?? 0) > 0
-  ).length;
-  const freeCount = scenarios.filter((scenario) => scenario.access_tier === "free").length;
-  const premiumCount = scenarios.filter((scenario) => scenario.access_tier === "premium").length;
-  const totalCount = scenarios.length;
-  const firstFreeScenarioSlug =
-    scenarios.find((scenario) => scenario.access_tier === "free")?.slug ?? null;
-
   return (
     <main className="mx-auto min-h-screen max-w-7xl px-6 py-10 sm:px-10">
       <section className="panel relative overflow-hidden rounded-[2rem] p-8 sm:p-12">
-        <div className="absolute inset-y-0 right-0 hidden w-1/3 bg-gradient-to-l from-amber-400/10 to-transparent lg:block" />
-        <div className="relative max-w-3xl">
+        <div className="absolute inset-y-0 right-0 hidden w-1/2 bg-[radial-gradient(circle_at_center,rgba(94,234,212,0.18),transparent_55%)] lg:block" />
+        <div className="relative max-w-4xl">
           <span className="badge rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.28em]">
-            MVP Playground
+            {BRAND.name}
           </span>
           <h1 className="mt-6 text-4xl font-semibold tracking-tight text-slate-50 sm:text-6xl">
-            Practice real Data Engineering interview scenarios, not just theory.
+            Practice Data Engineering like real work.
           </h1>
-          <p className="mt-6 max-w-2xl text-base leading-8 text-slate-300 sm:text-lg">
-            Debug SQL bugs, Spark failures, Airflow issues, Kafka edge cases, and data
-            quality problems exactly like production.
+          <p className="mt-6 max-w-3xl text-base leading-8 text-slate-300 sm:text-lg">
+            Prepare for Data Engineering interviews and production scenarios through SQL,
+            PySpark, Airflow, AWS, debugging cases, project simulations, mock interviews,
+            and AI feedback.
+          </p>
+          <p className="mt-4 text-sm font-semibold uppercase tracking-[0.22em] text-teal-200">
+            {BRAND.trustLine}
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <a
-              href={firstFreeScenarioSlug ? `/scenarios/${firstFreeScenarioSlug}` : "#scenario-library"}
+            <Link
+              href="#scenario-library"
               className="rounded-full bg-amber-300 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-200"
             >
               Start Free Scenario
-            </a>
-            <a
-              href="#scenario-library"
+            </Link>
+            <Link
+              href="/roadmap"
               className="rounded-full border border-slate-700 bg-slate-950/30 px-6 py-3 text-sm font-semibold text-slate-100 transition hover:border-teal-300/50 hover:text-teal-100"
             >
-              See Scenario Library
-            </a>
-          </div>
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-3xl border border-slate-700/70 bg-slate-950/30 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
-                Total Scenarios
-              </p>
-              <p className="mt-2 text-3xl font-semibold text-slate-50">{totalCount}</p>
-            </div>
-            <div className="rounded-3xl border border-slate-700/70 bg-slate-950/30 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
-                Completed
-              </p>
-              <p className="mt-2 text-3xl font-semibold text-slate-50">{completedCount}</p>
-            </div>
-            <div className="rounded-3xl border border-slate-700/70 bg-slate-950/30 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
-                Attempted
-              </p>
-              <p className="mt-2 text-3xl font-semibold text-slate-50">{attemptedCount}</p>
-            </div>
-            <div className="rounded-3xl border border-slate-700/70 bg-slate-950/30 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
-                Premium Library
-              </p>
-              <p className="mt-2 text-3xl font-semibold text-slate-50">
-                {premiumAccess ? `${premiumCount} unlocked` : `${premiumCount} locked`}
-              </p>
-            </div>
+              View Roadmap
+            </Link>
+            <Link
+              href="/projects/ecommerce-pipeline"
+              className="rounded-full border border-slate-700 bg-slate-950/30 px-6 py-3 text-sm font-semibold text-slate-100 transition hover:border-amber-300/50 hover:text-amber-100"
+            >
+              Explore Project Simulator
+            </Link>
           </div>
         </div>
       </section>
 
-      <section id="scenario-library" className="mt-10 scroll-mt-24">
-        <div className="mb-6 flex items-end justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-semibold text-slate-50">Scenario Library</h2>
-            <p className="mt-2 text-sm text-slate-400">
-              Browse {totalCount} scenarios: {freeCount} free and {premiumCount} premium labs for deeper interview prep.
-            </p>
+      <section className="mt-10 grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+        <div className="panel rounded-[2rem] p-6">
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-200">
+            Why normal courses are not enough
+          </p>
+          <h2 className="mt-4 text-2xl font-semibold text-slate-50">
+            Interviews test judgment, not only syntax.
+          </h2>
+          <p className="mt-4 text-sm leading-7 text-slate-300">
+            Real data engineering work means debugging late data, broken joins, retries,
+            schema drift, orchestration gaps, and dashboard mismatches. The Data Foundry
+            turns those situations into daily practice instead of passive watching.
+          </p>
+        </div>
+
+        <div className="panel rounded-[2rem] p-6">
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-200">
+            How it works
+          </p>
+          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            {WORKFLOW_STEPS.map((step, index) => (
+              <div
+                key={step}
+                className="rounded-2xl border border-slate-800 bg-slate-950/40 p-4"
+              >
+                <p className="text-xs font-semibold text-slate-500">Step {index + 1}</p>
+                <p className="mt-2 text-sm font-semibold text-slate-100">{step}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="mt-10">
+        <div className="mb-6">
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-200">
+            Core Labs
+          </p>
+          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-50">
+            A platform for practice, simulation, and job readiness.
+          </h2>
+        </div>
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {CORE_LABS.map((lab) => (
+            <div key={lab.title} className="panel rounded-3xl p-5">
+              <h3 className="text-lg font-semibold text-slate-50">{lab.title}</h3>
+              <p className="mt-3 text-sm leading-6 text-slate-300">{lab.description}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="mt-10 grid gap-6 lg:grid-cols-2">
+        <div className="panel rounded-[2rem] p-6">
+          <h2 className="text-2xl font-semibold text-slate-50">Who it is for</h2>
+          <div className="mt-5 space-y-3">
+            {AUDIENCE_SEGMENTS.map((segment) => (
+              <div
+                key={segment}
+                className="rounded-2xl border border-slate-800 bg-slate-950/40 px-4 py-3 text-sm text-slate-300"
+              >
+                {segment}
+              </div>
+            ))}
           </div>
         </div>
 
-        {isLoading ? (
-          <div className="panel rounded-3xl p-6 text-sm text-slate-300">
-            Loading scenarios...
-          </div>
-        ) : error ? (
-          <div className="panel rounded-3xl border border-rose-400/20 p-6 text-sm text-rose-200">
-            {error}
-          </div>
-        ) : (
-          <>
-            {premiumAccess ? (
-              <div className="panel mb-6 rounded-3xl border border-teal-300/20 bg-teal-300/10 p-5 text-sm text-teal-100">
-                Premium unlocked for <span className="font-semibold">{premiumAccess.email}</span>{" "}
-                on the <span className="font-semibold">{premiumAccess.plan_label}</span> plan. You can now open every premium scenario in this browser.
-              </div>
-            ) : (
-              <div className="mb-6">
-                <PremiumUpgradePanel
-                  title="Unlock premium scenarios"
-                  description="Sign in, choose `Rs 500/year` or `Rs 219/month`, and use the dummy UPI checkout to unlock the full premium interview library in this browser."
-                  onUnlocked={() => setPremiumAccess(getPremiumAccess())}
-                />
-              </div>
-            )}
-
-            <div className="panel mb-6 rounded-3xl p-5">
-              <div className="grid gap-5 lg:grid-cols-2">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
-                    Difficulty Filter
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {DIFFICULTY_FILTERS.map((difficulty) => (
-                      <button
-                        key={difficulty}
-                        type="button"
-                        onClick={() => setSelectedDifficulty(difficulty)}
-                        className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                          selectedDifficulty === difficulty
-                            ? "bg-teal-300 text-slate-950"
-                            : "border border-slate-700 bg-slate-950/30 text-slate-200 hover:border-teal-300/40"
-                        }`}
-                      >
-                        {difficulty}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
-                    Topic Filter
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {TOPIC_FILTERS.map((topic) => (
-                      <button
-                        key={topic}
-                        type="button"
-                        onClick={() => setSelectedTopic(topic)}
-                        className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                          selectedTopic === topic
-                            ? "bg-amber-300 text-slate-950"
-                            : "border border-slate-700 bg-slate-950/30 text-slate-200 hover:border-amber-300/40"
-                        }`}
-                      >
-                        {topic}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
+        <div className="panel rounded-[2rem] p-6">
+          <h2 className="text-2xl font-semibold text-slate-50">Free vs Premium</h2>
+          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            <div className="rounded-3xl border border-teal-300/20 bg-teal-300/10 p-5">
+              <p className="text-sm font-semibold text-teal-100">Free</p>
+              <p className="mt-3 text-sm leading-6 text-slate-300">
+                Start with selected SQL and production scenarios, hints, validation, and
+                progress tracking.
+              </p>
             </div>
-
-            {filteredScenarios.length === 0 ? (
-              <div className="panel rounded-3xl p-6 text-sm text-slate-300">
-                No scenarios match the current filter combination.
-              </div>
-            ) : (
-              <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-                {filteredScenarios.map((scenario) => (
-                  <ScenarioCard
-                    key={scenario.slug}
-                    scenario={scenario}
-                    progress={progressMap[scenario.slug]}
-                    isLocked={scenario.access_tier === "premium" && !premiumAccess}
-                  />
-                ))}
-              </div>
-            )}
-          </>
-        )}
+            <div className="rounded-3xl border border-amber-300/25 bg-amber-300/10 p-5">
+              <p className="text-sm font-semibold text-amber-100">Premium</p>
+              <p className="mt-3 text-sm leading-6 text-slate-300">
+                Unlock the full library, deeper debugging labs, simulator missions, and
+                interview-prep expansion.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/pricing"
+            className="mt-5 inline-flex rounded-full border border-slate-700 px-5 py-3 text-sm font-semibold text-slate-200 transition hover:border-amber-300/40"
+          >
+            See pricing
+          </Link>
+        </div>
       </section>
+
+      <section className="mt-10">
+        <ScenarioLibrary />
+      </section>
+
+      <section className="mt-10 panel rounded-[2rem] p-6">
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-200">
+          Creator trust
+        </p>
+        <h2 className="mt-3 text-2xl font-semibold text-slate-50">
+          Built from real interview and production patterns.
+        </h2>
+        <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300">
+          The platform is built by Data with Pranjal and will connect to YouTube lessons,
+          walkthroughs, and community challenges as the product grows.
+        </p>
+      </section>
+
+      <footer className="mt-10 flex flex-col justify-between gap-4 border-t border-slate-800 py-8 text-sm text-slate-400 sm:flex-row">
+        <p>{BRAND.name}. {BRAND.trustLine}.</p>
+        <div className="flex flex-wrap gap-4">
+          <Link href="/dashboard">Dashboard</Link>
+          <Link href="/roadmap">Roadmap</Link>
+          <Link href="/projects">Projects</Link>
+          <Link href="/mock-interview">Mock Interview</Link>
+        </div>
+      </footer>
     </main>
   );
 }
+

@@ -5,8 +5,9 @@ import { SiteHeader } from "../components/site-header";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Data Engineering Scenario Playground",
-  description: "Debug production-style data engineering scenarios in the browser."
+  title: "The Data Foundry",
+  description:
+    "Practice-first Data Engineering interview scenarios, production simulations, and job readiness."
 };
 
 export default function RootLayout({

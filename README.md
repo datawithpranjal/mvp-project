@@ -1,6 +1,8 @@
-# Data Engineering Scenario Playground
+# The Data Foundry
 
-Data Engineering Scenario Playground is a practical interview-prep app for data engineers. Instead of isolated syntax drills, each lab starts from a production-style scenario with broken logic, sample tables, logs, expected behavior, and a clear debugging task.
+The Data Foundry is a practice-first platform for Data Engineering interviews, production scenarios, project simulation, and job readiness. It is built by Data with Pranjal.
+
+Instead of isolated syntax drills or PDF bundles, each lab starts from a production-style scenario with broken logic, sample tables, logs, expected behavior, hints, answer submission, and progress tracking.
 
 This release ships 26 scenarios across SQL, Spark, Airflow, Kafka, Lakehouse, and Data Quality topics.
 
@@ -24,6 +26,9 @@ This release ships 26 scenarios across SQL, Spark, Airflow, Kafka, Lakehouse, an
   - `SQL_OUTPUT_MATCH` for exact DuckDB result validation
   - `DEBUG_RUBRIC`, `DESIGN_RUBRIC`, and `CODE_REVIEW_RUBRIC` for model-answer comparison
 - Local progress tracking, attempt history, and hint reveal state in the browser
+- Onboarding, dashboard, readiness score, XP/streaks, weak-area tracking, and learning paths
+- E-commerce Orders Data Pipeline Simulator
+- Mock Interview Room with deterministic AI-evaluator fallback
 - Premium unlock tied to the signed-in demo account in the current browser
 - Signup email capture happens immediately when a learner creates an account
 
@@ -315,5 +320,6 @@ The preferred path is one JSON file per scenario in `backend/app/scenarios/`.
 ## Notes
 
 - The older folder-based format with `scenario.json`, `setup.sql`, and `expected.sql` is still supported for existing scenarios.
-- Authentication is still a frontend-only demo session, not a real backend auth system.
+- Authentication uses the FastAPI OTP/profile endpoints and stores sessions in Postgres when `POSTGRES_URL` points at Supabase.
+- Practice progress is currently localStorage-based and documented for future server-side persistence.
 - Premium checkout is a dummy UPI flow for product prototyping, not a real payment integration.
