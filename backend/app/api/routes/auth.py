@@ -14,6 +14,7 @@ from app.schemas.auth import (
 )
 from app.services.auth_service import (
     AuthNotFoundError,
+    AuthRateLimitError,
     AuthService,
     AuthServiceError,
     AuthUnauthorizedError,
@@ -36,6 +37,8 @@ def bearer_token(authorization: str | None) -> str:
 
 
 def auth_error_response(exc: Exception) -> HTTPException:
+    if isinstance(exc, AuthRateLimitError):
+        return HTTPException(status_code=429, detail=str(exc))
     if isinstance(exc, AuthValidationError):
         return HTTPException(status_code=400, detail=str(exc))
     if isinstance(exc, AuthNotFoundError):
@@ -134,7 +137,7 @@ def google_callback(
         user_json = quote(session.user.model_dump_json())
         redirect_url = (
             f"{auth_service.frontend_base_url}/auth/callback"
-            f"?token={quote(session.token)}"
+            f"#token={quote(session.token)}"
             f"&expires_at={quote(session.expires_at)}"
             f"&user={user_json}"
             f"&return_to={quote(return_to)}"

@@ -49,6 +49,7 @@ export interface ScenarioDetail extends ScenarioSummary {
   common_mistakes: string[];
   rubric: RubricItem[];
   hints: string[];
+  is_locked?: boolean;
 }
 
 export interface ValidationRequest {
@@ -65,6 +66,20 @@ export interface EmailCaptureResponse {
   captured: boolean;
   email: string;
   unlocked_premium: boolean;
+}
+
+export interface PremiumManualUnlockRequest {
+  plan_label: string;
+  billing_interval: "monthly" | "yearly";
+  amount_inr: number;
+  payment_reference: string;
+}
+
+export interface PremiumManualUnlockResponse {
+  submitted: boolean;
+  pending_review: boolean;
+  unlocked_premium: boolean;
+  email: string;
 }
 
 export interface AuthProfileFields {

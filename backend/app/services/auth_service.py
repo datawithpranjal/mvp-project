@@ -25,8 +25,17 @@ from app.schemas.email_capture import EmailCaptureRequest
 from app.services.email_capture_store import EmailCaptureStore, EmailCaptureStoreError
 from app.services.otp_delivery_service import OtpDeliveryError, OtpDeliveryService
 
+OTP_REQUEST_LIMIT = 5
+OTP_REQUEST_WINDOW = timedelta(minutes=15)
+OTP_VERIFY_FAILURE_LIMIT = 8
+OTP_VERIFY_FAILURE_WINDOW = timedelta(minutes=15)
+
 
 class AuthServiceError(RuntimeError):
+    pass
+
+
+class AuthRateLimitError(AuthServiceError):
     pass
 
 
@@ -45,6 +54,7 @@ class AuthValidationError(AuthServiceError):
 class AuthService:
     _memory_users: dict[str, dict[str, Any]] = {}
     _memory_otps: list[dict[str, Any]] = []
+    _memory_otp_verify_failures: list[dict[str, Any]] = []
     _memory_sessions: dict[str, dict[str, Any]] = {}
 
     def __init__(self, postgres_url: str | None = None) -> None:
@@ -67,8 +77,10 @@ class AuthService:
         self.otp_delivery_service = OtpDeliveryService()
 
     def request_otp(self, payload: AuthRequestOtpRequest) -> AuthRequestOtpResponse:
-        otp_code = f"{secrets.randbelow(900000) + 100000}"
         now = self._now()
+        self._check_otp_request_rate_limit(payload.email, now)
+
+        otp_code = f"{secrets.randbelow(900000) + 100000}"
         expires_at = now + self.otp_ttl
 
         if payload.mode == "signup":
@@ -93,11 +105,14 @@ class AuthService:
 
     def verify_otp(self, payload: AuthVerifyOtpRequest) -> AuthSessionResponse:
         now = self._now()
+        self._check_otp_verify_rate_limit(payload.email, now)
+
         user = self._get_user_by_email(payload.email)
         if not user:
             raise AuthNotFoundError("No account exists for this email.")
 
         if not self._consume_otp(payload.email, payload.otp_code, now):
+            self._record_otp_verify_failure(payload.email, now)
             raise AuthUnauthorizedError("Invalid or expired OTP.")
 
         token = secrets.token_urlsafe(32)
@@ -256,6 +271,51 @@ class AuthService:
             return
 
         self._memory_otps.append(otp_row)
+
+    def _check_otp_request_rate_limit(self, email: str, now: datetime) -> None:
+        window_start = now - OTP_REQUEST_WINDOW
+
+        if self.postgres_url:
+            recent_count = self._postgres_count_recent_otp_requests(email, window_start)
+        else:
+            self._memory_otps = [
+                otp for otp in self._memory_otps if otp["created_at"] >= window_start
+            ]
+            recent_count = sum(1 for otp in self._memory_otps if otp["email"] == email)
+
+        if recent_count >= OTP_REQUEST_LIMIT:
+            raise AuthRateLimitError(
+                "Too many OTP requests. Please wait 15 minutes before trying again."
+            )
+
+    def _check_otp_verify_rate_limit(self, email: str, now: datetime) -> None:
+        window_start = now - OTP_VERIFY_FAILURE_WINDOW
+
+        if self.postgres_url:
+            recent_count = self._postgres_count_recent_otp_verify_failures(email, window_start)
+        else:
+            self._memory_otp_verify_failures = [
+                failure
+                for failure in self._memory_otp_verify_failures
+                if failure["attempted_at"] >= window_start
+            ]
+            recent_count = sum(
+                1
+                for failure in self._memory_otp_verify_failures
+                if failure["email"] == email
+            )
+
+        if recent_count >= OTP_VERIFY_FAILURE_LIMIT:
+            raise AuthRateLimitError(
+                "Too many OTP verification attempts. Please wait 15 minutes before trying again."
+            )
+
+    def _record_otp_verify_failure(self, email: str, now: datetime) -> None:
+        if self.postgres_url:
+            self._postgres_record_otp_verify_failure(email, now)
+            return
+
+        self._memory_otp_verify_failures.append({"email": email, "attempted_at": now})
 
     def _consume_otp(self, email: str, otp_code: str, now: datetime) -> bool:
         code_hash = self._hash_otp(email, otp_code)
@@ -510,6 +570,15 @@ class AuthService:
             )
             """
         )
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS auth_otp_attempts (
+                id BIGSERIAL PRIMARY KEY,
+                email TEXT NOT NULL,
+                attempted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+            """
+        )
 
     def _postgres_upsert_user(self, profile: dict[str, Any]) -> dict[str, Any]:
         try:
@@ -601,6 +670,66 @@ class AuthService:
                 connection.commit()
         except Exception as exc:
             raise AuthServiceError(f"Unable to create OTP. {exc}") from exc
+
+    def _postgres_count_recent_otp_requests(
+        self,
+        email: str,
+        window_start: datetime,
+    ) -> int:
+        try:
+            with self._postgres_connect() as connection:
+                with connection.cursor() as cursor:
+                    self._ensure_postgres_schema(cursor)
+                    cursor.execute(
+                        """
+                        SELECT COUNT(*)
+                        FROM auth_otps
+                        WHERE email = %s
+                          AND created_at >= %s
+                        """,
+                        (email, window_start),
+                    )
+                    return int(cursor.fetchone()[0])
+        except Exception as exc:
+            raise AuthServiceError(f"Unable to check OTP request limits. {exc}") from exc
+
+    def _postgres_count_recent_otp_verify_failures(
+        self,
+        email: str,
+        window_start: datetime,
+    ) -> int:
+        try:
+            with self._postgres_connect() as connection:
+                with connection.cursor() as cursor:
+                    self._ensure_postgres_schema(cursor)
+                    cursor.execute(
+                        """
+                        SELECT COUNT(*)
+                        FROM auth_otp_attempts
+                        WHERE email = %s
+                          AND attempted_at >= %s
+                        """,
+                        (email, window_start),
+                    )
+                    return int(cursor.fetchone()[0])
+        except Exception as exc:
+            raise AuthServiceError(f"Unable to check OTP verification limits. {exc}") from exc
+
+    def _postgres_record_otp_verify_failure(self, email: str, now: datetime) -> None:
+        try:
+            with self._postgres_connect() as connection:
+                with connection.cursor() as cursor:
+                    self._ensure_postgres_schema(cursor)
+                    cursor.execute(
+                        """
+                        INSERT INTO auth_otp_attempts (email, attempted_at)
+                        VALUES (%s, %s)
+                        """,
+                        (email, now),
+                    )
+                connection.commit()
+        except Exception as exc:
+            raise AuthServiceError(f"Unable to record OTP verification attempt. {exc}") from exc
 
     def _postgres_consume_otp(self, email: str, code_hash: str, now: datetime) -> bool:
         try:

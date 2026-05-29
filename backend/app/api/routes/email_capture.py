@@ -1,3 +1,4 @@
+import secrets
 from typing import Annotated
 
 from fastapi import APIRouter, Header, HTTPException
@@ -39,7 +40,7 @@ def list_email_captures(
             detail="Admin email capture access is not configured.",
         )
 
-    if x_admin_token != settings.admin_api_token:
+    if not x_admin_token or not secrets.compare_digest(x_admin_token, settings.admin_api_token):
         raise HTTPException(status_code=401, detail="Invalid admin token.")
 
     try:

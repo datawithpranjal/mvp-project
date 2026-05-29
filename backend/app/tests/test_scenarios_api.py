@@ -49,16 +49,18 @@ def test_detail_endpoint_includes_sql_expected_output() -> None:
     assert len(payload["hints"]) == 3
 
 
-def test_detail_endpoint_includes_rubric_scenario() -> None:
+def test_detail_endpoint_hides_locked_premium_scenario_content() -> None:
     response = client.get("/api/v1/scenarios/silent-udf-tax")
 
     assert response.status_code == 200
     payload = response.json()
+    assert payload["is_locked"] is True
     assert payload["validation_type"] == "CODE_REVIEW_RUBRIC"
     assert payload["expected_output"] is None
-    assert payload["broken_code"].startswith("from pyspark.sql")
-    assert "Python UDF" in payload["solution_answer"]
-    assert len(payload["rubric"]) >= 3
+    assert payload["broken_code"] == ""
+    assert payload["solution_answer"] == ""
+    assert payload["hints"] == []
+    assert payload["rubric"] == []
 
 
 def test_validate_endpoint_accepts_correct_sql_query() -> None:
@@ -90,7 +92,7 @@ def test_validate_endpoint_accepts_correct_sql_query() -> None:
     assert len(payload["actual_output"]["rows"]) == 6
 
 
-def test_validate_endpoint_returns_model_answer_for_rubric_scenario() -> None:
+def test_validate_endpoint_blocks_locked_premium_scenario() -> None:
     response = client.post(
         "/api/v1/scenarios/silent-udf-tax/validate",
         json={
@@ -98,16 +100,53 @@ def test_validate_endpoint_returns_model_answer_for_rubric_scenario() -> None:
         },
     )
 
-    assert response.status_code == 200
-    payload = response.json()
-    assert payload["validation_type"] == "CODE_REVIEW_RUBRIC"
-    assert payload["passed"] is None
-    assert payload["actual_output"] is None
-    assert "built-ins" in payload["solution_answer"]
-    assert len(payload["rubric"]) >= 3
+    assert response.status_code == 403
+    assert response.json() == {
+        "detail": "Premium access is required to validate this scenario."
+    }
 
 
-def test_email_capture_endpoint_unlocks_premium() -> None:
+def test_manual_payment_submission_does_not_directly_unlock_premium() -> None:
+    email = "manual.payment.student@example.com"
+    otp_response = client.post(
+        "/api/v1/auth/request-otp",
+        json={
+            "mode": "signup",
+            "email": email,
+            "full_name": "Manual Payment Student",
+        },
+    )
+    token_response = client.post(
+        "/api/v1/auth/verify-otp",
+        json={"email": email, "otp_code": otp_response.json()["debug_otp"]},
+    )
+    token = token_response.json()["token"]
+
+    payment_response = client.post(
+        "/api/v1/premium/manual-unlock",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "plan_label": "Premium Annual",
+            "billing_interval": "yearly",
+            "amount_inr": 500,
+            "payment_reference": "UPI-TEST-001",
+        },
+    )
+
+    assert payment_response.status_code == 200
+    assert payment_response.json()["submitted"] is True
+    assert payment_response.json()["unlocked_premium"] is False
+
+    premium_detail_response = client.get(
+        "/api/v1/scenarios/silent-udf-tax",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert premium_detail_response.status_code == 200
+    assert premium_detail_response.json()["is_locked"] is True
+
+
+def test_email_capture_endpoint_captures_without_unlocking_premium() -> None:
     response = client.post(
         "/api/v1/email-captures",
         json={
@@ -122,7 +161,7 @@ def test_email_capture_endpoint_unlocks_premium() -> None:
     assert payload == {
         "captured": True,
         "email": "student@example.com",
-        "unlocked_premium": True,
+        "unlocked_premium": False,
     }
 
 
@@ -195,3 +234,30 @@ def test_signup_otp_login_profile_and_logout_flow() -> None:
     )
 
     assert me_response.status_code == 401
+
+
+def test_otp_request_rate_limit_returns_429() -> None:
+    email = "otp.rate.limit@example.com"
+
+    for index in range(5):
+        response = client.post(
+            "/api/v1/auth/request-otp",
+            json={
+                "mode": "signup",
+                "email": email,
+                "full_name": f"Rate Limit Student {index}",
+            },
+        )
+        assert response.status_code == 200
+
+    limited_response = client.post(
+        "/api/v1/auth/request-otp",
+        json={
+            "mode": "signup",
+            "email": email,
+            "full_name": "Rate Limit Student",
+        },
+    )
+
+    assert limited_response.status_code == 429
+    assert "Too many OTP requests" in limited_response.json()["detail"]

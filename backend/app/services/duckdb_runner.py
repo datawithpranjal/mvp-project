@@ -16,11 +16,23 @@ TIMESTAMP_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}$")
 TIMESTAMPTZ_PATTERN = re.compile(
     r"^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:\+\d{2}:\d{2}|-\d{2}:\d{2}|Z)$"
 )
+MAX_QUERY_RESULT_ROWS = 1000
+
+
+class DuckDBQueryError(RuntimeError):
+    pass
 
 
 class DuckDBRunner:
     def connect(self) -> duckdb.DuckDBPyConnection:
-        return duckdb.connect(database=":memory:")
+        return duckdb.connect(
+            database=":memory:",
+            config={
+                "enable_external_access": False,
+                "memory_limit": "256MB",
+                "threads": "1",
+            },
+        )
 
     def prepare_connection(self, setup_sql: str) -> duckdb.DuckDBPyConnection:
         connection = self.connect()
@@ -67,7 +79,13 @@ class DuckDBRunner:
         description = cursor.description or []
         columns = [column[0] for column in description]
         column_types = [str(column[1]) for column in description]
-        rows = [self._serialize_row(row) for row in cursor.fetchall()]
+        fetched_rows = cursor.fetchmany(MAX_QUERY_RESULT_ROWS + 1)
+        if len(fetched_rows) > MAX_QUERY_RESULT_ROWS:
+            raise DuckDBQueryError(
+                f"Query returned more than {MAX_QUERY_RESULT_ROWS} rows. "
+                "Please narrow the result for this practice scenario."
+            )
+        rows = [self._serialize_row(row) for row in fetched_rows]
         sorted_rows = sorted(rows, key=self._sort_key)
         return QueryResult(columns=columns, column_types=column_types, rows=sorted_rows)
 

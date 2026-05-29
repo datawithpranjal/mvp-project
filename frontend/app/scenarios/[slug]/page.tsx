@@ -12,7 +12,7 @@ import { PremiumUpgradePanel } from "../../../components/premium-upgrade-panel";
 import { ResultPanel } from "../../../components/result-panel";
 import { SqlEditor } from "../../../components/sql-editor";
 import { getScenario, validateScenario } from "../../../lib/api";
-import { AUTH_UPDATED_EVENT } from "../../../lib/auth";
+import { AUTH_UPDATED_EVENT, getAuthToken } from "../../../lib/auth";
 import {
   getScenarioProgress,
   markScenarioCompleted,
@@ -94,7 +94,7 @@ export default function ScenarioDetailPage() {
       try {
         setIsLoading(true);
         setError(null);
-        const nextScenario = await getScenario(slug);
+        const nextScenario = await getScenario(slug, getAuthToken());
         const nextProgress = getScenarioProgress(nextScenario.slug);
         setScenario(nextScenario);
         setAnswer(
@@ -128,7 +128,7 @@ export default function ScenarioDetailPage() {
     try {
       setIsSubmitting(true);
       setError(null);
-      const nextResult = await validateScenario(slug, { answer });
+      const nextResult = await validateScenario(slug, { answer }, getAuthToken());
       const nextProgress = recordScenarioAttempt(slug, {
         passed: nextResult.passed,
         answer,
@@ -249,7 +249,7 @@ export default function ScenarioDetailPage() {
     return null;
   }
 
-  const isLocked = scenario.access_tier === "premium" && !premiumAccess;
+  const isLocked = Boolean(scenario.is_locked) || (scenario.access_tier === "premium" && !premiumAccess);
   const editorConfig = getEditorConfig(scenario.validation_type);
   const progressStatus =
     progress?.completed || result?.passed === null ? "Completed" : "In progress";
@@ -313,7 +313,7 @@ export default function ScenarioDetailPage() {
                 Unlock
               </p>
               <p className="mt-3 text-sm leading-6 text-slate-300">
-                Sign in and use the manual UPI checkout to unlock the full premium scenario library in this browser.
+                Sign in and submit your manual UPI payment reference for premium activation.
               </p>
             </div>
           </div>
@@ -322,7 +322,7 @@ export default function ScenarioDetailPage() {
         <div className="mt-6">
           <PremiumUpgradePanel
             title="Unlock this premium scenario"
-            description="Create an account, then choose `Rs 500/year` or `Rs 219/month` and confirm the manual UPI payment to unlock this scenario and the rest of the premium library."
+            description="Create an account, then choose `Rs 500/year` or `Rs 219/month` and submit your manual UPI payment reference for review."
             onUnlocked={() => setPremiumAccess(getPremiumAccess())}
           />
         </div>

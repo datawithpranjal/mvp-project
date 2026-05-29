@@ -36,7 +36,7 @@ class EmailCaptureStore:
         return EmailCaptureResponse(
             captured=True,
             email=payload.email,
-            unlocked_premium=True,
+            unlocked_premium=False,
         )
 
     def list_captures(self, limit: int = 50) -> EmailCaptureAdminResponse:

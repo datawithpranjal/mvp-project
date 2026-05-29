@@ -185,7 +185,7 @@ export function ScenarioLibrary({
             <div className="mb-6">
               <PremiumUpgradePanel
                 title="Unlock premium scenarios"
-                description="Sign in, choose `Rs 500/year` or `Rs 219/month`, and use the manual Paytm UPI checkout to unlock the full premium interview library in this browser."
+                description="Sign in, choose `Rs 500/year` or `Rs 219/month`, and submit your Paytm UPI payment reference for manual premium activation."
                 onUnlocked={() => setPremiumAccess(getPremiumAccess())}
               />
             </div>

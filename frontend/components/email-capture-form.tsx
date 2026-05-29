@@ -3,7 +3,6 @@
 import { useState, type FormEvent } from "react";
 
 import { captureEmail } from "../lib/api";
-import { savePremiumAccess } from "../lib/premium-access";
 
 interface EmailCaptureFormProps {
   source: string;
@@ -38,15 +37,6 @@ export function EmailCaptureForm({
         source,
         scenario_slug: scenarioSlug
       });
-      savePremiumAccess({
-        email: response.email,
-        unlockedAt: new Date().toISOString(),
-        billing_interval: "yearly",
-        amount_inr: 0,
-        payment_reference: "legacy-email-unlock",
-        plan_label: "Legacy Premium Unlock",
-        payment_method: "upi_manual"
-      });
       setIsSubmitted(true);
       onSuccess?.(response.email);
     } catch (captureError) {
@@ -67,7 +57,8 @@ export function EmailCaptureForm({
 
       {isSubmitted ? (
         <div className="mt-4 rounded-2xl border border-teal-300/20 bg-teal-300/10 px-4 py-4 text-sm text-teal-100">
-          Premium scenarios unlocked for <span className="font-semibold">{email}</span>.
+          Thanks. We captured <span className="font-semibold">{email}</span> and will share
+          premium access updates there.
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">

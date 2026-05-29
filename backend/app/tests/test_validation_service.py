@@ -164,6 +164,19 @@ def test_validation_rejects_non_read_only_sql() -> None:
     assert response.message == "Only read-only SELECT or WITH queries are allowed in this playground."
 
 
+def test_validation_rejects_duckdb_external_file_functions() -> None:
+    service = ValidationService()
+
+    response = service.validate_submission(
+        slug="null-trap",
+        answer="SELECT * FROM read_csv_auto('/etc/passwd')",
+    )
+
+    assert response.passed is False
+    assert response.actual_output is None
+    assert "External file" in response.message
+
+
 def test_rubric_validation_returns_model_answer() -> None:
     service = ValidationService()
 

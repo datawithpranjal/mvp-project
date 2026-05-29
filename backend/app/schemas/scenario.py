@@ -80,3 +80,4 @@ class ScenarioDetail(BaseModel):
     common_mistakes: list[str] = Field(default_factory=list)
     hints: list[str] = Field(default_factory=list)
     rubric: list[RubricItem] = Field(default_factory=list)
+    is_locked: bool = False

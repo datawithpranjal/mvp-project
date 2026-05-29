@@ -2,12 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { AUTH_UPDATED_EVENT, getCurrentUser, type AuthUser } from "../lib/auth";
-import { captureEmail } from "../lib/api";
+import { AUTH_UPDATED_EVENT, getAuthToken, getCurrentUser, type AuthUser } from "../lib/auth";
+import { captureEmail, submitManualPremiumPayment } from "../lib/api";
 import {
   PREMIUM_ACCESS_UPDATED_EVENT,
   getPremiumAccess,
-  savePremiumAccess,
   type BillingInterval,
   type PremiumAccessRecord
 } from "../lib/premium-access";
@@ -66,6 +65,7 @@ export function PremiumUpgradePanel({
   const [selectedPlan, setSelectedPlan] = useState<BillingInterval>("yearly");
   const [paymentReference, setPaymentReference] = useState("");
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [checkoutSuccess, setCheckoutSuccess] = useState<string | null>(null);
   const [isCompletingPayment, setIsCompletingPayment] = useState(false);
 
   useEffect(() => {
@@ -95,25 +95,32 @@ export function PremiumUpgradePanel({
     if (!currentUser) {
       return;
     }
+    const token = getAuthToken();
+    if (!token) {
+      setCheckoutError("Please sign in again before unlocking premium access.");
+      return;
+    }
 
     try {
       setIsCompletingPayment(true);
       setCheckoutError(null);
+      setCheckoutSuccess(null);
+      const nextPaymentReference = paymentReference.trim() || `MANUAL-UPI-${Date.now()}`;
 
       await captureEmail({
         email: currentUser.email,
         source: `premium-upi-${activePlan.id}`,
       });
-
-      savePremiumAccess({
-        email: currentUser.email,
-        unlockedAt: new Date().toISOString(),
+      await submitManualPremiumPayment(token, {
+        plan_label: activePlan.label,
         billing_interval: activePlan.id,
         amount_inr: activePlan.amountInr,
-        payment_reference: paymentReference.trim() || `DEMO-UPI-${Date.now()}`,
-        plan_label: activePlan.label,
-        payment_method: "upi_manual"
+        payment_reference: nextPaymentReference
       });
+
+      setCheckoutSuccess(
+        "Payment submitted for manual review. Premium access will be enabled after verification."
+      );
       onUnlocked?.();
     } catch (error) {
       const message =
@@ -231,9 +238,9 @@ export function PremiumUpgradePanel({
               What happens next
             </p>
             <div className="mt-3 space-y-2 text-sm leading-6 text-slate-300">
-              <p>1. Pick a plan.</p>
-              <p>2. Scan the Paytm UPI QR and complete the payment manually.</p>
-              <p>3. Enter a reference if you have one, then confirm access for this MVP.</p>
+            <p>1. Pick a plan.</p>
+            <p>2. Scan the Paytm UPI QR and complete the payment manually.</p>
+              <p>3. Enter a reference if you have one, then submit it for manual review.</p>
             </div>
           </div>
         </div>
@@ -281,13 +288,19 @@ export function PremiumUpgradePanel({
           </div>
 
           <p className="mt-4 text-sm leading-6 text-slate-400">
-            This is an MVP manual checkout. The QR can accept UPI payments, but access
-            confirmation is still handled inside this browser until a real payment gateway is added.
+            This is an MVP manual checkout. We record your payment reference and unlock premium
+            after verification instead of trusting the browser to grant access.
           </p>
 
           {checkoutError ? (
             <div className="mt-4 rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">
               {checkoutError}
+            </div>
+          ) : null}
+
+          {checkoutSuccess ? (
+            <div className="mt-4 rounded-2xl border border-teal-300/20 bg-teal-300/10 px-4 py-3 text-sm text-teal-100">
+              {checkoutSuccess}
             </div>
           ) : null}
 
@@ -297,7 +310,7 @@ export function PremiumUpgradePanel({
             disabled={isCompletingPayment}
             className="mt-5 w-full rounded-full bg-amber-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:bg-amber-100"
           >
-            {isCompletingPayment ? "Capturing access..." : "I completed the UPI payment"}
+            {isCompletingPayment ? "Submitting payment..." : "Submit UPI payment for review"}
           </button>
         </div>
       </div>

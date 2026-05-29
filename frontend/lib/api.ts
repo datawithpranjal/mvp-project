@@ -9,6 +9,8 @@ import type {
   EmailCaptureRequest,
   EmailCaptureResponse,
   GoogleAuthStartUrlResponse,
+  PremiumManualUnlockRequest,
+  PremiumManualUnlockResponse,
   ScenarioDetail,
   ScenarioSummary,
   ValidationRequest,
@@ -59,16 +61,20 @@ export function getScenarios(): Promise<ScenarioSummary[]> {
   return apiFetch<ScenarioSummary[]>("/api/v1/scenarios");
 }
 
-export function getScenario(slug: string): Promise<ScenarioDetail> {
-  return apiFetch<ScenarioDetail>(`/api/v1/scenarios/${slug}`);
+export function getScenario(slug: string, authToken?: string | null): Promise<ScenarioDetail> {
+  return apiFetch<ScenarioDetail>(`/api/v1/scenarios/${slug}`, {
+    authToken
+  });
 }
 
 export function validateScenario(
   slug: string,
-  payload: ValidationRequest
+  payload: ValidationRequest,
+  authToken?: string | null
 ): Promise<ValidationResponse> {
   return apiFetch<ValidationResponse>(`/api/v1/scenarios/${slug}/validate`, {
     method: "POST",
+    authToken,
     body: JSON.stringify(payload)
   });
 }
@@ -128,4 +134,15 @@ export function getGoogleAuthStartUrl(returnTo: string = "/dashboard"): Promise<
   return apiFetch<GoogleAuthStartUrlResponse>(
     `/api/v1/auth/google/start-url?return_to=${encodeURIComponent(returnTo)}`
   );
+}
+
+export function submitManualPremiumPayment(
+  token: string,
+  payload: PremiumManualUnlockRequest
+): Promise<PremiumManualUnlockResponse> {
+  return apiFetch<PremiumManualUnlockResponse>("/api/v1/premium/manual-unlock", {
+    method: "POST",
+    authToken: token,
+    body: JSON.stringify(payload)
+  });
 }

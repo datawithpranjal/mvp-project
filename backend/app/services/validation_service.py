@@ -6,11 +6,18 @@ import duckdb
 
 from app.schemas.scenario import ScenarioDefinition, ScenarioDetail, ScenarioSummary
 from app.schemas.validation import QueryResult, ValidationResponse
-from app.services.duckdb_runner import DuckDBRunner
+from app.services.duckdb_runner import DuckDBQueryError, DuckDBRunner
 from app.services.scenario_loader import ScenarioLoader, ScenarioNotFoundError
 
 DISALLOWED_SQL_PATTERN = re.compile(
-    r"\b(insert|update|delete|drop|alter|create|replace|truncate|copy|attach|detach|merge|call)\b",
+    r"\b(insert|update|delete|drop|alter|create|replace|truncate|copy|attach|detach|merge|call|"
+    r"install|load|pragma|set|export|import|vacuum|checkpoint)\b",
+    flags=re.IGNORECASE,
+)
+DISALLOWED_DUCKDB_ACCESS_PATTERN = re.compile(
+    r"\b(read_csv|read_csv_auto|read_parquet|read_json|read_json_auto|read_ndjson|"
+    r"read_text|read_blob|read_file|glob|parquet_scan|sqlite_scan|postgres_scan|"
+    r"mysql_scan|iceberg_scan|delta_scan|from_csv_auto)\s*\(",
     flags=re.IGNORECASE,
 )
 
@@ -27,10 +34,46 @@ class ValidationService:
     def list_scenarios(self) -> list[ScenarioSummary]:
         return self.scenario_loader.list_scenarios()
 
-    def get_scenario_detail(self, slug: str) -> ScenarioDetail:
+    def scenario_requires_premium(self, slug: str) -> bool:
+        return self.scenario_loader.get_scenario(slug).access_tier == "premium"
+
+    def get_scenario_detail(
+        self,
+        slug: str,
+        include_locked_content: bool = True,
+    ) -> ScenarioDetail:
         scenario = self.scenario_loader.get_scenario(slug)
         tables = scenario.tables
         expected_output: QueryResult | None = None
+        is_locked = scenario.access_tier == "premium" and not include_locked_content
+
+        if is_locked:
+            return ScenarioDetail(
+                slug=scenario.slug,
+                title=scenario.title,
+                difficulty=scenario.difficulty,
+                section=scenario.section,
+                short_description=scenario.short_description,
+                access_tier=scenario.access_tier,
+                topics=scenario.topics,
+                validation_type=scenario.validation_type,
+                business_context="",
+                problem_statement="This premium lab is locked.",
+                student_task="Unlock premium access to practice this lab.",
+                learning_objectives=[],
+                tables=[],
+                broken_code="",
+                production_logs=[],
+                expected_output=None,
+                submission_instructions="Unlock premium access to view and validate this lab.",
+                validation_logic=None,
+                solution_answer="",
+                explanation="",
+                common_mistakes=[],
+                hints=[],
+                rubric=[],
+                is_locked=True,
+            )
 
         if scenario.validation_type == "SQL_OUTPUT_MATCH":
             connection = self._prepare_connection_for_scenario(scenario)
@@ -71,6 +114,7 @@ class ValidationService:
             common_mistakes=scenario.common_mistakes,
             hints=scenario.hints,
             rubric=scenario.rubric,
+            is_locked=False,
         )
 
     def validate_submission(self, slug: str, answer: str) -> ValidationResponse:
@@ -136,6 +180,17 @@ class ValidationService:
                 solution_answer=scenario.solution_answer,
                 rubric=self._serialize_rubric(scenario.rubric),
             )
+        except DuckDBQueryError as exc:
+            return ValidationResponse(
+                validation_type=scenario.validation_type,
+                passed=False,
+                message=str(exc),
+                actual_output=None,
+                expected_output=expected_output if "expected_output" in locals() else QueryResult(),
+                explanation=scenario.explanation,
+                solution_answer=scenario.solution_answer,
+                rubric=self._serialize_rubric(scenario.rubric),
+            )
         finally:
             connection.close()
 
@@ -152,6 +207,12 @@ class ValidationService:
         sanitized_sql = self._strip_string_literals(lowered)
         if DISALLOWED_SQL_PATTERN.search(sanitized_sql):
             return "Only read-only SELECT or WITH queries are allowed in this playground."
+
+        if DISALLOWED_DUCKDB_ACCESS_PATTERN.search(sanitized_sql):
+            return (
+                "External file, network, extension, and scanner functions are not allowed "
+                "in this SQL playground."
+            )
 
         return None
 

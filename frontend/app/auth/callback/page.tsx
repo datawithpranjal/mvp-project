@@ -21,16 +21,20 @@ function AuthCallbackContent() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const callbackError = searchParams.get("error");
+    const hashParams =
+      typeof window !== "undefined"
+        ? new URLSearchParams(window.location.hash.replace(/^#/, ""))
+        : new URLSearchParams();
+    const callbackError = searchParams.get("error") ?? hashParams.get("error");
     if (callbackError) {
       setError(callbackError);
       return;
     }
 
-    const token = searchParams.get("token");
-    const expiresAt = searchParams.get("expires_at");
-    const userJson = searchParams.get("user");
-    const returnTo = searchParams.get("return_to") || "/dashboard";
+    const token = searchParams.get("token") ?? hashParams.get("token");
+    const expiresAt = searchParams.get("expires_at") ?? hashParams.get("expires_at");
+    const userJson = searchParams.get("user") ?? hashParams.get("user");
+    const returnTo = searchParams.get("return_to") ?? hashParams.get("return_to") ?? "/dashboard";
 
     if (!token || !expiresAt || !userJson) {
       setError("Google login did not return a valid session.");
