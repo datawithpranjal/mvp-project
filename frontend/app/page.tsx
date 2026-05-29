@@ -90,6 +90,8 @@ export default function HomePage() {
   const freeCount = scenarios.filter((scenario) => scenario.access_tier === "free").length;
   const premiumCount = scenarios.filter((scenario) => scenario.access_tier === "premium").length;
   const totalCount = scenarios.length;
+  const firstFreeScenarioSlug =
+    scenarios.find((scenario) => scenario.access_tier === "free")?.slug ?? null;
 
   return (
     <main className="mx-auto min-h-screen max-w-7xl px-6 py-10 sm:px-10">
@@ -100,12 +102,26 @@ export default function HomePage() {
             MVP Playground
           </span>
           <h1 className="mt-6 text-4xl font-semibold tracking-tight text-slate-50 sm:text-6xl">
-            Data Engineering Scenario Playground
+            Practice real Data Engineering interview scenarios, not just theory.
           </h1>
           <p className="mt-6 max-w-2xl text-base leading-8 text-slate-300 sm:text-lg">
-            Production-style interview practice for aspiring data engineers. Work through SQL bugs,
-            Spark performance traps, Airflow failures, Kafka edge cases, and data quality incidents with small realistic labs.
+            Debug SQL bugs, Spark failures, Airflow issues, Kafka edge cases, and data
+            quality problems exactly like production.
           </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <a
+              href={firstFreeScenarioSlug ? `/scenarios/${firstFreeScenarioSlug}` : "#scenario-library"}
+              className="rounded-full bg-amber-300 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-200"
+            >
+              Start Free Scenario
+            </a>
+            <a
+              href="#scenario-library"
+              className="rounded-full border border-slate-700 bg-slate-950/30 px-6 py-3 text-sm font-semibold text-slate-100 transition hover:border-teal-300/50 hover:text-teal-100"
+            >
+              See Scenario Library
+            </a>
+          </div>
           <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div className="rounded-3xl border border-slate-700/70 bg-slate-950/30 p-4">
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
@@ -137,7 +153,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="mt-10">
+      <section id="scenario-library" className="mt-10 scroll-mt-24">
         <div className="mb-6 flex items-end justify-between gap-4">
           <div>
             <h2 className="text-2xl font-semibold text-slate-50">Scenario Library</h2>
