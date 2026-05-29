@@ -45,7 +45,7 @@ export function EmailCaptureForm({
         amount_inr: 0,
         payment_reference: "legacy-email-unlock",
         plan_label: "Legacy Premium Unlock",
-        payment_method: "upi_dummy"
+        payment_method: "upi_manual"
       });
       setIsSubmitted(true);
       onSuccess?.(response.email);

@@ -9,7 +9,7 @@ export interface PremiumAccessRecord {
   amount_inr: number;
   payment_reference: string;
   plan_label: string;
-  payment_method: "upi_dummy";
+  payment_method: "upi_manual" | "upi_dummy";
 }
 
 const STORAGE_KEY = "data-engineering-scenario-playground-premium-access-v1";
@@ -57,7 +57,7 @@ export function getPremiumAccess(): PremiumAccessRecord | null {
         typeof parsed.plan_label === "string" && parsed.plan_label
           ? parsed.plan_label
           : "Premium Annual",
-      payment_method: "upi_dummy"
+      payment_method: parsed.payment_method === "upi_dummy" ? "upi_dummy" : "upi_manual"
     };
   } catch {
     return null;

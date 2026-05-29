@@ -12,17 +12,17 @@ export default function PricingPage() {
         </h1>
         <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300">
           Premium scenarios stay visible as locked cards so learners can see what they will
-          unlock. Payment is still a dummy UPI flow for MVP and can be swapped later.
+          unlock. Payment uses a manual UPI flow for MVP and can be swapped for a real
+          payment gateway later.
         </p>
       </section>
 
       <div className="mt-8">
         <PremiumUpgradePanel
           title="The Data Foundry Premium"
-          description="Annual access is Rs 500/year, marked down from Rs 1999. Monthly access is Rs 219/month. Use the dummy UPI checkout now; real payments can replace this later."
+          description="Annual access is Rs 500/year, marked down from Rs 1999. Monthly access is Rs 219/month. Use the manual Paytm UPI checkout now; a real payment gateway can replace this later."
         />
       </div>
     </main>
   );
 }
-

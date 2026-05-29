@@ -313,7 +313,7 @@ export default function ScenarioDetailPage() {
                 Unlock
               </p>
               <p className="mt-3 text-sm leading-6 text-slate-300">
-                Sign in and use the dummy UPI checkout to unlock the full premium scenario library in this browser.
+                Sign in and use the manual UPI checkout to unlock the full premium scenario library in this browser.
               </p>
             </div>
           </div>
@@ -322,7 +322,7 @@ export default function ScenarioDetailPage() {
         <div className="mt-6">
           <PremiumUpgradePanel
             title="Unlock this premium scenario"
-            description="Create a demo account, then choose `Rs 500/year` or `Rs 219/month` and confirm the dummy UPI payment to unlock this scenario and the rest of the premium library."
+            description="Create an account, then choose `Rs 500/year` or `Rs 219/month` and confirm the manual UPI payment to unlock this scenario and the rest of the premium library."
             onUnlocked={() => setPremiumAccess(getPremiumAccess())}
           />
         </div>

@@ -18,7 +18,7 @@ This release ships 26 scenarios across SQL, Spark, Airflow, Kafka, Lakehouse, an
 
 - Scenario library with free and premium tiers
 - Backend-backed OTP login, sign-up, logout, and editable user profile
-- Dummy premium checkout with annual and monthly pricing plus a placeholder UPI QR
+- Manual premium checkout with annual and monthly pricing plus a Paytm UPI QR
 - Difficulty filters: `Beginner`, `Intermediate`, `Advanced`
 - Topic filters: `SQL`, `Spark`, `Airflow`, `Kafka`, `Lakehouse`, `Data Quality`
 - Scenario detail pages with business context, problem statement, student task, sample tables, broken code, logs, hints, and common mistakes
@@ -187,7 +187,7 @@ NEXT_PUBLIC_API_BASE_URL=https://api.yourdomain.com
 - The app does **not** depend on Postgres for core scenario usage, so the deployed MVP still works without provisioning a production database first.
 - Email capture writes to Supabase/Postgres when `POSTGRES_URL` is set to a real external database URL. If the default local Docker URL is used, it falls back to local file storage for development.
 - Login, signup, profile, OTPs, and sessions are backed by Postgres in production.
-- Dummy premium checkout is still a frontend-only placeholder.
+- Premium checkout is still a manual MVP flow and the browser unlock is not a real payment-gateway verification.
 
 ## Email Capture
 
@@ -322,4 +322,4 @@ The preferred path is one JSON file per scenario in `backend/app/scenarios/`.
 - The older folder-based format with `scenario.json`, `setup.sql`, and `expected.sql` is still supported for existing scenarios.
 - Authentication uses the FastAPI OTP/profile endpoints and stores sessions in Postgres when `POSTGRES_URL` points at Supabase.
 - Practice progress is currently localStorage-based and documented for future server-side persistence.
-- Premium checkout is a dummy UPI flow for product prototyping, not a real payment integration.
+- Premium checkout is a manual UPI flow for product prototyping, not a real payment-gateway integration.

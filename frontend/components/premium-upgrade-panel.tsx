@@ -12,7 +12,7 @@ import {
   type PremiumAccessRecord
 } from "../lib/premium-access";
 import { AuthForm } from "./auth-form";
-import { DummyQrCode } from "./dummy-qr-code";
+import { PaymentQrCode } from "./payment-qr-code";
 
 interface PremiumUpgradePanelProps {
   title: string;
@@ -112,7 +112,7 @@ export function PremiumUpgradePanel({
         amount_inr: activePlan.amountInr,
         payment_reference: paymentReference.trim() || `DEMO-UPI-${Date.now()}`,
         plan_label: activePlan.label,
-        payment_method: "upi_dummy"
+        payment_method: "upi_manual"
       });
       onUnlocked?.();
     } catch (error) {
@@ -130,7 +130,7 @@ export function PremiumUpgradePanel({
     return (
       <AuthForm
         title="Create an account to continue"
-        description="Sign in with OTP first, then choose a plan and use the dummy UPI checkout."
+        description="Sign in with OTP first, then choose a plan and pay through the manual UPI QR."
       />
     );
   }
@@ -232,8 +232,8 @@ export function PremiumUpgradePanel({
             </p>
             <div className="mt-3 space-y-2 text-sm leading-6 text-slate-300">
               <p>1. Pick a plan.</p>
-              <p>2. Scan the dummy UPI QR or just review the checkout details.</p>
-              <p>3. Click the confirmation button to simulate a successful payment.</p>
+              <p>2. Scan the Paytm UPI QR and complete the payment manually.</p>
+              <p>3. Enter a reference if you have one, then confirm access for this MVP.</p>
             </div>
           </div>
         </div>
@@ -242,17 +242,17 @@ export function PremiumUpgradePanel({
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">
-                Dummy UPI Checkout
+                Manual UPI Checkout
               </p>
               <h4 className="mt-2 text-2xl font-semibold text-slate-50">{activePlan.label}</h4>
             </div>
             <span className="rounded-full border border-sky-300/20 bg-sky-300/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-100">
-              Non-functional demo
+              MVP manual flow
             </span>
           </div>
 
           <div className="mt-5 flex justify-center">
-            <DummyQrCode />
+            <PaymentQrCode />
           </div>
 
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -262,16 +262,16 @@ export function PremiumUpgradePanel({
             </div>
             <div className="rounded-2xl border border-slate-700 bg-slate-950/50 px-4 py-4">
               <p className="text-xs uppercase tracking-[0.18em] text-slate-500">UPI ID</p>
-              <p className="mt-2 text-sm font-semibold text-slate-50">playground-demo@upi</p>
+              <p className="mt-2 text-sm font-semibold text-slate-50">8889990355@pthdfc</p>
             </div>
           </div>
 
           <div className="mt-5">
-            <label htmlFor="dummy-upi-reference" className="mb-2 block text-sm text-slate-300">
-              Dummy payment reference
+            <label htmlFor="manual-upi-reference" className="mb-2 block text-sm text-slate-300">
+              Payment reference
             </label>
             <input
-              id="dummy-upi-reference"
+              id="manual-upi-reference"
               type="text"
               value={paymentReference}
               onChange={(event) => setPaymentReference(event.target.value)}
@@ -281,8 +281,8 @@ export function PremiumUpgradePanel({
           </div>
 
           <p className="mt-4 text-sm leading-6 text-slate-400">
-            This is a placeholder checkout. The QR is intentionally dummy and the confirmation button
-            simply unlocks premium in this browser for the signed-in account.
+            This is an MVP manual checkout. The QR can accept UPI payments, but access
+            confirmation is still handled inside this browser until a real payment gateway is added.
           </p>
 
           {checkoutError ? (
@@ -297,7 +297,7 @@ export function PremiumUpgradePanel({
             disabled={isCompletingPayment}
             className="mt-5 w-full rounded-full bg-amber-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:bg-amber-100"
           >
-            {isCompletingPayment ? "Capturing email..." : "I completed the dummy payment"}
+            {isCompletingPayment ? "Capturing access..." : "I completed the UPI payment"}
           </button>
         </div>
       </div>
