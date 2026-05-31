@@ -68,10 +68,19 @@ class AuthService:
         self.google_client_id = settings.google_oauth_client_id
         self.google_client_secret = settings.google_oauth_client_secret
         self.google_redirect_uri = settings.google_oauth_redirect_uri
-        self.google_state_secret = (
-            settings.google_oauth_state_secret
-            or settings.google_oauth_client_secret
-            or "development-google-oauth-state-secret"
+        self.environment = settings.environment
+        self.otp_hash_secret = self._resolve_secret(
+            settings.auth_otp_secret,
+            fallback=settings.google_oauth_state_secret
+            or settings.admin_api_token
+            or settings.resend_api_key
+            or configured_postgres_url,
+            purpose="AUTH_OTP_SECRET",
+        )
+        self.google_state_secret = self._resolve_secret(
+            settings.google_oauth_state_secret,
+            fallback=settings.google_oauth_client_secret,
+            purpose="GOOGLE_OAUTH_STATE_SECRET",
         )
         self.email_capture_store = EmailCaptureStore(postgres_url=configured_postgres_url)
         self.otp_delivery_service = OtpDeliveryService()
@@ -148,8 +157,14 @@ class AuthService:
                 "Google login is not configured yet. Add GOOGLE_OAUTH_CLIENT_ID, "
                 "GOOGLE_OAUTH_CLIENT_SECRET, and GOOGLE_OAUTH_REDIRECT_URI."
             )
+        if self.environment in {"production", "prod"} and self.google_state_secret.startswith(
+            "development-only-"
+        ):
+            raise AuthValidationError(
+                "GOOGLE_OAUTH_STATE_SECRET must be set to at least 32 characters in production."
+            )
 
-        state = self._build_google_state(return_to or "/dashboard")
+        state = self._build_google_state(self._safe_return_to(return_to or "/dashboard"))
         query = urlencode(
             {
                 "client_id": self.google_client_id,
@@ -431,7 +446,7 @@ class AuthService:
             raise AuthServiceError(f"Unable to send OTP email. {exc}") from exc
 
     def _build_google_state(self, return_to: str) -> str:
-        safe_return_to = return_to if return_to.startswith("/") else "/dashboard"
+        safe_return_to = self._safe_return_to(return_to)
         payload = {
             "return_to": safe_return_to,
             "created_at": int(self._now().timestamp()),
@@ -445,6 +460,16 @@ class AuthService:
             hashlib.sha256,
         ).digest()
         return f"{payload_b64}.{self._base64url_encode(signature)}"
+
+    def _safe_return_to(self, return_to: str) -> str:
+        if (
+            not return_to.startswith("/")
+            or return_to.startswith("//")
+            or "\\" in return_to
+            or any(ord(character) < 32 for character in return_to)
+        ):
+            return "/dashboard"
+        return return_to[:300]
 
     def _parse_google_state(self, state: str) -> dict[str, Any]:
         payload_b64, separator, signature_b64 = state.partition(".")
@@ -966,13 +991,29 @@ class AuthService:
         return postgres_url
 
     def _hash_otp(self, email: str, otp_code: str) -> str:
-        return hashlib.sha256(f"{email}:{otp_code}".encode("utf-8")).hexdigest()
+        return hmac.new(
+            self.otp_hash_secret.encode("utf-8"),
+            f"{email}:{otp_code}".encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
 
     def _hash_token(self, token: str) -> str:
         return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
     def _now(self) -> datetime:
         return datetime.now(timezone.utc)
+
+    def _resolve_secret(
+        self,
+        value: str | None,
+        fallback: str | None,
+        purpose: str,
+    ) -> str:
+        if value and len(value) >= 32:
+            return value
+        if fallback and len(fallback) >= 32:
+            return fallback
+        return f"development-only-{purpose.lower()}-change-me"
 
     def _iso(self, value: datetime | str | None) -> str:
         if value is None:

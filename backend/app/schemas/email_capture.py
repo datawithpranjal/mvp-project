@@ -1,14 +1,14 @@
 import re
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 class EmailCaptureRequest(BaseModel):
-    email: str
-    source: str = "premium_unlock"
-    scenario_slug: str | None = None
+    email: str = Field(max_length=254)
+    source: str = Field(default="premium_unlock", max_length=80)
+    scenario_slug: str | None = Field(default=None, max_length=160)
 
     @field_validator("email")
     @classmethod

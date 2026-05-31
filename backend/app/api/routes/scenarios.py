@@ -2,7 +2,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Header, HTTPException, status
 
-from app.api.routes.auth import bearer_token
+from app.api.errors import internal_service_error
+from app.api.routes.auth import auth_error_response, bearer_token
 from app.schemas.scenario import ScenarioDetail, ScenarioSummary
 from app.services.auth_service import AuthService, AuthServiceError
 from app.services.premium_access_service import PremiumAccessService, PremiumAccessServiceError
@@ -39,11 +40,10 @@ def get_scenario(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(exc),
         ) from exc
-    except (AuthServiceError, PremiumAccessServiceError) as exc:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=str(exc),
-        ) from exc
+    except AuthServiceError as exc:
+        raise auth_error_response(exc) from exc
+    except PremiumAccessServiceError as exc:
+        raise internal_service_error("Premium access is temporarily unavailable.", exc) from exc
 
 
 def _has_premium_access(authorization: str | None) -> bool:

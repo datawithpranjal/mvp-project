@@ -4,6 +4,7 @@ from typing import Annotated
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
+from app.api.errors import internal_service_error
 from app.api.routes.auth import auth_error_response, bearer_token
 from app.core.config import get_settings
 from app.services.auth_service import AuthService, AuthServiceError
@@ -50,10 +51,7 @@ def submit_manual_premium_payment_request(
     except AuthServiceError as exc:
         raise auth_error_response(exc) from exc
     except PremiumAccessServiceError as exc:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Premium access is temporarily unavailable. {exc}",
-        ) from exc
+        raise internal_service_error("Premium access is temporarily unavailable.", exc) from exc
 
 
 @router.post("/api/v1/admin/premium/manual-grant")
@@ -74,14 +72,11 @@ def grant_manual_premium_access(
         )
         return {"unlocked_premium": True, "email": payload.email.strip().lower()}
     except PremiumAccessServiceError as exc:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Premium access is temporarily unavailable. {exc}",
-        ) from exc
+        raise internal_service_error("Premium access is temporarily unavailable.", exc) from exc
 
 
 def _require_admin_token(x_admin_token: str | None) -> None:
-    if not settings.admin_api_token:
+    if not settings.admin_api_token or len(settings.admin_api_token) < 32:
         raise HTTPException(
             status_code=503,
             detail="Admin premium access is not configured.",

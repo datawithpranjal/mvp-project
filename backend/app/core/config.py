@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Annotated
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 DEFAULT_POSTGRES_URL = "postgresql://postgres:postgres@postgres:5432/scenario_playground"
@@ -15,9 +15,11 @@ class Settings(BaseSettings):
     )
     backend_cors_origin_regex: str | None = None
     admin_api_token: str | None = None
+    expose_internal_errors: bool = False
     auth_session_ttl_days: int = 30
     auth_otp_ttl_minutes: int = 10
     auth_show_debug_otp: bool = True
+    auth_otp_secret: str | None = None
     resend_api_key: str | None = None
     otp_email_from: str = "Data Engineering Scenario Playground <onboarding@resend.dev>"
     frontend_base_url: str = "http://localhost:3000"
@@ -42,6 +44,17 @@ class Settings(BaseSettings):
         if not value:
             return ["http://localhost:3000"]
         return [origin.strip() for origin in value.split(",") if origin.strip()]
+
+    @field_validator("environment")
+    @classmethod
+    def normalize_environment(cls, value: str) -> str:
+        return value.strip().lower() or "development"
+
+    @model_validator(mode="after")
+    def apply_security_defaults(self) -> "Settings":
+        if self.environment in {"production", "prod"}:
+            self.auth_show_debug_otp = False
+        return self
 
 
 @lru_cache
