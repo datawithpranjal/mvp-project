@@ -1,5 +1,6 @@
 import { LEVELS } from "./product";
 import type { ScenarioProgressSummary } from "./progress";
+import { formatDomain, type Scenario } from "./scenarios";
 import type { ScenarioSummary } from "./types";
 
 export interface ReadinessScore {
@@ -68,7 +69,7 @@ function getLevelName(xp: number): string {
 }
 
 export function calculateReadinessScore(
-  scenarios: ScenarioSummary[],
+  scenarios: Array<ScenarioSummary | Scenario>,
   progressMap: Record<string, ScenarioProgressSummary>
 ): ReadinessScore {
   const progressValues = scenarios
@@ -121,18 +122,18 @@ export function calculateReadinessScore(
       const progress = progressMap[scenario.slug];
       return progress?.selfRating === "Weak" || (progress?.attemptCount ?? 0) > 0 && !progress?.completed;
     })
-    .map((scenario) => scenario.section)
+    .map((scenario) => scenarioSection(scenario))
     .filter((section, index, sections) => sections.indexOf(section) === index)
     .slice(0, 5);
 
   const xp = completedCount * 75 + attemptedCount * 20 + Math.round(averageAiScore);
   const badges = [
     completedCount > 0 ? "First Scenario Completed" : null,
-    weakAreas.includes("Spark") ? "Spark Skew Hunter" : null,
-    scenarios.some((scenario) => scenario.section === "SQL" && progressMap[scenario.slug]?.completed)
+    weakAreas.includes("PySpark") || weakAreas.includes("Spark") ? "Spark Skew Hunter" : null,
+    scenarios.some((scenario) => scenarioSection(scenario) === "SQL" && progressMap[scenario.slug]?.completed)
       ? "SQL Grain Master"
       : null,
-    scenarios.some((scenario) => scenario.section === "Airflow" && progressMap[scenario.slug]?.completed)
+    scenarios.some((scenario) => scenarioSection(scenario) === "Airflow" && progressMap[scenario.slug]?.completed)
       ? "Airflow Rescuer"
       : null,
     completedCount >= 3 ? "Production Debugger" : null,
@@ -157,3 +158,10 @@ export function calculateReadinessScore(
   };
 }
 
+function scenarioSection(scenario: ScenarioSummary | Scenario): string {
+  if ("domain" in scenario) {
+    return formatDomain(scenario.domain);
+  }
+
+  return scenario.section;
+}

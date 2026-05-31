@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { ECOMMERCE_PROJECT_MISSIONS } from "../../../lib/product";
+import { getScenarios } from "../../../lib/scenarios";
 
 const STORAGE_KEY = "the-data-foundry-ecommerce-simulator-v1";
 const STAGES = [
@@ -38,6 +40,7 @@ function writeMissionState(state: MissionState): void {
 
 export default function EcommercePipelinePage() {
   const [missionState, setMissionState] = useState<MissionState>({});
+  const labScenarios = getScenarios();
 
   useEffect(() => {
     setMissionState(readMissionState());
@@ -104,6 +107,9 @@ export default function EcommercePipelinePage() {
         {ECOMMERCE_PROJECT_MISSIONS.map((mission, index) => {
           const selectedLabel = missionState[mission.id]?.selectedLabel ?? null;
           const selectedOption = mission.options.find((option) => option.label === selectedLabel);
+          const relatedLab = labScenarios.find(
+            (scenario) => scenario.relatedProjectMissionId === mission.id
+          );
 
           return (
             <article key={mission.id} className="panel rounded-[2rem] p-6">
@@ -147,6 +153,23 @@ export default function EcommercePipelinePage() {
                   <InfoBox title="Production lesson" body={mission.productionLesson} />
                 </div>
               ) : null}
+
+              {relatedLab ? (
+                <div className="mt-5 rounded-3xl border border-teal-300/20 bg-teal-300/10 p-5">
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-teal-100">
+                    Practice related debugging lab
+                  </p>
+                  <div className="mt-3 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+                    <p className="text-sm font-semibold text-slate-50">{relatedLab.title}</p>
+                    <Link
+                      href={`/scenarios/${relatedLab.slug}`}
+                      className="inline-flex rounded-full bg-amber-300 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-amber-200"
+                    >
+                      Open lab
+                    </Link>
+                  </div>
+                </div>
+              ) : null}
             </article>
           );
         })}
@@ -172,4 +195,3 @@ function InfoBox({ title, body }: { title: string; body: string }) {
     </div>
   );
 }
-

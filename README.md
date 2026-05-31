@@ -4,7 +4,7 @@ The Data Foundry is a practice-first platform for Data Engineering interviews, p
 
 Instead of isolated syntax drills or PDF bundles, each lab starts from a production-style scenario with broken logic, sample tables, logs, expected behavior, hints, answer submission, and progress tracking.
 
-This release ships 26 scenarios across SQL, Spark, Airflow, Kafka, Lakehouse, and Data Quality topics.
+This release includes the new Broken Pipeline Lab with 12 interactive production-debugging scenarios, plus the existing backend scenario API for DuckDB SQL validation.
 
 ## Stack
 
@@ -16,6 +16,7 @@ This release ships 26 scenarios across SQL, Spark, Airflow, Kafka, Lakehouse, an
 
 ## Current Features
 
+- Broken Pipeline Lab with MCQ diagnosis, broken SQL, broken PySpark, log analysis, output mismatch debugging, hints, model answers, and interview-style evaluation
 - Scenario library with free and premium tiers
 - Backend-backed OTP login, sign-up, logout, and editable user profile
 - Optional Google login using the same backend session/profile model
@@ -31,8 +32,9 @@ This release ships 26 scenarios across SQL, Spark, Airflow, Kafka, Lakehouse, an
 - Onboarding, dashboard, readiness score, XP/streaks, weak-area tracking, and learning paths
 - E-commerce Orders Data Pipeline Simulator
 - Mock Interview Room with deterministic AI-evaluator fallback
-- Premium unlock tied to the signed-in demo account in the current browser
+- Manual UPI premium payment submission with backend/admin premium access scaffolding
 - Signup email capture happens immediately when a learner creates an account
+- PDF import scaffold for `docs/120-data-engineering-scenarios.pdf`
 
 ## Project Structure
 
@@ -285,7 +287,58 @@ cd backend
 pytest
 ```
 
-## How To Add A New Scenario
+## Broken Pipeline Lab Scenario Data
+
+The new practice system uses typed frontend scenario data in:
+
+```text
+frontend/lib/scenarios.ts
+```
+
+Each lab supports:
+
+- MCQ diagnosis
+- Broken SQL fixes
+- Broken PySpark fixes
+- Log/error analysis
+- Output mismatch debugging
+- Interview-style explanation
+
+The deterministic evaluator lives in:
+
+```text
+frontend/lib/scenarioEvaluator.ts
+```
+
+## Import The 120-Scenario PDF
+
+Place the PDF here:
+
+```text
+docs/120-data-engineering-scenarios.pdf
+```
+
+Then run:
+
+```bash
+npx tsx scripts/import-scenarios-from-pdf.ts
+```
+
+If needed, install the optional parser tooling:
+
+```bash
+npm install --save-dev tsx pdf-parse
+```
+
+The script writes:
+
+```text
+data/scenarios.generated.json
+```
+
+PDF extraction still needs human review. Use `docs/scenario-import-guide.md` and `data/scenarios.manual.template.json` to clean up domain, difficulty, practice type, broken code, hints, and model answers before adding generated scenarios into the app.
+
+## How To Add A Legacy Backend Scenario
 
 The preferred path is one JSON file per scenario in `backend/app/scenarios/`.
 

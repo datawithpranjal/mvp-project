@@ -1,7 +1,7 @@
 import Link from "next/link";
 
-import { ScenarioLibrary } from "../components/scenario-library";
 import { AUDIENCE_SEGMENTS, BRAND, CORE_LABS } from "../lib/product";
+import { getRecommendedScenarioSlug } from "../lib/scenarios";
 
 const WORKFLOW_STEPS = [
   "Think",
@@ -13,6 +13,8 @@ const WORKFLOW_STEPS = [
 ];
 
 export default function HomePage() {
+  const recommendedScenarioSlug = getRecommendedScenarioSlug();
+
   return (
     <main className="mx-auto min-h-screen max-w-7xl px-6 py-10 sm:px-10">
       <section className="panel relative overflow-hidden rounded-[2rem] p-8 sm:p-12">
@@ -34,7 +36,7 @@ export default function HomePage() {
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link
-              href="#scenario-library"
+              href={`/scenarios/${recommendedScenarioSlug}`}
               className="rounded-full bg-amber-300 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-200"
             >
               Start Free Scenario
@@ -156,7 +158,25 @@ export default function HomePage() {
       </section>
 
       <section className="mt-10">
-        <ScenarioLibrary />
+        <div className="panel rounded-[2rem] p-8">
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-200">
+            Broken Pipeline Lab
+          </p>
+          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-50">
+            Practice real production failures, not PDF-style Q&A.
+          </h2>
+          <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300">
+            The new scenario lab includes MCQ diagnosis, broken SQL, PySpark fixes, log
+            analysis, output mismatch debugging, hints, model answers, and interview-style
+            evaluation.
+          </p>
+          <Link
+            href="/scenarios"
+            className="mt-6 inline-flex rounded-full bg-amber-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-200"
+          >
+            See Scenario Library
+          </Link>
+        </div>
       </section>
 
       <section className="mt-10 panel rounded-[2rem] p-6">

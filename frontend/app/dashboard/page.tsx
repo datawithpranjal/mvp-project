@@ -3,27 +3,25 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
-import { getScenarios } from "../../lib/api";
 import { getOnboardingProfile, type OnboardingProfile } from "../../lib/onboarding";
 import { LEARNING_PATHS } from "../../lib/product";
 import { getScenarioProgressMap, type ScenarioProgressSummary } from "../../lib/progress";
 import { calculateReadinessScore } from "../../lib/readiness";
-import type { ScenarioSummary } from "../../lib/types";
+import { getScenarios, type Scenario } from "../../lib/scenarios";
 
 export default function DashboardPage() {
-  const [scenarios, setScenarios] = useState<ScenarioSummary[]>([]);
+  const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [progressMap, setProgressMap] = useState<Record<string, ScenarioProgressSummary>>({});
   const [onboarding, setOnboarding] = useState<OnboardingProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function loadDashboard() {
+    function loadDashboard() {
       try {
         setIsLoading(true);
         setError(null);
-        const nextScenarios = await getScenarios();
-        setScenarios(nextScenarios);
+        setScenarios(getScenarios());
         setProgressMap(getScenarioProgressMap());
         setOnboarding(getOnboardingProfile());
       } catch (loadError) {
@@ -35,7 +33,7 @@ export default function DashboardPage() {
       }
     }
 
-    void loadDashboard();
+    loadDashboard();
   }, []);
 
   const readiness = useMemo(
@@ -52,10 +50,10 @@ export default function DashboardPage() {
         (progressMap[scenario.slug]?.attemptCount ?? 0) > 0 &&
         !progressMap[scenario.slug]?.completed
     ) ??
-    scenarios.find((scenario) => scenario.access_tier === "free") ??
+    scenarios.find((scenario) => scenario.isFree) ??
     scenarios[0];
   const productionScenario =
-    scenarios.find((scenario) => scenario.section !== "SQL" && scenario.access_tier === "free") ??
+    scenarios.find((scenario) => scenario.domain !== "sql" && scenario.isFree) ??
     continueScenario;
 
   if (isLoading) {
@@ -76,33 +74,28 @@ export default function DashboardPage() {
     );
   }
 
-  if (!onboarding) {
-    return (
-      <main className="mx-auto min-h-screen max-w-5xl px-6 py-10 sm:px-10">
-        <section className="panel rounded-[2rem] p-8">
+  return (
+    <main className="mx-auto min-h-screen max-w-7xl px-6 py-10 sm:px-10">
+      {!onboarding ? (
+        <section className="panel mb-6 rounded-[2rem] border border-amber-300/20 p-6">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-200">
             New learner setup
           </p>
-          <h1 className="mt-4 text-4xl font-semibold tracking-tight text-slate-50">
-            Your dashboard is ready after onboarding.
-          </h1>
-          <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300">
-            Choose your stage, goal, daily time, and timeline. Then we will generate a
-            practical daily mission and recommended learning path.
-          </p>
-          <Link
-            href="/onboarding"
-            className="mt-6 inline-flex rounded-full bg-amber-300 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-200"
-          >
-            Start onboarding
-          </Link>
+          <div className="mt-3 flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
+            <p className="max-w-3xl text-sm leading-7 text-slate-300">
+              Dashboard stats work now from local practice. Complete onboarding when you want
+              a more personalized path and daily mission.
+            </p>
+            <Link
+              href="/onboarding"
+              className="inline-flex rounded-full bg-amber-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-200"
+            >
+              Start onboarding
+            </Link>
+          </div>
         </section>
-      </main>
-    );
-  }
+      ) : null}
 
-  return (
-    <main className="mx-auto min-h-screen max-w-7xl px-6 py-10 sm:px-10">
       <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
         <div className="panel rounded-[2rem] p-8">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-200">
@@ -188,7 +181,7 @@ export default function DashboardPage() {
             <>
               <p className="mt-3 text-sm font-semibold text-amber-100">{continueScenario.title}</p>
               <p className="mt-3 text-sm leading-6 text-slate-300">
-                {continueScenario.short_description}
+                {continueScenario.problemStatement}
               </p>
               <Link
                 href={`/scenarios/${continueScenario.slug}`}
@@ -289,4 +282,3 @@ function DashboardList({ title, items }: { title: string; items: string[] }) {
     </div>
   );
 }
-

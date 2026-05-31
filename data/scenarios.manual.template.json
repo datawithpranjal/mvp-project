@@ -1,0 +1,44 @@
+[
+  {
+    "id": "pdf-scenario-001",
+    "title": "TODO: Scenario title",
+    "slug": "todo-scenario-title",
+    "domain": "mixed",
+    "difficulty": "intermediate",
+    "scenarioType": "mixed_lab",
+    "isFree": false,
+    "estimatedMinutes": 20,
+    "tags": ["TODO"],
+    "businessContext": "TODO: What was happening in the business or production system?",
+    "problemStatement": "TODO: What broke?",
+    "requirement": "TODO: What should the pipeline/report/job do?",
+    "schema": "",
+    "sampleInput": "",
+    "brokenCode": "",
+    "actualOutput": "",
+    "expectedOutput": "",
+    "logs": "",
+    "mcqOptions": [],
+    "hints": [
+      "TODO: Direction only.",
+      "TODO: What to inspect.",
+      "TODO: Partial structure without full answer."
+    ],
+    "tasks": [
+      "Diagnose the issue.",
+      "Fix or explain the solution.",
+      "Explain it interview-style."
+    ],
+    "modelSolution": "TODO: Practical answer, not textbook theory.",
+    "productionExplanation": "TODO: Why this matters in production.",
+    "commonMistakes": ["TODO"],
+    "evaluationRubric": {
+      "rootCause": 25,
+      "correctness": 25,
+      "productionThinking": 20,
+      "tradeoffs": 15,
+      "communication": 15
+    },
+    "followUps": ["TODO: Follow-up interview question."]
+  }
+]
