@@ -37,6 +37,14 @@ export interface EvaluationRubric {
   communication: number;
 }
 
+export type ScenarioTableCell = string | number | boolean | null;
+
+export interface ScenarioSampleTable {
+  name: string;
+  columns: string[];
+  rows: ScenarioTableCell[][];
+}
+
 export interface Scenario {
   id: string;
   title: string;
@@ -55,6 +63,8 @@ export interface Scenario {
   brokenCode?: string;
   actualOutput?: string;
   expectedOutput?: string;
+  sampleTables?: ScenarioSampleTable[];
+  expectedSql?: string;
   logs?: string;
   mcqOptions?: McqOption[];
   hints: string[];
@@ -137,10 +147,10 @@ export const BROKEN_PIPELINE_SCENARIOS: Scenario[] = [
     estimatedMinutes: 18,
     tags: ["SQL", "Grain", "Revenue", "Data Quality"],
     businessContext:
-      "Finance says customer revenue is higher than the payment processor report. The daily customer mart was changed last night.",
+      "You are on the analytics engineering rota for an e-commerce company. Finance has escalated that the customer revenue mart is higher than the payment processor report after last night's model change.",
     problemStatement:
-      "The query groups by customer and order status, then downstream dashboards sum the rows again by customer. This duplicates customer revenue across status-level rows.",
-    requirement: "Return one row per customer with total completed order revenue.",
+      "The query groups by customer and order status, but the dashboard expects one row per customer. When downstream users sum the status-level rows again, cancelled and completed order rows are mixed into the customer metric.",
+    requirement: "Build a customer-level revenue result with exactly one row per customer. Include only completed orders, return customer_id, customer_name, and completed_revenue, and make sure duplicate status rows cannot inflate the dashboard.",
     schema:
       "orders(order_id, customer_id, order_status, order_amount, order_date)\ncustomers(customer_id, customer_name)",
     sampleInput:
@@ -149,6 +159,30 @@ export const BROKEN_PIPELINE_SCENARIOS: Scenario[] = [
       "SELECT\n  c.customer_id,\n  c.customer_name,\n  o.order_status,\n  SUM(o.order_amount) AS revenue\nFROM customers c\nJOIN orders o ON c.customer_id = o.customer_id\nGROUP BY 1, 2, 3;",
     expectedOutput:
       "customer_id | customer_name | completed_revenue\n101 | Asha | 150\n102 | Ben | 50",
+    sampleTables: [
+      {
+        name: "customers",
+        columns: ["customer_id", "customer_name"],
+        rows: [
+          [101, "Asha"],
+          [102, "Ben"],
+          [103, "Chen"]
+        ]
+      },
+      {
+        name: "orders",
+        columns: ["order_id", "customer_id", "order_status", "order_amount", "order_date"],
+        rows: [
+          [1, 101, "COMPLETED", 120, "2026-05-01"],
+          [2, 101, "CANCELLED", 80, "2026-05-01"],
+          [3, 101, "COMPLETED", 30, "2026-05-02"],
+          [4, 102, "COMPLETED", 50, "2026-05-02"],
+          [5, 103, "CANCELLED", 40, "2026-05-03"]
+        ]
+      }
+    ],
+    expectedSql:
+      "SELECT\n  c.customer_id,\n  c.customer_name,\n  SUM(o.order_amount) AS completed_revenue\nFROM customers c\nJOIN orders o ON c.customer_id = o.customer_id\nWHERE o.order_status = 'COMPLETED'\nGROUP BY c.customer_id, c.customer_name;",
     hints: [
       "Start by stating the output grain in one sentence.",
       "The business wants customer-level revenue, not status-level rows.",
@@ -185,16 +219,39 @@ export const BROKEN_PIPELINE_SCENARIOS: Scenario[] = [
     estimatedMinutes: 16,
     tags: ["SQL", "Joins", "NULLs", "Retention"],
     businessContext:
-      "Marketing needs all customers and their last campaign click if available. The report unexpectedly drops customers with no campaign activity.",
+      "Marketing is preparing a reactivation campaign and needs a customer list with the latest Spring campaign click when one exists. The exported audience is missing active customers who never clicked.",
     problemStatement:
-      "A filter on the right-side campaign table is placed in the WHERE clause, removing NULL rows produced by the LEFT JOIN.",
-    requirement: "Return all active customers, including those with no campaign click.",
+      "The query uses a LEFT JOIN, but a filter on the campaign table is placed in the WHERE clause. That removes NULL right-side rows and silently turns the result into an inner join for this campaign.",
+    requirement: "Return every active customer. For customers who clicked campaign SPRING_26, show their latest click timestamp. For customers with no click, keep the customer row and return NULL for last_click_at.",
     schema:
       "customers(customer_id, customer_name, is_active)\ncampaign_clicks(customer_id, campaign_id, clicked_at)",
     brokenCode:
       "SELECT c.customer_id, c.customer_name, MAX(cc.clicked_at) AS last_click_at\nFROM customers c\nLEFT JOIN campaign_clicks cc ON c.customer_id = cc.customer_id\nWHERE c.is_active = TRUE\n  AND cc.campaign_id = 'SPRING_26'\nGROUP BY 1, 2;",
     expectedOutput:
       "All active customers should appear. Customers without SPRING_26 clicks should have last_click_at = NULL.",
+    sampleTables: [
+      {
+        name: "customers",
+        columns: ["customer_id", "customer_name", "is_active"],
+        rows: [
+          [1, "Asha", 1],
+          [2, "Ben", 1],
+          [3, "Chen", 1],
+          [4, "Diya", 0]
+        ]
+      },
+      {
+        name: "campaign_clicks",
+        columns: ["customer_id", "campaign_id", "clicked_at"],
+        rows: [
+          [1, "SPRING_26", "2026-05-01 09:00:00"],
+          [1, "SPRING_26", "2026-05-03 10:30:00"],
+          [2, "WINTER_25", "2026-01-11 08:00:00"]
+        ]
+      }
+    ],
+    expectedSql:
+      "SELECT c.customer_id, c.customer_name, MAX(cc.clicked_at) AS last_click_at\nFROM customers c\nLEFT JOIN campaign_clicks cc\n  ON c.customer_id = cc.customer_id\n AND cc.campaign_id = 'SPRING_26'\nWHERE c.is_active = 1\nGROUP BY c.customer_id, c.customer_name;",
     hints: [
       "Ask which rows should survive when the right side is missing.",
       "A WHERE condition on the right table removes NULL right-side matches.",
@@ -231,16 +288,46 @@ export const BROKEN_PIPELINE_SCENARIOS: Scenario[] = [
     estimatedMinutes: 22,
     tags: ["SQL", "Join Explosion", "Revenue", "Output Mismatch"],
     businessContext:
-      "The CFO dashboard doubled net revenue for orders with multiple payment attempts and refund records.",
+      "The CFO dashboard is showing inflated net revenue for a subset of orders. The issue only appears on orders that have multiple successful payment captures or multiple refund records.",
     problemStatement:
-      "The mart joins orders directly to payment attempts and refunds. One-to-many joins multiply rows before aggregation.",
-    requirement: "Compute net revenue by order without multiplying payment and refund rows.",
+      "The mart joins orders directly to payments and refunds at row level. Because both child tables can have multiple rows per order, the join multiplies records before aggregation.",
+    requirement: "Return one row per order with paid_amount, refunded_amount, and net_revenue. Aggregate each child table to order_id before joining so payment and refund rows cannot multiply each other.",
     schema:
       "orders(order_id, order_amount)\npayments(payment_id, order_id, payment_amount, status)\nrefunds(refund_id, order_id, refund_amount)",
     brokenCode:
       "SELECT\n  o.order_id,\n  SUM(p.payment_amount) - COALESCE(SUM(r.refund_amount), 0) AS net_revenue\nFROM orders o\nLEFT JOIN payments p ON o.order_id = p.order_id AND p.status = 'SUCCESS'\nLEFT JOIN refunds r ON o.order_id = r.order_id\nGROUP BY 1;",
     actualOutput: "order_id 5001 net_revenue 260",
     expectedOutput: "order_id 5001 net_revenue 130",
+    sampleTables: [
+      {
+        name: "orders",
+        columns: ["order_id", "order_amount"],
+        rows: [
+          [5001, 150],
+          [5002, 80]
+        ]
+      },
+      {
+        name: "payments",
+        columns: ["payment_id", "order_id", "payment_amount", "status"],
+        rows: [
+          [1, 5001, 100, "SUCCESS"],
+          [2, 5001, 50, "SUCCESS"],
+          [3, 5002, 80, "SUCCESS"],
+          [4, 5002, 80, "FAILED"]
+        ]
+      },
+      {
+        name: "refunds",
+        columns: ["refund_id", "order_id", "refund_amount"],
+        rows: [
+          [10, 5001, 20],
+          [11, 5002, 5]
+        ]
+      }
+    ],
+    expectedSql:
+      "WITH payment_totals AS (\n  SELECT order_id, SUM(payment_amount) AS paid_amount\n  FROM payments\n  WHERE status = 'SUCCESS'\n  GROUP BY order_id\n), refund_totals AS (\n  SELECT order_id, SUM(refund_amount) AS refunded_amount\n  FROM refunds\n  GROUP BY order_id\n)\nSELECT\n  o.order_id,\n  COALESCE(p.paid_amount, 0) AS paid_amount,\n  COALESCE(r.refunded_amount, 0) AS refunded_amount,\n  COALESCE(p.paid_amount, 0) - COALESCE(r.refunded_amount, 0) AS net_revenue\nFROM orders o\nLEFT JOIN payment_totals p ON o.order_id = p.order_id\nLEFT JOIN refund_totals r ON o.order_id = r.order_id;",
     hints: [
       "Count rows after each join.",
       "Payments and refunds are both one-to-many relative to orders.",
@@ -286,6 +373,27 @@ export const BROKEN_PIPELINE_SCENARIOS: Scenario[] = [
       "orders_df\n  .filter(F.col('order_date') == run_date)\n  .write\n  .mode('append')\n  .partitionBy('order_date')\n  .parquet(gold_orders_path)",
     actualOutput: "order_date=2026-05-02 has 2 copies of the same order_id values after rerun.",
     expectedOutput: "Rerunning the same date replaces or merges that date without duplicates.",
+    sampleTables: [
+      {
+        name: "orders_df",
+        columns: ["order_id", "customer_id", "order_date", "updated_at", "amount"],
+        rows: [
+          [9001, 101, "2026-05-02", "2026-05-02 09:10:00", 120],
+          [9002, 102, "2026-05-02", "2026-05-02 09:12:00", 80],
+          [9001, 101, "2026-05-02", "2026-05-02 09:10:00", 120]
+        ]
+      },
+      {
+        name: "gold_orders_partition_after_retry",
+        columns: ["order_id", "order_date", "load_attempt"],
+        rows: [
+          [9001, "2026-05-02", 1],
+          [9002, "2026-05-02", 1],
+          [9001, "2026-05-02", 2],
+          [9002, "2026-05-02", 2]
+        ]
+      }
+    ],
     hints: [
       "Append is safe for immutable event logs, not always for rebuilt daily marts.",
       "Think about overwrite-by-partition or merge/upsert semantics.",
@@ -524,6 +632,26 @@ export const BROKEN_PIPELINE_SCENARIOS: Scenario[] = [
       "SELECT order_date, SUM(amount) AS revenue\nFROM payments\nWHERE payment_status = 'SUCCESS'\nGROUP BY order_date;",
     actualOutput: "2026-05-21 revenue = 700000",
     expectedOutput: "2026-05-21 revenue = 1000000",
+    sampleTables: [
+      {
+        name: "payments",
+        columns: ["payment_id", "order_date", "amount", "payment_status", "provider"],
+        rows: [
+          [1, "2026-05-21", 400000, "SUCCESS", "legacy_gateway"],
+          [2, "2026-05-21", 300000, "SUCCESS", "legacy_gateway"],
+          [3, "2026-05-21", 300000, "SUCCESSFUL", "new_gateway"]
+        ]
+      },
+      {
+        name: "status_mapping",
+        columns: ["payment_status", "normalized_status"],
+        rows: [
+          ["SUCCESS", "paid_success"],
+          ["SUCCESSFUL", "paid_success"],
+          ["FAILED", "failed"]
+        ]
+      }
+    ],
     hints: [
       "Inspect distinct payment_status values by date.",
       "Do not hardcode business status mapping in one hidden query.",
@@ -560,15 +688,28 @@ export const BROKEN_PIPELINE_SCENARIOS: Scenario[] = [
     estimatedMinutes: 19,
     tags: ["SQL", "Timezone", "Reporting", "Data Quality"],
     businessContext:
-      "India business users report that yesterday's dashboard is missing late-night orders. Engineering filters on UTC dates.",
+      "India business users report that yesterday's order dashboard is missing late-night orders. The raw events are stored in UTC, but business reviews happen by India business date.",
     problemStatement:
-      "The report groups by DATE(event_ts_utc), but the business day is Asia/Kolkata.",
-    requirement: "Aggregate revenue by India business date, not UTC date.",
+      "The report groups by the UTC calendar date. Orders between 18:30 and 23:59 UTC belong to the next calendar day in Asia/Kolkata, so the dashboard shifts late-night revenue into the wrong business date.",
+    requirement: "Convert event_ts_utc to India business time before deriving the reporting date. Return business_date and revenue so late-night UTC events are counted on the correct India date.",
     schema: "orders(order_id, event_ts_utc, amount)",
     brokenCode:
       "SELECT CAST(event_ts_utc AS DATE) AS order_date, SUM(amount) AS revenue\nFROM orders\nGROUP BY 1;",
     expectedOutput:
       "Events between 18:30 UTC and 23:59 UTC should belong to the next India business date.",
+    sampleTables: [
+      {
+        name: "orders",
+        columns: ["order_id", "event_ts_utc", "amount"],
+        rows: [
+          [1, "2026-05-01 18:20:00", 100],
+          [2, "2026-05-01 18:45:00", 200],
+          [3, "2026-05-02 03:00:00", 150]
+        ]
+      }
+    ],
+    expectedSql:
+      "SELECT DATE(datetime(event_ts_utc, '+5 hours', '+30 minutes')) AS business_date,\n       SUM(amount) AS revenue\nFROM orders\nGROUP BY DATE(datetime(event_ts_utc, '+5 hours', '+30 minutes'))\nORDER BY business_date;",
     hints: [
       "Define business date before writing the filter.",
       "UTC date and local business date are different near midnight.",
@@ -725,6 +866,22 @@ function normalizeStringArray(value: unknown): string[] {
     .filter(Boolean);
 }
 
+function normalizeSampleTables(value: unknown): ScenarioSampleTable[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const tables = value
+    .filter(isRecord)
+    .map((table) => ({
+      name: normalizeString(table.name),
+      columns: normalizeStringArray(table.columns),
+      rows: Array.isArray(table.rows)
+        ? (table.rows.filter(Array.isArray) as ScenarioTableCell[][])
+        : []
+    }))
+    .filter((table) => table.name && table.columns.length > 0);
+
+  return tables.length ? tables : undefined;
+}
+
 function normalizeDomain(value: unknown): ScenarioDomain {
   return VALID_DOMAINS.includes(value as ScenarioDomain) ? (value as ScenarioDomain) : "mixed";
 }
@@ -795,6 +952,8 @@ function normalizeGeneratedScenario(value: unknown): Scenario | null {
     brokenCode: normalizeString(value.brokenCode),
     actualOutput: normalizeString(value.actualOutput),
     expectedOutput: normalizeString(value.expectedOutput),
+    sampleTables: normalizeSampleTables(value.sampleTables),
+    expectedSql: normalizeString(value.expectedSql) || undefined,
     logs: normalizeString(value.logs),
     mcqOptions: normalizeMcqOptions(value.mcqOptions),
     hints: normalizeStringArray(value.hints),

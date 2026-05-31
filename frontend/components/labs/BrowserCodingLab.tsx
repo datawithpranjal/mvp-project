@@ -1,8 +1,8 @@
 "use client";
 
-import initSqlJs, { type SqlJsStatic } from "sql.js";
 import { useMemo, useState } from "react";
 
+import { validateSqlOutput, type BrowserSqlResultTable } from "../../lib/browser-sql";
 import {
   formatTrackLabel,
   getCodingLabs,
@@ -10,13 +10,6 @@ import {
   type CodingLabTable,
   type CodingLabTrack
 } from "../../lib/coding-labs";
-
-type SqlCell = string | number | boolean | null;
-
-interface SqlResultTable {
-  columns: string[];
-  rows: SqlCell[][];
-}
 
 interface PythonTestResult {
   name: string;
@@ -28,7 +21,7 @@ interface PythonTestResult {
 interface LabRunResult {
   passed: boolean | null;
   message: string;
-  table?: SqlResultTable;
+  table?: BrowserSqlResultTable;
   pythonResults?: PythonTestResult[];
 }
 
@@ -41,15 +34,6 @@ declare global {
       runPythonAsync: (code: string) => Promise<unknown>;
     }>;
   }
-}
-
-let sqlJsPromise: Promise<SqlJsStatic> | null = null;
-
-function getSqlJs() {
-  sqlJsPromise ??= initSqlJs({
-    locateFile: (file) => `https://cdn.jsdelivr.net/npm/sql.js@1.14.1/dist/${file}`
-  });
-  return sqlJsPromise;
 }
 
 function loadScript(src: string): Promise<void> {
@@ -89,71 +73,6 @@ async function getPyodide() {
   return window.__dataFoundryPyodide;
 }
 
-function sqlLiteral(value: SqlCell): string {
-  if (value === null) return "NULL";
-  if (typeof value === "number") return Number.isFinite(value) ? String(value) : "NULL";
-  if (typeof value === "boolean") return value ? "1" : "0";
-  return `'${value.replace(/'/g, "''")}'`;
-}
-
-function quoteIdentifier(value: string): string {
-  return `"${value.replace(/"/g, '""')}"`;
-}
-
-function buildSetupSql(tables: CodingLabTable[]): string {
-  return tables
-    .map((table) => {
-      const createColumns = table.columns
-        .map((column) => `${quoteIdentifier(column)} TEXT`)
-        .join(", ");
-      const inserts = table.rows.map((row) => {
-        const values = table.columns.map((_, index) => sqlLiteral(row[index] ?? null)).join(", ");
-        return `INSERT INTO ${quoteIdentifier(table.name)} VALUES (${values});`;
-      });
-
-      return [
-        `DROP TABLE IF EXISTS ${quoteIdentifier(table.name)};`,
-        `CREATE TABLE ${quoteIdentifier(table.name)} (${createColumns});`,
-        ...inserts
-      ].join("\n");
-    })
-    .join("\n\n");
-}
-
-function resultFromExec(execResult: initSqlJs.QueryExecResult[]): SqlResultTable {
-  const first = execResult[0];
-  if (!first) return { columns: [], rows: [] };
-  return {
-    columns: first.columns,
-    rows: first.values as SqlCell[][]
-  };
-}
-
-function normalizeRows(table: SqlResultTable): string[] {
-  return table.rows
-    .map((row) =>
-      JSON.stringify(
-        row.map((value) => (typeof value === "number" && Number.isFinite(value) ? Number(value.toFixed(6)) : value))
-      )
-    )
-    .sort();
-}
-
-function sameSqlOutput(actual: SqlResultTable, expected: SqlResultTable): boolean {
-  if (actual.columns.length !== expected.columns.length) return false;
-  const actualColumns = actual.columns.map((column) => column.toLowerCase());
-  const expectedColumns = expected.columns.map((column) => column.toLowerCase());
-  if (JSON.stringify(actualColumns) !== JSON.stringify(expectedColumns)) return false;
-  return JSON.stringify(normalizeRows(actual)) === JSON.stringify(normalizeRows(expected));
-}
-
-function isReadOnlySql(sql: string): boolean {
-  const trimmed = sql.trim().replace(/^--.*$/gm, "").trim().toLowerCase();
-  if (!trimmed) return false;
-  if (!(trimmed.startsWith("select") || trimmed.startsWith("with"))) return false;
-  return !/\b(insert|update|delete|drop|alter|create|attach|detach|pragma|vacuum|replace)\b/i.test(trimmed);
-}
-
 function rememberCompletion(lab: CodingLab, passed: boolean) {
   if (!passed) return;
   const key = "data-foundry-coding-lab-progress";
@@ -174,31 +93,15 @@ async function runSqlLab(lab: CodingLab, answer: string): Promise<LabRunResult> 
     };
   }
 
-  if (!isReadOnlySql(answer)) {
-    return {
-      passed: false,
-      message: "For safety, SQL Lab only accepts read-only SELECT or WITH queries in the browser."
-    };
-  }
-
-  const SQL = await getSqlJs();
-  const db = new SQL.Database();
-  try {
-    db.run(buildSetupSql(lab.tables));
-    const actual = resultFromExec(db.exec(answer));
-    const expected = resultFromExec(db.exec(lab.expectedSql));
-    const passed = sameSqlOutput(actual, expected);
-    rememberCompletion(lab, passed);
-    return {
-      passed,
-      message: passed
-        ? "Correct. Your query matches the expected output on the seeded production-style data."
-        : "Not yet. Compare your columns, grain, filters, and tie/null handling with the expected behavior.",
-      table: actual
-    };
-  } finally {
-    db.close();
-  }
+  const result = await validateSqlOutput(lab.tables, answer, lab.expectedSql);
+  rememberCompletion(lab, result.passed);
+  return {
+    passed: result.passed,
+    message: result.passed
+      ? "Correct. Your query matches the expected output on the seeded production-style data."
+      : "Not yet. Compare your columns, grain, filters, and tie/null handling with the expected behavior.",
+    table: result.actual
+  };
 }
 
 function buildPythonHarness(lab: CodingLab) {

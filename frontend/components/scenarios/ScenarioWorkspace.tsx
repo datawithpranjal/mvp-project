@@ -1,8 +1,14 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
+import {
+  validateSqlOutput,
+  type BrowserSqlResultTable,
+  type BrowserSqlValidationResult
+} from "../../lib/browser-sql";
 import {
   getScenarioProgress,
   markScenarioCompleted,
@@ -18,6 +24,8 @@ import {
   formatDifficulty,
   formatDomain,
   formatScenarioType,
+  getScenarios,
+  type ScenarioSampleTable,
   type Scenario
 } from "../../lib/scenarios";
 import { CodeBlock } from "./CodeBlock";
@@ -29,6 +37,7 @@ interface ScenarioWorkspaceProps {
 }
 
 export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
+  const router = useRouter();
   const [answer, setAnswer] = useState("");
   const [interviewAnswer, setInterviewAnswer] = useState("");
   const [selectedOptionId, setSelectedOptionId] = useState("");
@@ -38,6 +47,8 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
   const [progress, setProgress] = useState<ScenarioProgressSummary | null>(null);
   const [activeFollowUpIndex, setActiveFollowUpIndex] = useState(0);
   const [draftMessage, setDraftMessage] = useState<string | null>(null);
+  const [sqlExecution, setSqlExecution] = useState<BrowserSqlValidationResult | null>(null);
+  const [isChecking, setIsChecking] = useState(false);
 
   useEffect(() => {
     const savedProgress = getScenarioProgress(scenario.slug);
@@ -49,9 +60,21 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
     }
     setHintsRevealed(Math.min(savedProgress.hintsRevealed, scenario.hints.length));
     setProgress(summarizeScenarioProgress(savedProgress, scenario.slug));
+    setSqlExecution(null);
+    setEvaluation(null);
+    setModelSolutionVisible(false);
   }, [scenario]);
 
   const visibleHints = scenario.hints.slice(0, hintsRevealed);
+  const canRunSql =
+    Boolean(scenario.expectedSql && scenario.sampleTables?.length) &&
+    (scenario.scenarioType === "broken_sql" || scenario.scenarioType === "output_mismatch");
+  const nextScenario = useMemo(() => {
+    const scenarios = getScenarios();
+    const index = scenarios.findIndex((item) => item.slug === scenario.slug);
+    if (index < 0 || scenarios.length <= 1) return null;
+    return scenarios[(index + 1) % scenarios.length];
+  }, [scenario.slug]);
   const promptLabel = useMemo(() => {
     if (scenario.scenarioType === "broken_sql") return "Write the corrected SQL";
     if (scenario.scenarioType === "broken_pyspark") return "Write the corrected PySpark approach";
@@ -74,32 +97,76 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
     setDraftMessage("Draft saved locally.");
   }
 
-  function checkAnswer() {
+  async function checkAnswer() {
     const submittedAnswer =
       scenario.scenarioType === "mcq"
         ? selectedOptionId
         : `${answer}\n\nInterview explanation:\n${interviewAnswer}`;
-    const nextEvaluation = evaluateScenarioAnswer(scenario, submittedAnswer);
-    const nextProgress = recordScenarioAttempt(scenario.slug, {
-      passed: nextEvaluation.score >= 70,
-      answer: submittedAnswer,
-      message: `${nextEvaluation.verdict} · ${nextEvaluation.score}/100`
-    });
-    recordScenarioAiFeedback(scenario.slug, {
-      totalScore: nextEvaluation.score,
-      strengths: nextEvaluation.strengths,
-      missingPoints: nextEvaluation.gaps,
-      improvedAnswer: nextEvaluation.improvedAnswer,
-      followUpQuestions: scenario.followUps
-    });
-    setEvaluation(nextEvaluation);
-    setProgress(summarizeScenarioProgress(nextProgress, scenario.slug));
-    setDraftMessage(null);
+    setIsChecking(true);
+    setSqlExecution(null);
+
+    try {
+      const nextEvaluation = evaluateScenarioAnswer(scenario, submittedAnswer);
+      const runnableSqlResult =
+        canRunSql && scenario.sampleTables && scenario.expectedSql
+          ? await validateSqlOutput(scenario.sampleTables, answer, scenario.expectedSql)
+          : null;
+
+      if (runnableSqlResult) {
+        setSqlExecution(runnableSqlResult);
+      }
+
+      const passed = runnableSqlResult ? runnableSqlResult.passed : nextEvaluation.score >= 70;
+      const message = runnableSqlResult
+        ? `${runnableSqlResult.passed ? "SQL passed" : "SQL output mismatch"} · ${nextEvaluation.score}/100 explanation score`
+        : `${nextEvaluation.verdict} · ${nextEvaluation.score}/100`;
+      const nextProgress = recordScenarioAttempt(scenario.slug, {
+        passed,
+        answer: submittedAnswer,
+        message
+      });
+      recordScenarioAiFeedback(scenario.slug, {
+        totalScore: runnableSqlResult?.passed ? Math.max(nextEvaluation.score, 85) : nextEvaluation.score,
+        strengths: runnableSqlResult?.passed
+          ? ["Your SQL returned the expected result on the seeded data.", ...nextEvaluation.strengths]
+          : nextEvaluation.strengths,
+        missingPoints: runnableSqlResult?.passed
+          ? nextEvaluation.gaps
+          : runnableSqlResult
+            ? [runnableSqlResult.message, ...nextEvaluation.gaps]
+            : nextEvaluation.gaps,
+        improvedAnswer: nextEvaluation.improvedAnswer,
+        followUpQuestions: scenario.followUps
+      });
+      setEvaluation(nextEvaluation);
+      setProgress(summarizeScenarioProgress(nextProgress, scenario.slug));
+      setDraftMessage(null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "The browser checker could not run this answer.";
+      const nextProgress = recordScenarioAttempt(scenario.slug, {
+        passed: false,
+        answer: submittedAnswer,
+        message
+      });
+      setProgress(summarizeScenarioProgress(nextProgress, scenario.slug));
+      setSqlExecution({
+        passed: false,
+        message,
+        actual: { columns: [], rows: [] },
+        expected: { columns: [], rows: [] }
+      });
+      setDraftMessage(null);
+    } finally {
+      setIsChecking(false);
+    }
   }
 
   function completeLab() {
     const nextProgress = markScenarioCompleted(scenario.slug);
     setProgress(summarizeScenarioProgress(nextProgress, scenario.slug));
+    if (nextScenario) {
+      router.push(`/scenarios/${nextScenario.slug}`);
+    }
   }
 
   function tryFollowUp() {
@@ -138,6 +205,23 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
           <InfoSection title="Scenario context" body={scenario.problemStatement} />
           <InfoSection title="Business requirement" body={scenario.requirement ?? ""} />
 
+          {scenario.sampleTables?.length ? (
+            <section className="panel rounded-[2rem] p-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-200">
+                Sample production data
+              </p>
+              <p className="mt-3 text-sm leading-6 text-slate-400">
+                Use these small tables to reason about the bug before writing the fix.
+                The browser checker seeds this data when you click Check Answer.
+              </p>
+              <div className="mt-5 grid gap-5 lg:grid-cols-2">
+                {scenario.sampleTables.map((table) => (
+                  <ScenarioTablePreview key={table.name} table={table} />
+                ))}
+              </div>
+            </section>
+          ) : null}
+
           <div className="grid gap-5 lg:grid-cols-2">
             <CodeBlock title="Schema" code={scenario.schema ?? ""} />
             <CodeBlock title="Sample input" code={scenario.sampleInput ?? ""} />
@@ -157,8 +241,9 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
                 </p>
                 <h2 className="mt-3 text-2xl font-semibold text-slate-50">{promptLabel}</h2>
                 <p className="mt-2 text-sm leading-6 text-slate-400">
-                  Think before revealing the answer. A partial but honest attempt is better
-                  practice than reading the model solution first.
+                  {canRunSql
+                    ? "Write the corrected query. The browser will run it against the sample tables and compare the result with the expected output."
+                    : "Think before revealing the answer. A partial but honest attempt is better practice than reading the model solution first."}
                 </p>
               </div>
               {draftMessage ? <p className="text-sm font-semibold text-teal-100">{draftMessage}</p> : null}
@@ -227,9 +312,10 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
               <button
                 type="button"
                 onClick={checkAnswer}
+                disabled={isChecking}
                 className="rounded-full bg-teal-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-teal-200"
               >
-                Check Answer
+                {isChecking ? "Checking..." : canRunSql ? "Run & Check Answer" : "Check Answer"}
               </button>
               <button
                 type="button"
@@ -247,6 +333,8 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
               </button>
             </div>
           </section>
+
+          {sqlExecution ? <ScenarioSqlResultPanel result={sqlExecution} /> : null}
 
           {visibleHints.length > 0 ? (
             <section className="panel rounded-[2rem] p-6">
@@ -287,7 +375,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
                 onClick={completeLab}
                 className="mt-5 rounded-full bg-teal-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-teal-200"
               >
-                Mark completed
+                {nextScenario ? "Mark completed & go next" : "Mark completed"}
               </button>
             </section>
           ) : null}
@@ -356,6 +444,107 @@ function Badge({ children }: { children: ReactNode }) {
     <span className="rounded-full border border-slate-700 bg-slate-950/40 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-200">
       {children}
     </span>
+  );
+}
+
+function ScenarioTablePreview({ table }: { table: ScenarioSampleTable }) {
+  return (
+    <div className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/40">
+      <div className="border-b border-slate-800 px-4 py-3">
+        <p className="font-mono text-sm font-semibold text-teal-100">{table.name}</p>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="min-w-full text-left text-xs">
+          <thead className="bg-slate-950/70 text-slate-400">
+            <tr>
+              {table.columns.map((column) => (
+                <th key={column} className="px-4 py-3 font-semibold">
+                  {column}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-800 text-slate-200">
+            {table.rows.map((row, rowIndex) => (
+              <tr key={`${table.name}-${rowIndex}`}>
+                {table.columns.map((column, columnIndex) => (
+                  <td key={column} className="whitespace-nowrap px-4 py-3 font-mono">
+                    {String(row[columnIndex] ?? "NULL")}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function ScenarioSqlResultPanel({ result }: { result: BrowserSqlValidationResult }) {
+  return (
+    <section
+      className={`rounded-[2rem] border p-6 ${
+        result.passed
+          ? "border-teal-300/25 bg-teal-300/10"
+          : "border-rose-300/25 bg-rose-300/10"
+      }`}
+    >
+      <p
+        className={`text-xs font-semibold uppercase tracking-[0.24em] ${
+          result.passed ? "text-teal-100" : "text-rose-100"
+        }`}
+      >
+        {result.passed ? "Executable check passed" : "Executable check failed"}
+      </p>
+      <p className="mt-3 text-sm leading-6 text-slate-200">{result.message}</p>
+      <div className="mt-5 grid gap-5 xl:grid-cols-2">
+        <ResultTable title="Your output" table={result.actual} />
+        <ResultTable title="Expected output" table={result.expected} />
+      </div>
+    </section>
+  );
+}
+
+function ResultTable({ title, table }: { title: string; table: BrowserSqlResultTable }) {
+  if (table.columns.length === 0) {
+    return (
+      <div className="rounded-3xl border border-slate-800 bg-slate-950/50 p-4 text-sm text-slate-400">
+        {title}: no rows returned or query failed before producing output.
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/50">
+      <div className="border-b border-slate-800 px-4 py-3">
+        <p className="text-sm font-semibold text-slate-100">{title}</p>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="min-w-full text-left text-xs text-slate-200">
+          <thead className="bg-slate-950/70 text-slate-400">
+            <tr>
+              {table.columns.map((column) => (
+                <th key={column} className="px-4 py-3 font-semibold">
+                  {column}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-800">
+            {table.rows.map((row, rowIndex) => (
+              <tr key={rowIndex}>
+                {row.map((cell, cellIndex) => (
+                  <td key={`${rowIndex}-${cellIndex}`} className="whitespace-nowrap px-4 py-3 font-mono">
+                    {String(cell ?? "NULL")}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
 
