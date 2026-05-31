@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { BrowserCodingLab } from "../../../components/labs/BrowserCodingLab";
 
-export default function SqlLabPage() {
+export default function PythonLabPage() {
   return (
     <>
       <div className="mx-auto max-w-[1500px] px-4 pt-8 sm:px-8">
@@ -10,7 +10,7 @@ export default function SqlLabPage() {
           ← Back to labs
         </Link>
       </div>
-      <BrowserCodingLab track="sql" />
+      <BrowserCodingLab track="python" />
     </>
   );
 }

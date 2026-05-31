@@ -35,6 +35,7 @@ This release includes the new Broken Pipeline Lab with curated production-debugg
 - Manual UPI premium payment submission with backend/admin premium access scaffolding
 - Signup email capture happens immediately when a learner creates an account
 - PDF import flow for `docs/120-data-engineering-scenarios.pdf`, including generated PySpark fix labs with broken code samples
+- Browser-native SQL and Python Labs generated from the coding practice PDFs
 
 ## Project Structure
 
@@ -309,6 +310,28 @@ The deterministic evaluator lives in:
 
 ```text
 frontend/lib/scenarioEvaluator.ts
+```
+
+## Browser Coding Labs
+
+SQL and Python coding practice lives fully in the frontend:
+
+```text
+frontend/data/coding-labs.generated.json
+frontend/lib/coding-labs.ts
+frontend/components/labs/BrowserCodingLab.tsx
+```
+
+- SQL Lab uses `sql.js` to execute SQLite-compatible SQL in the browser.
+- Python Lab loads Pyodide in the browser and runs function tests client-side.
+- No backend API is used for SQL/Python coding execution.
+
+Regenerate the coding lab data from the two PDFs:
+
+```bash
+./frontend/node_modules/.bin/tsx scripts/import-coding-labs-from-pdf.ts \
+  "/path/to/04 - SQL Coding Practice with Solutions - 50 Questions - Data with Pranjal.pdf" \
+  "/path/to/06 - Python Coding Practice with Solutions - 50 Questions - Data with Pranjal.pdf"
 ```
 
 ## Import The 120-Scenario PDF

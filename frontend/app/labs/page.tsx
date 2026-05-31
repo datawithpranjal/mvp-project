@@ -13,9 +13,9 @@ export default function LabsPage() {
           Practice directly, not passively.
         </h1>
         <p className="mt-4 max-w-4xl text-sm leading-7 text-slate-300">
-          Labs are focused practice tracks for hands-on skill building. SQL Lab is live
-          now with exercises converted from the Data with Pranjal coding practice PDF
-          into real DuckDB-validated problems.
+          Labs are focused practice tracks for hands-on skill building. SQL and Python
+          Labs now run inside the browser, using exercises converted from the Data with
+          Pranjal coding practice PDFs into practical data-engineering workspaces.
         </p>
       </section>
 
@@ -62,4 +62,3 @@ export default function LabsPage() {
     </main>
   );
 }
-

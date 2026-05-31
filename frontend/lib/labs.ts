@@ -13,18 +13,18 @@ export const LAB_TRACKS: LabTrack[] = [
     title: "SQL Lab",
     status: "active",
     description:
-      "Practice SQL interview problems with seeded tables, real queries, DuckDB validation, hints, and model solutions.",
+      "Practice SQL interview problems with seeded tables and browser-side SQL execution. No backend judge required.",
     skills: ["Ranking", "Joins", "Windows", "Anti-joins", "Metrics"],
     href: "/labs/sql"
   },
   {
     slug: "python",
     title: "Python Lab",
-    status: "coming-soon",
+    status: "active",
     description:
-      "Practice data manipulation, file parsing, API ingestion, and interview coding patterns in Python.",
+      "Practice Python coding questions in a browser Pyodide runtime with sample tests and model explanations.",
     skills: ["Lists", "Dicts", "Files", "APIs", "ETL logic"],
-    href: "/labs"
+    href: "/labs/python"
   },
   {
     slug: "pyspark",
@@ -54,4 +54,3 @@ export const LAB_TRACKS: LabTrack[] = [
     href: "/labs"
   }
 ];
-
