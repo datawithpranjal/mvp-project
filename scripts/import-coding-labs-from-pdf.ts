@@ -11,6 +11,13 @@ interface LabTable {
   rows: Array<Array<string | number | boolean | null>>;
 }
 
+interface SqlTestCase {
+  name: string;
+  description: string;
+  tables: LabTable[];
+  expectedSql?: string;
+}
+
 interface CodingLab {
   id: string;
   slug: string;
@@ -23,6 +30,7 @@ interface CodingLab {
   estimatedMinutes: number;
   businessContext: string;
   problemStatement: string;
+  expectedOutcome?: string;
   studentTask: string;
   starterCode: string;
   solutionCode: string;
@@ -30,6 +38,7 @@ interface CodingLab {
   hints: string[];
   tables: LabTable[];
   expectedSql?: string;
+  sqlTestCases?: SqlTestCase[];
   functionName?: string;
   testCases?: Array<{
     name: string;
@@ -191,6 +200,390 @@ function scdTables(): LabTable[] {
       ]
     }
   ];
+}
+
+function sqlCase(
+  name: string,
+  description: string,
+  tables: LabTable[],
+  expectedSql?: string
+): SqlTestCase {
+  return {
+    name,
+    description,
+    tables,
+    expectedSql
+  };
+}
+
+function sqlLabKind(title: string): string {
+  const lower = title.toLowerCase();
+
+  if (lower.includes("second highest")) return "second_highest_salary";
+  if (lower.includes("nth highest")) return "nth_highest_salary";
+  if (lower.includes("top 3 salaries")) return "department_top_salaries";
+  if (lower.includes("above department average")) return "above_department_average";
+  if (lower.includes("median salary")) return "median_salary";
+  if (lower.includes("no orders") || lower.includes("not exists") || lower.includes("not in")) return "anti_join";
+  if (lower.includes("missing customer") || lower.includes("dimension keys")) return "missing_dimension_key";
+  if (lower.includes("latest order") || lower.includes("latest row") || lower.includes("previous order")) return "latest_order";
+  if (lower.includes("first and last")) return "first_last_order";
+  if (lower.includes("repeat") || lower.includes("consecutive") || lower.includes("gap") || lower.includes("churn")) return "repeat_gap";
+  if (lower.includes("running total")) return "running_total";
+  if (lower.includes("moving average") || lower.includes("rolling")) return "moving_average";
+  if (lower.includes("month-over-month")) return "month_over_month";
+  if (lower.includes("rank cities")) return "rank_cities";
+  if (lower.includes("pivot") || lower.includes("status counts") || lower.includes("region")) return "conditional_region";
+  if (lower.includes("scd") || lower.includes("changed customer") || lower.includes("current active")) return "scd_change_detection";
+  if (lower.includes("watermark") || lower.includes("incremental") || lower.includes("merge") || lower.includes("snapshot")) return "incremental_watermark";
+  if (lower.includes("session") || lower.includes("active users") || lower.includes("login")) return "sessionization";
+  if (lower.includes("hierarchy") || lower.includes("recursive")) return "recursive_hierarchy";
+  return "customer_revenue";
+}
+
+function employeeEdgeTables(): LabTable[] {
+  return [
+    {
+      name: "employees",
+      columns: ["emp_id", "emp_name", "department", "manager_id", "salary"],
+      rows: [
+        [10, "Nora", "Data", null, 200000],
+        [11, "Omar", "Data", 10, 180000],
+        [12, "Pia", "Data", 10, 180000],
+        [13, "Quinn", "Data", 11, 150000],
+        [14, "Ravi", "Analytics", null, 130000],
+        [15, "Sara", "Analytics", 14, 130000],
+        [16, "Tenzin", "Platform", null, 99000]
+      ]
+    }
+  ];
+}
+
+function customersOrdersEdgeTables(): LabTable[] {
+  return [
+    {
+      name: "customers",
+      columns: ["customer_id", "customer_name", "signup_date"],
+      rows: [
+        [1, "Alpha Foods", "2026-01-01"],
+        [2, "Beta Retail", "2026-01-02"],
+        [3, "Gamma Labs", "2026-01-03"],
+        [4, "Delta Health", "2026-01-04"],
+        [5, "Echo Market", "2026-01-05"]
+      ]
+    },
+    {
+      name: "orders",
+      columns: ["order_id", "customer_id", "order_date", "amount", "status"],
+      rows: [
+        [201, 1, "2026-05-01", 100, "SUCCESS"],
+        [202, 1, "2026-05-03", 150, "SUCCESS"],
+        [203, 2, "2026-05-12", 220, "FAILED"],
+        [204, 2, "2026-05-20", 80, "SUCCESS"],
+        [205, 99, "2026-05-21", 300, "SUCCESS"],
+        [206, null, "2026-05-22", 50, "SUCCESS"]
+      ]
+    }
+  ];
+}
+
+function salesEdgeTables(): LabTable[] {
+  return [
+    {
+      name: "daily_sales",
+      columns: ["sale_date", "city", "region", "customer_id", "amount"],
+      rows: [
+        ["2026-04-29", "Mumbai", "West", 1, 50],
+        ["2026-04-30", "Delhi", "North", 2, 75],
+        ["2026-05-01", "Mumbai", "West", 1, 200],
+        ["2026-05-02", "Delhi", "North", 2, 125],
+        ["2026-05-03", "Chennai", "South", 3, 175],
+        ["2026-05-04", "Mumbai", "West", 1, 25]
+      ]
+    }
+  ];
+}
+
+function scdEdgeTables(): LabTable[] {
+  return [
+    {
+      name: "customer_dim",
+      columns: ["customer_sk", "customer_id", "city", "effective_start_date", "effective_end_date", "current_flag"],
+      rows: [
+        [21, 1, "Mumbai", "2026-01-01", null, 1],
+        [22, 2, "Delhi", "2026-01-01", null, 1],
+        [23, 3, "Pune", "2026-01-01", null, 1]
+      ]
+    },
+    {
+      name: "customer_updates",
+      columns: ["customer_id", "city", "updated_at"],
+      rows: [
+        [1, "Mumbai", "2026-05-01 10:00:00"],
+        [2, "Delhi", "2026-05-01 10:30:00"],
+        [3, "Jaipur", "2026-05-01 10:31:00"],
+        [4, "Kochi", "2026-05-01 11:00:00"]
+      ]
+    }
+  ];
+}
+
+function eventEdgeTables(): LabTable[] {
+  return [
+    {
+      name: "events",
+      columns: ["user_id", "event_ts", "event_date", "event_type"],
+      rows: [
+        [1, "2026-06-01 09:00:00", "2026-06-01", "login"],
+        [1, "2026-06-01 09:20:00", "2026-06-01", "click"],
+        [1, "2026-06-01 10:00:00", "2026-06-01", "click"],
+        [2, "2026-06-01 11:00:00", "2026-06-01", "login"],
+        [2, "2026-06-01 11:45:00", "2026-06-01", "click"],
+        [3, "2026-06-02 08:00:00", "2026-06-02", "login"]
+      ]
+    }
+  ];
+}
+
+function sqlExpectedOutcome(kind: string): string {
+  const outcomes: Record<string, string> = {
+    second_highest_salary:
+      "Columns: second_highest_salary.\nGrain: one overall metric row.\nBusiness rule: return the second highest distinct salary, not the second employee row.",
+    nth_highest_salary:
+      "Columns: third_highest_salary.\nGrain: one overall metric row.\nBusiness rule: rank distinct salaries and return the salary at rank 3.",
+    department_top_salaries:
+      "Columns: department, emp_name, salary.\nGrain: one row per employee in the top salary bands within each department.\nBusiness rule: ranking resets per department and tied salaries should be kept.",
+    above_department_average:
+      "Columns: emp_id, emp_name, department, salary.\nGrain: one row per employee earning above their own department average.\nBusiness rule: compare employees only with their department, not the whole company.",
+    median_salary:
+      "Columns: median_salary.\nGrain: one overall metric row.\nBusiness rule: sort salaries and average the middle value(s) when needed.",
+    anti_join:
+      "Columns: customer_id, customer_name.\nGrain: one row per customer with no matching order.\nBusiness rule: preserve customers and exclude only those with at least one order.",
+    missing_dimension_key:
+      "Columns: order_id, customer_id, order_date, amount.\nGrain: one row per order whose customer_id does not exist in the customer dimension.\nBusiness rule: ignore NULL customer_id rows and flag only real missing foreign keys.",
+    latest_order:
+      "Columns: customer_id, order_id, order_date, amount.\nGrain: one latest order per customer.\nBusiness rule: break ties deterministically using the newest date and highest order_id.",
+    first_last_order:
+      "Columns: customer_id, first_order_date, last_order_date.\nGrain: one row per customer with orders.\nBusiness rule: compute min and max order date per customer.",
+    repeat_gap:
+      "Columns: customer_id, order_id, order_date, previous_order_date.\nGrain: one row per repeat order within seven days of the previous order.\nBusiness rule: compare each order with the previous order for the same customer.",
+    running_total:
+      "Columns: sale_date, daily_revenue, running_revenue.\nGrain: one row per sale date.\nBusiness rule: aggregate daily revenue first, then calculate the cumulative total by date.",
+    moving_average:
+      "Columns: sale_date, daily_revenue, moving_avg_3_day.\nGrain: one row per sale date.\nBusiness rule: use the current day plus up to two previous days.",
+    month_over_month:
+      "Columns: month, revenue, revenue_delta.\nGrain: one row per month.\nBusiness rule: compare each month to the previous month after monthly aggregation.",
+    rank_cities:
+      "Columns: city, revenue, revenue_rank.\nGrain: one row per city.\nBusiness rule: aggregate city revenue before ranking.",
+    conditional_region:
+      "Columns: sale_date, west_revenue, north_revenue, south_revenue.\nGrain: one row per sale date.\nBusiness rule: pivot region revenue using conditional aggregation.",
+    scd_change_detection:
+      "Columns: customer_id, old_city, new_city, updated_at.\nGrain: one row per changed or new incoming customer.\nBusiness rule: compare incoming updates with the current active dimension row.",
+    incremental_watermark:
+      "Columns: customer_id, city, updated_at.\nGrain: one incoming update row after the watermark.\nBusiness rule: return updates strictly newer than the configured timestamp.",
+    sessionization:
+      "Columns: user_id, event_ts, starts_new_session.\nGrain: one row per event.\nBusiness rule: start a new session for the first event or when the gap from the previous event is more than 30 minutes.",
+    recursive_hierarchy:
+      "Columns: emp_id, emp_name, path, depth.\nGrain: one row per employee in the org tree.\nBusiness rule: start at top-level managers and recursively walk reports.",
+    customer_revenue:
+      "Columns: customer_id, total_revenue.\nGrain: one row per customer with successful orders.\nBusiness rule: include SUCCESS orders only and ignore NULL customer_id values."
+  };
+
+  return outcomes[kind] ?? outcomes.customer_revenue;
+}
+
+function sqlHints(kind: string): string[] {
+  const hints: Record<string, string[]> = {
+    second_highest_salary: [
+      "Use distinct salary values conceptually; duplicate top earners should not become the second salary.",
+      "Find the max salary first, then find the max salary below it.",
+      "The output should be one metric column, not employee details."
+    ],
+    nth_highest_salary: [
+      "Use DENSE_RANK or DISTINCT before ranking so duplicate salaries share a rank.",
+      "Sort salaries descending because rank 1 is the highest salary.",
+      "Filter the ranked result to rank 3."
+    ],
+    department_top_salaries: [
+      "Partition the ranking by department.",
+      "Use DENSE_RANK if salary ties should be included.",
+      "Do not apply a global LIMIT; each department needs its own ranking."
+    ],
+    above_department_average: [
+      "Compute department averages before filtering employees.",
+      "Join employees back to their department average.",
+      "The comparison is salary greater than department average, not company average."
+    ],
+    median_salary: [
+      "Sort salaries and number the rows.",
+      "For odd counts, the middle row is the median; for even counts, average the two middle rows.",
+      "Cast salary to a numeric type before averaging."
+    ],
+    anti_join: [
+      "Start from customers because every output row is a customer.",
+      "Use NOT EXISTS or a LEFT JOIN anti-join pattern.",
+      "Be careful with NULLs if you are tempted to use NOT IN."
+    ],
+    missing_dimension_key: [
+      "Start from orders and left join to customers.",
+      "A NULL customer_id is a different data quality issue; do not flag it as a missing dimension key here.",
+      "Rows where the joined customer is NULL are the broken foreign keys."
+    ],
+    latest_order: [
+      "Rank orders inside each customer_id.",
+      "Order by order_date descending, then order_id descending to break ties.",
+      "Filter to row number 1."
+    ],
+    first_last_order: [
+      "Group by customer_id.",
+      "Use MIN(order_date) and MAX(order_date).",
+      "Exclude NULL customer_id before grouping."
+    ],
+    repeat_gap: [
+      "Use LAG to compare each order with the previous order for the same customer.",
+      "Calculate date difference between current and previous order dates.",
+      "Keep only repeat orders where the gap is seven days or less."
+    ],
+    running_total: [
+      "Aggregate revenue at sale_date grain first.",
+      "Use a window SUM over ordered dates for the running total.",
+      "The running total should increase in date order."
+    ],
+    moving_average: [
+      "Build daily revenue first.",
+      "Use ROWS BETWEEN 2 PRECEDING AND CURRENT ROW for a 3-day window.",
+      "Early dates use a smaller available window."
+    ],
+    month_over_month: [
+      "Convert sale_date to a month key first.",
+      "Aggregate monthly revenue before applying LAG.",
+      "Revenue delta is current month minus previous month."
+    ],
+    rank_cities: [
+      "Aggregate revenue per city before ranking.",
+      "Rank cities by revenue descending.",
+      "Use RANK if ties should share the same rank."
+    ],
+    conditional_region: [
+      "Group by sale_date.",
+      "Use SUM(CASE WHEN region = ... THEN amount ELSE 0 END).",
+      "Each region becomes its own output metric column."
+    ],
+    scd_change_detection: [
+      "Compare incoming updates with the current active dimension row only.",
+      "A new customer has no active dimension row and should be returned.",
+      "A city change should be returned; unchanged rows should not."
+    ],
+    incremental_watermark: [
+      "Filter updates using updated_at greater than the watermark.",
+      "Rows exactly equal to this watermark are not included in this simplified lab.",
+      "Order by updated_at and customer_id for deterministic output."
+    ],
+    sessionization: [
+      "Use LAG(event_ts) per user to find the previous event.",
+      "The first event for a user starts a session.",
+      "A gap greater than 30 minutes starts a new session."
+    ],
+    recursive_hierarchy: [
+      "Anchor the recursive CTE at employees with no manager.",
+      "Join employees to the previous org level using manager_id.",
+      "Build path and depth as the recursion expands."
+    ],
+    customer_revenue: [
+      "Filter to successful orders before aggregating revenue.",
+      "Exclude NULL customer_id records because they cannot be assigned to a customer.",
+      "Group by customer_id and sort by revenue descending."
+    ]
+  };
+
+  return hints[kind] ?? hints.customer_revenue;
+}
+
+function sqlEdgeCases(kind: string, expectedSql?: string): SqlTestCase[] {
+  if (!expectedSql) return [];
+
+  const cases: Record<string, SqlTestCase[]> = {
+    second_highest_salary: [
+      sqlCase("Duplicate top salaries", "Ensures duplicate highest salaries do not hide the second distinct salary.", employeeEdgeTables(), expectedSql)
+    ],
+    nth_highest_salary: [
+      sqlCase("Duplicate salary ranks", "Ensures duplicate salaries share a rank and the third distinct salary is returned.", employeeEdgeTables(), expectedSql)
+    ],
+    department_top_salaries: [
+      sqlCase("Department ties", "Ensures salary ties are included inside each department ranking.", employeeEdgeTables(), expectedSql)
+    ],
+    above_department_average: [
+      sqlCase("Department-specific averages", "Ensures employees are compared to their own department average only.", employeeEdgeTables(), expectedSql)
+    ],
+    median_salary: [
+      sqlCase("Odd employee count", "Checks median logic on a different salary distribution.", employeeEdgeTables(), expectedSql)
+    ],
+    recursive_hierarchy: [
+      sqlCase("Deeper org tree", "Checks recursive traversal with multiple reporting levels.", employeeEdgeTables(), expectedSql)
+    ],
+    anti_join: [
+      sqlCase("Customers with no rows", "Ensures customers without any orders are returned and NULL order keys do not break the query.", customersOrdersEdgeTables(), expectedSql)
+    ],
+    missing_dimension_key: [
+      sqlCase("Broken foreign key", "Ensures non-null customer IDs missing from the dimension are flagged.", customersOrdersEdgeTables(), expectedSql)
+    ],
+    latest_order: [
+      sqlCase("Latest order tie-break", "Ensures latest order selection is deterministic when a customer has multiple orders.", customersOrdersEdgeTables(), expectedSql)
+    ],
+    first_last_order: [
+      sqlCase("Multiple orders per customer", "Ensures first and last dates are grouped at customer grain.", customersOrdersEdgeTables(), expectedSql)
+    ],
+    repeat_gap: [
+      sqlCase("Repeat within seven days", "Ensures only close repeat orders are returned.", customersOrdersEdgeTables(), expectedSql)
+    ],
+    customer_revenue: [
+      sqlCase("Successful revenue only", "Ensures failed and NULL-customer orders do not affect customer revenue.", customersOrdersEdgeTables(), expectedSql)
+    ],
+    running_total: [
+      sqlCase("Multi-month daily sales", "Ensures running totals are calculated after daily aggregation.", salesEdgeTables(), expectedSql)
+    ],
+    moving_average: [
+      sqlCase("Short rolling window", "Ensures early rows use the available window and later rows use three days.", salesEdgeTables(), expectedSql)
+    ],
+    month_over_month: [
+      sqlCase("Month boundary", "Ensures revenue is aggregated by month before comparing month over month.", salesEdgeTables(), expectedSql)
+    ],
+    rank_cities: [
+      sqlCase("City revenue ties", "Ensures city revenue is aggregated before ranking.", salesEdgeTables(), expectedSql)
+    ],
+    conditional_region: [
+      sqlCase("Missing region on a date", "Ensures pivot columns return zero when a region has no revenue that day.", salesEdgeTables(), expectedSql)
+    ],
+    scd_change_detection: [
+      sqlCase("New and changed customers", "Ensures unchanged rows are ignored while changed and new customers are returned.", scdEdgeTables(), expectedSql)
+    ],
+    incremental_watermark: [
+      sqlCase("Watermark boundary", "Ensures rows equal to the watermark are excluded while newer rows are included.", scdEdgeTables(), expectedSql)
+    ],
+    sessionization: [
+      sqlCase("Thirty-minute session boundary", "Ensures gaps over 30 minutes start a new session.", eventEdgeTables(), expectedSql)
+    ]
+  };
+
+  return cases[kind] ?? cases.customer_revenue;
+}
+
+function enrichSqlLab(lab: CodingLab, sourceTitle: string): CodingLab {
+  if (lab.track !== "sql") return lab;
+
+  const kind = sqlLabKind(sourceTitle);
+  return {
+    ...lab,
+    businessContext:
+      `${lab.businessContext} This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.`,
+    problemStatement:
+      `${lab.problemStatement} Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.`,
+    expectedOutcome: sqlExpectedOutcome(kind),
+    studentTask:
+      `${lab.studentTask} After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.`,
+    hints: sqlHints(kind),
+    sqlTestCases: sqlEdgeCases(kind, lab.expectedSql)
+  };
 }
 
 function buildSqlLab(title: string, index: number): CodingLab {
@@ -426,7 +819,7 @@ async function main() {
   const pythonTitles = extractQuestionTitles(pythonText);
 
   const labs = [
-    ...sqlTitles.map((title, index) => buildSqlLab(title, index + 1)),
+    ...sqlTitles.map((title, index) => enrichSqlLab(buildSqlLab(title, index + 1), title)),
     ...pythonTitles.map((title, index) => buildPythonLab(title, index + 1))
   ];
 
