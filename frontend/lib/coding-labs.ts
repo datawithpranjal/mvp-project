@@ -16,6 +16,13 @@ export interface PythonTestCase {
   expected: unknown;
 }
 
+export interface SqlTestCase {
+  name: string;
+  description: string;
+  tables: CodingLabTable[];
+  expectedSql?: string;
+}
+
 export interface CodingLab {
   id: string;
   slug: string;
@@ -28,6 +35,7 @@ export interface CodingLab {
   estimatedMinutes: number;
   businessContext: string;
   problemStatement: string;
+  expectedOutcome?: string;
   studentTask: string;
   starterCode: string;
   solutionCode: string;
@@ -35,6 +43,7 @@ export interface CodingLab {
   hints: string[];
   tables: CodingLabTable[];
   expectedSql?: string;
+  sqlTestCases?: SqlTestCase[];
   functionName?: string;
   testCases?: PythonTestCase[];
 }
@@ -75,6 +84,17 @@ function testCaseArray(value: unknown): PythonTestCase[] {
   }));
 }
 
+function sqlTestCaseArray(value: unknown): SqlTestCase[] {
+  if (!Array.isArray(value)) return [];
+
+  return value.filter(isRecord).map((testCase) => ({
+    name: stringValue(testCase.name, "Edge case"),
+    description: stringValue(testCase.description),
+    tables: tableArray(testCase.tables),
+    expectedSql: stringValue(testCase.expectedSql) || undefined
+  })).filter((testCase) => testCase.tables.length > 0);
+}
+
 function normalizeTrack(value: unknown): CodingLabTrack {
   return value === "python" ? "python" : "sql";
 }
@@ -106,6 +126,7 @@ function normalizeLab(value: unknown): CodingLab | null {
     estimatedMinutes: typeof value.estimatedMinutes === "number" ? value.estimatedMinutes : 15,
     businessContext: stringValue(value.businessContext),
     problemStatement: stringValue(value.problemStatement),
+    expectedOutcome: stringValue(value.expectedOutcome) || undefined,
     studentTask: stringValue(value.studentTask),
     starterCode: stringValue(value.starterCode),
     solutionCode: stringValue(value.solutionCode),
@@ -113,6 +134,7 @@ function normalizeLab(value: unknown): CodingLab | null {
     hints: stringArray(value.hints),
     tables: tableArray(value.tables),
     expectedSql: stringValue(value.expectedSql) || undefined,
+    sqlTestCases: sqlTestCaseArray(value.sqlTestCases),
     functionName: stringValue(value.functionName) || undefined,
     testCases: testCaseArray(value.testCases)
   };

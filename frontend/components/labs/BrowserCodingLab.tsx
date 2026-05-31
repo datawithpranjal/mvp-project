@@ -1,14 +1,19 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import { validateSqlOutput, type BrowserSqlResultTable } from "../../lib/browser-sql";
+import {
+  runReadOnlySql,
+  validateSqlOutput,
+  type BrowserSqlResultTable
+} from "../../lib/browser-sql";
 import {
   formatTrackLabel,
   getCodingLabs,
   type CodingLab,
   type CodingLabTable,
-  type CodingLabTrack
+  type CodingLabTrack,
+  type SqlTestCase
 } from "../../lib/coding-labs";
 
 interface PythonTestResult {
@@ -18,10 +23,19 @@ interface PythonTestResult {
   expected: unknown;
 }
 
+interface SqlCaseResult {
+  name: string;
+  description: string;
+  passed: boolean;
+  actual: BrowserSqlResultTable;
+  expected: BrowserSqlResultTable;
+}
+
 interface LabRunResult {
   passed: boolean | null;
   message: string;
   table?: BrowserSqlResultTable;
+  sqlResults?: SqlCaseResult[];
   pythonResults?: PythonTestResult[];
 }
 
@@ -93,14 +107,43 @@ async function runSqlLab(lab: CodingLab, answer: string): Promise<LabRunResult> 
     };
   }
 
-  const result = await validateSqlOutput(lab.tables, answer, lab.expectedSql);
-  rememberCompletion(lab, result.passed);
+  const validationCases: SqlTestCase[] = [
+    {
+      name: "Visible sample data",
+      description: "Checks the query against the sample data shown in the lab.",
+      tables: lab.tables,
+      expectedSql: lab.expectedSql
+    },
+    ...(lab.sqlTestCases ?? [])
+  ];
+
+  const sqlResults: SqlCaseResult[] = [];
+  for (const validationCase of validationCases) {
+    const result = await validateSqlOutput(
+      validationCase.tables,
+      answer,
+      validationCase.expectedSql ?? lab.expectedSql
+    );
+    sqlResults.push({
+      name: validationCase.name,
+      description: validationCase.description,
+      passed: result.passed,
+      actual: result.actual,
+      expected: result.expected
+    });
+  }
+
+  const passed = sqlResults.every((result) => result.passed);
+  rememberCompletion(lab, passed);
+  const passedCount = sqlResults.filter((result) => result.passed).length;
+
   return {
-    passed: result.passed,
-    message: result.passed
-      ? "Correct. Your query matches the expected output on the seeded production-style data."
-      : "Not yet. Compare your columns, grain, filters, and tie/null handling with the expected behavior.",
-    table: result.actual
+    passed,
+    message: passed
+      ? `Correct. Your query passed all ${sqlResults.length} validation cases, including edge cases.`
+      : `Not yet. ${passedCount}/${sqlResults.length} validation cases passed. Compare columns, grain, filters, joins, NULL handling, and tie behavior.`,
+    table: sqlResults[0]?.actual,
+    sqlResults
   };
 }
 
@@ -169,6 +212,8 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
   const [isRunning, setIsRunning] = useState(false);
   const [topic, setTopic] = useState("All");
   const [difficulty, setDifficulty] = useState("All");
+  const [expectedPreview, setExpectedPreview] = useState<BrowserSqlResultTable | null>(null);
+  const [expectedPreviewError, setExpectedPreviewError] = useState("");
 
   const topics = useMemo(() => {
     const all = new Set<string>();
@@ -181,6 +226,31 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
     const difficultyMatches = difficulty === "All" || lab.difficulty === difficulty;
     return topicMatches && difficultyMatches;
   });
+
+  useEffect(() => {
+    let cancelled = false;
+    setExpectedPreview(null);
+    setExpectedPreviewError("");
+
+    if (!selectedLab) return;
+    if (selectedLab.track !== "sql" || !selectedLab.expectedSql) return;
+
+    runReadOnlySql(selectedLab.tables, selectedLab.expectedSql)
+      .then((table) => {
+        if (!cancelled) setExpectedPreview(table);
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setExpectedPreviewError(
+            error instanceof Error ? error.message : "Expected output preview failed."
+          );
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedLab]);
 
   if (!selectedLab) {
     return (
@@ -328,6 +398,26 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
               </p>
               <p className="mt-2 text-sm leading-6 text-amber-50">{selectedLab.studentTask}</p>
             </div>
+            {selectedLab.expectedOutcome ? (
+              <div className="mt-4 rounded-3xl border border-teal-300/20 bg-teal-300/10 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-teal-100">
+                  Expected outcome
+                </p>
+                <p className="mt-2 whitespace-pre-line text-sm leading-6 text-teal-50">
+                  {selectedLab.expectedOutcome}
+                </p>
+                {expectedPreview ? (
+                  <div className="mt-4">
+                    <MiniResultTable title="Expected output on sample data" table={expectedPreview} />
+                  </div>
+                ) : null}
+                {expectedPreviewError ? (
+                  <p className="mt-3 text-xs leading-5 text-amber-100">
+                    Expected output preview is unavailable: {expectedPreviewError}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
           </div>
 
           {selectedLab.tables.length > 0 ? (
@@ -531,6 +621,36 @@ function ResultPanel({ result }: { result: LabRunResult }) {
           </table>
         </div>
       ) : null}
+      {result.sqlResults ? (
+        <div className="mt-5 space-y-3">
+          {result.sqlResults.map((test) => (
+            <div
+              key={test.name}
+              className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-slate-100">{test.name}</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-400">{test.description}</p>
+                </div>
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-bold ${
+                    test.passed ? "bg-teal-300 text-slate-950" : "bg-rose-300 text-slate-950"
+                  }`}
+                >
+                  {test.passed ? "pass" : "fail"}
+                </span>
+              </div>
+              {!test.passed ? (
+                <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                  <MiniResultTable title="Your output" table={test.actual} />
+                  <MiniResultTable title="Expected output" table={test.expected} />
+                </div>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      ) : null}
       {result.pythonResults ? (
         <div className="mt-5 space-y-3">
           {result.pythonResults.map((test) => (
@@ -554,6 +674,54 @@ function ResultPanel({ result }: { result: LabRunResult }) {
           ))}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function MiniResultTable({
+  title,
+  table
+}: {
+  title: string;
+  table: BrowserSqlResultTable;
+}) {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/70">
+      <p className="border-b border-slate-800 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
+        {title}
+      </p>
+      <div className="overflow-x-auto">
+        <table className="min-w-full text-left text-[11px] text-slate-200">
+          <thead>
+            <tr>
+              {table.columns.map((column) => (
+                <th key={column} className="px-3 py-2 font-semibold text-slate-400">
+                  {column}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-800">
+            {table.rows.length > 0 ? (
+              table.rows.map((row, rowIndex) => (
+                <tr key={rowIndex}>
+                  {row.map((cell, cellIndex) => (
+                    <td key={`${rowIndex}-${cellIndex}`} className="px-3 py-2 font-mono">
+                      {String(cell ?? "NULL")}
+                    </td>
+                  ))}
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td className="px-3 py-3 text-slate-500" colSpan={Math.max(table.columns.length, 1)}>
+                  No rows
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

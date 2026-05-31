@@ -19,6 +19,13 @@ interface Candidate {
   repo: string;
 }
 
+interface SqlTestCase {
+  name: string;
+  description: string;
+  tables: CodingLab["tables"];
+  expectedSql?: string;
+}
+
 interface CodingLab {
   id: string;
   slug: string;
@@ -31,6 +38,7 @@ interface CodingLab {
   estimatedMinutes: number;
   businessContext: string;
   problemStatement: string;
+  expectedOutcome?: string;
   studentTask: string;
   starterCode: string;
   solutionCode: string;
@@ -42,6 +50,7 @@ interface CodingLab {
     rows: Cell[][];
   }>;
   expectedSql: string;
+  sqlTestCases?: SqlTestCase[];
 }
 
 const ROOT = path.resolve(__dirname, "..");
@@ -62,9 +71,9 @@ const SOURCES: RepoSource[] = [
 ];
 
 const COMMON_HINTS = [
-  "Start by identifying the grain of the output: one row per customer, day, product, employee, or group.",
-  "Write the smallest correct query first, then add ordering, tie handling, and NULL handling.",
-  "Check whether a JOIN, GROUP BY, or window function changes the row count in a way the business would notice."
+  "Check the required output grain before writing SQL.",
+  "Compare the starter query with the business rule and identify what it drops or overcounts.",
+  "Think about the edge case that would break a query that only works for the visible rows."
 ];
 
 function titleCase(value: string) {
@@ -188,6 +197,20 @@ async function collectCandidates() {
 
 function table(name: string, columns: string[], rows: Cell[][]): CodingLab["tables"][number] {
   return { name, columns, rows };
+}
+
+function sqlCase(
+  name: string,
+  description: string,
+  tables: CodingLab["tables"],
+  expectedSql?: string
+): SqlTestCase {
+  return {
+    name,
+    description,
+    tables,
+    expectedSql
+  };
 }
 
 function classification(title: string) {
@@ -833,9 +856,412 @@ WHERE snapshot_date = '2026-05-31';`,
   };
 }
 
+function enrichRecipe(
+  recipe: Omit<CodingLab, "id" | "slug" | "track" | "isFree">,
+  kind: string
+): Omit<CodingLab, "id" | "slug" | "track" | "isFree"> {
+  return {
+    ...recipe,
+    problemStatement: detailedProblemStatement(kind, recipe.problemStatement),
+    expectedOutcome: expectedOutcome(kind),
+    studentTask: detailedStudentTask(kind, recipe.studentTask),
+    hints: scenarioHints(kind),
+    sqlTestCases: edgeCases(kind, recipe.expectedSql)
+  };
+}
+
+function detailedProblemStatement(kind: string, base: string) {
+  const detailByKind: Record<string, string> = {
+    profile_join:
+      "The important part is coverage: the output must preserve every base customer row even when enrichment data is missing. This is a common production issue when optional dimension/profile tables arrive late.",
+    workforce_rank:
+      "The important part is ranking inside each group, not globally. A query that uses a global LIMIT may look correct on tiny data but fails as soon as each department needs its own leaderboard.",
+    duplicate_quality:
+      "The important part is normalization before grouping. Production duplicates often hide behind casing, whitespace, or NULL values, so the query must count the same key the business system treats as identical.",
+    anti_join:
+      "The important part is NULL-safe exclusion. In production pipelines, failed events and guest checkouts often create NULL foreign keys that can break NOT IN logic.",
+    time_trend:
+      "The important part is comparing a row with the previous row in time order. A static threshold is not enough when the business asks for day-over-day movement.",
+    retention:
+      "The important part is measuring activity relative to each user's first event date. Multiple events per day should not change the user-level retention answer.",
+    engagement:
+      "The important part is conditional counting. The metric should divide clicks by impressions, not by all events, and should avoid divide-by-zero failures.",
+    operations:
+      "The important part is building the exact SLA numerator and denominator. Counting rows alone is not a rate, and date equality must be checked per delivery.",
+    finance:
+      "The important part is financial sign handling. Credits and debits move balances in opposite directions, so a plain SUM(amount) can produce a dangerously wrong report.",
+    commerce:
+      "The important part is filtering to valid revenue before aggregation. Cancelled or non-completed orders can inflate downstream marts if the status filter is missed.",
+    education:
+      "The important part is counting unique students, not enrollment events. Retry events or duplicate rows should not inflate class capacity numbers.",
+    dimension_reporting:
+      "The important part is translating the business rule exactly. When the rule says either threshold qualifies, using AND silently removes valid records.",
+    warehouse_reporting:
+      "The important part is matching the output grain to the report grain. Bin-level or event-level input often needs to be aggregated before it becomes a warehouse mart."
+  };
+
+  return `${base} ${detailByKind[kind] ?? detailByKind.warehouse_reporting}`;
+}
+
+function detailedStudentTask(kind: string, base: string) {
+  const edgeNoteByKind: Record<string, string> = {
+    profile_join: "Your query will be tested with customers that have no profile and with orphan profile rows.",
+    workforce_rank: "Your query will be tested with salary ties and departments that have fewer than two salary bands.",
+    duplicate_quality: "Your query will be tested with case-only duplicates, NULL emails, and all-unique inputs.",
+    anti_join: "Your query will be tested with NULL customer IDs in the fact table and customers with only cancelled orders.",
+    time_trend: "Your query will be tested with equal readings, decreasing readings, and the first row in the time series.",
+    retention: "Your query will be tested with users who have multiple events on day zero and users returning after more than one day.",
+    engagement: "Your query will be tested with ads that have clicks, impressions, and zero-impression cases.",
+    operations: "Your query will be tested with all-same-day, delayed, and mixed delivery records.",
+    finance: "Your query will be tested with accounts above, below, and exactly equal to the threshold.",
+    commerce: "Your query will be tested with cancelled orders and multi-line completed orders.",
+    education: "Your query will be tested with duplicate enrollment rows and classes just below the threshold.",
+    dimension_reporting: "Your query will be tested with rows that qualify by only one threshold.",
+    warehouse_reporting: "Your query will be tested with multiple bins, zero stock, and older snapshots."
+  };
+
+  return `${base} ${edgeNoteByKind[kind] ?? edgeNoteByKind.warehouse_reporting}`;
+}
+
+function expectedOutcome(kind: string) {
+  const outcomes: Record<string, string> = {
+    profile_join:
+      "Columns: customer_id, customer_name, city.\nGrain: one row per customer.\nBusiness rule: keep customers even when city is missing; city should be NULL when no profile exists.",
+    workforce_rank:
+      "Columns: department, employee_name, salary.\nGrain: one row per employee who belongs to the top two salary bands inside their department.\nBusiness rule: tied salary bands must be included.",
+    duplicate_quality:
+      "Columns: email, duplicate_count.\nGrain: one row per normalized duplicated email.\nBusiness rule: compare emails after LOWER(email), ignore NULL emails, and return only counts greater than one.",
+    anti_join:
+      "Columns: customer_id, customer_name.\nGrain: one row per customer with no completed order.\nBusiness rule: customers with cancelled/returned orders only still qualify; NULLs in orders must not break the result.",
+    time_trend:
+      "Columns: reading_date, temperature_c.\nGrain: one row per reading that increased compared with the previous reading date.\nBusiness rule: equal temperatures and the first reading are not increases.",
+    retention:
+      "Columns: user_id, first_seen_date.\nGrain: one row per retained user.\nBusiness rule: a user qualifies only if they return exactly one day after their first event date.",
+    engagement:
+      "Columns: ad_id, click_through_rate_pct.\nGrain: one row per ad.\nBusiness rule: CTR = clicks / impressions * 100, rounded to two decimals; zero impressions should not crash the query.",
+    operations:
+      "Columns: same_day_delivery_pct.\nGrain: one overall metric row.\nBusiness rule: same-day deliveries divided by all deliveries, rounded to two decimals.",
+    finance:
+      "Columns: account_id, net_balance_change.\nGrain: one row per account above the threshold.\nBusiness rule: credits are positive, debits are negative, and only net balance changes greater than 10000 qualify.",
+    commerce:
+      "Columns: category, product_name, revenue.\nGrain: one row per product/category.\nBusiness rule: revenue includes completed orders only and equals SUM(quantity * unit_price).",
+    education:
+      "Columns: class_name, enrolled_students.\nGrain: one row per qualifying class.\nBusiness rule: count distinct students and keep classes with at least five students.",
+    dimension_reporting:
+      "Columns: country_name, population, area_sq_km.\nGrain: one row per qualifying country.\nBusiness rule: a country qualifies if population OR area crosses the threshold.",
+    warehouse_reporting:
+      "Columns: warehouse_id, product_id, available_units.\nGrain: one row per warehouse/product on the latest snapshot date.\nBusiness rule: aggregate bin-level rows and remove zero-stock results."
+  };
+
+  return outcomes[kind] ?? outcomes.warehouse_reporting;
+}
+
+function scenarioHints(kind: string) {
+  const hints: Record<string, string[]> = {
+    profile_join: [
+      "The customers table is the required side of the output; start from it.",
+      "If a row can be missing in the enrichment table, an INNER JOIN is risky.",
+      "The join should keep unmatched customers and show NULL for missing profile fields."
+    ],
+    workforce_rank: [
+      "Do not use a global LIMIT; the ranking resets per department.",
+      "Use DENSE_RANK if tied salaries should share the same salary band.",
+      "Filter the ranked CTE to the top two ranks, then order the final output deterministically."
+    ],
+    duplicate_quality: [
+      "Group by the normalized email value, not the raw email string.",
+      "NULL emails should not become a fake duplicate group.",
+      "HAVING is used after GROUP BY to keep only duplicate groups."
+    ],
+    anti_join: [
+      "Avoid NOT IN when the subquery may contain NULL values.",
+      "The anti-join should only look for completed orders, not all order statuses.",
+      "A NOT EXISTS correlated subquery maps well to the business question: no matching completed order for this customer."
+    ],
+    time_trend: [
+      "Use LAG to bring the previous temperature onto the current row.",
+      "The previous row must be defined by reading_date ordering.",
+      "The first row has no previous value, so it should not be returned."
+    ],
+    retention: [
+      "First compute one first_seen_date per user.",
+      "Then check whether that same user has an event exactly one calendar day later.",
+      "Multiple events on the same day should not create duplicate retained users."
+    ],
+    engagement: [
+      "Use CASE expressions to count clicks and impressions separately.",
+      "The denominator is impressions, not total events.",
+      "NULLIF protects the metric when an ad has clicks but no impressions in the test data."
+    ],
+    operations: [
+      "The numerator is deliveries where order_date equals delivered_date.",
+      "The denominator is all delivery rows in scope.",
+      "Multiply by 100.0 before division so the result is a percentage, not integer division."
+    ],
+    finance: [
+      "Assign debit amounts a negative sign before aggregation.",
+      "Use HAVING because the threshold applies after account-level aggregation.",
+      "The rule says greater than 10000, so exactly 10000 should not qualify."
+    ],
+    commerce: [
+      "Join to orders so the status filter is available before revenue aggregation.",
+      "Revenue should be quantity times unit price at the item grain.",
+      "Cancelled orders should not contribute even if they have order_items rows."
+    ],
+    education: [
+      "Count distinct student_id, not raw enrollment rows.",
+      "The threshold is applied after grouping by class.",
+      "Duplicate retry rows should not change whether a class qualifies."
+    ],
+    dimension_reporting: [
+      "Read the rule carefully: qualifying by either threshold is enough.",
+      "Use OR, not AND, between population and area rules.",
+      "Keep the output columns exactly as requested."
+    ],
+    warehouse_reporting: [
+      "The source table is at bin grain; the output should be warehouse/product grain.",
+      "Filter to the required snapshot date before grouping.",
+      "Use HAVING to remove products whose summed availability is zero."
+    ]
+  };
+
+  return hints[kind] ?? hints.warehouse_reporting;
+}
+
+function edgeCases(kind: string, expectedSql: string): SqlTestCase[] {
+  const cases: Record<string, SqlTestCase[]> = {
+    profile_join: [
+      sqlCase(
+        "Missing and orphan profiles",
+        "Ensures customers without profiles remain and orphan profile rows do not create extra output rows.",
+        [
+          table("customers", ["customer_id", "customer_name"], [
+            [1, "Alpha Foods"],
+            [2, "Beta Labs"],
+            [3, "Gamma Retail"]
+          ]),
+          table("customer_profiles", ["customer_id", "city", "updated_at"], [
+            [1, "Delhi", "2026-05-01"],
+            [99, "Orphan City", "2026-05-01"]
+          ])
+        ],
+        expectedSql
+      )
+    ],
+    workforce_rank: [
+      sqlCase(
+        "Ties and small departments",
+        "Checks that tied second salary bands are kept and departments with one employee still work.",
+        [
+          table("employees", ["employee_id", "employee_name", "department", "salary", "manager_id"], [
+            [1, "Ana", "Data", 200000, null],
+            [2, "Ben", "Data", 180000, 1],
+            [3, "Cia", "Data", 180000, 1],
+            [4, "Don", "Data", 150000, 1],
+            [5, "Eli", "Security", 175000, null]
+          ])
+        ],
+        expectedSql
+      )
+    ],
+    duplicate_quality: [
+      sqlCase(
+        "NULL and case-only duplicates",
+        "Checks case normalization and confirms NULL emails are ignored.",
+        [
+          table("crm_contacts", ["contact_id", "email", "source_system"], [
+            [1, "ops@example.com", "crm"],
+            [2, "OPS@example.com", "web"],
+            [3, "sales@example.com", "crm"],
+            [4, "Sales@example.com", "event"],
+            [5, null, "manual"],
+            [6, null, "manual"]
+          ])
+        ],
+        expectedSql
+      )
+    ],
+    anti_join: [
+      sqlCase(
+        "Cancelled-only customers and NULL order keys",
+        "Checks customers with only cancelled orders and protects against NULL fact-table keys.",
+        [
+          table("customers", ["customer_id", "customer_name", "segment"], [
+            [1, "Alpha", "SMB"],
+            [2, "Beta", "Enterprise"],
+            [3, "Gamma", "SMB"],
+            [4, "Delta", "Mid Market"]
+          ]),
+          table("orders", ["order_id", "customer_id", "order_status", "order_date", "amount"], [
+            [10, 1, "completed", "2026-05-01", 100],
+            [11, 2, "cancelled", "2026-05-01", 200],
+            [12, null, "completed", "2026-05-01", 300],
+            [13, 4, "returned", "2026-05-01", 400]
+          ])
+        ],
+        expectedSql
+      )
+    ],
+    time_trend: [
+      sqlCase(
+        "Equal and decreasing readings",
+        "Checks that only strict increases are returned.",
+        [
+          table("warehouse_temperature", ["reading_date", "temperature_c"], [
+            ["2026-06-01", 4.0],
+            ["2026-06-02", 4.0],
+            ["2026-06-03", 3.8],
+            ["2026-06-04", 4.2]
+          ])
+        ],
+        expectedSql
+      )
+    ],
+    retention: [
+      sqlCase(
+        "Multiple first-day events",
+        "Checks users with duplicate day-zero events and users returning after more than one day.",
+        [
+          table("app_events", ["event_id", "user_id", "event_date", "event_name"], [
+            [1, 1, "2026-06-01", "signup"],
+            [2, 1, "2026-06-01", "click"],
+            [3, 1, "2026-06-02", "open"],
+            [4, 2, "2026-06-01", "signup"],
+            [5, 2, "2026-06-03", "open"],
+            [6, 3, "2026-06-05", "signup"]
+          ])
+        ],
+        expectedSql
+      )
+    ],
+    engagement: [
+      sqlCase(
+        "Zero-impression ad",
+        "Checks that an ad with clicks but no impressions does not crash the query.",
+        [
+          table("ad_events", ["event_id", "ad_id", "event_type"], [
+            [1, "ad_a", "impression"],
+            [2, "ad_a", "impression"],
+            [3, "ad_a", "click"],
+            [4, "ad_b", "click"]
+          ])
+        ],
+        expectedSql
+      )
+    ],
+    operations: [
+      sqlCase(
+        "Mixed SLA performance",
+        "Checks the rate calculation when some deliveries are same-day and some are delayed.",
+        [
+          table("deliveries", ["delivery_id", "order_date", "delivered_date", "city"], [
+            [1, "2026-06-01", "2026-06-01", "Mumbai"],
+            [2, "2026-06-01", "2026-06-02", "Mumbai"],
+            [3, "2026-06-02", "2026-06-02", "Delhi"],
+            [4, "2026-06-02", "2026-06-05", "Delhi"]
+          ])
+        ],
+        expectedSql
+      )
+    ],
+    finance: [
+      sqlCase(
+        "Threshold boundary",
+        "Checks that exactly 10000 is excluded and debits reduce the net balance.",
+        [
+          table("account_transactions", ["transaction_id", "account_id", "transaction_type", "amount"], [
+            [1, 1, "credit", 15000],
+            [2, 1, "debit", 5000],
+            [3, 2, "credit", 13000],
+            [4, 2, "debit", 1000],
+            [5, 3, "debit", 2000]
+          ])
+        ],
+        expectedSql
+      )
+    ],
+    commerce: [
+      sqlCase(
+        "Cancelled order leakage",
+        "Checks that cancelled order_items do not inflate revenue.",
+        [
+          table("orders", ["order_id", "customer_id", "order_status"], [
+            [1, 10, "completed"],
+            [2, 11, "cancelled"],
+            [3, 12, "completed"]
+          ]),
+          table("products", ["product_id", "product_name", "category"], [
+            [1, "Data Templates", "Learning"],
+            [2, "Interview Kit", "Career"]
+          ]),
+          table("order_items", ["order_id", "product_id", "quantity", "unit_price"], [
+            [1, 1, 1, 500],
+            [2, 1, 10, 500],
+            [3, 2, 2, 1000]
+          ])
+        ],
+        expectedSql
+      )
+    ],
+    education: [
+      sqlCase(
+        "Duplicate enrollment retries",
+        "Checks that duplicate student rows do not push a class over the threshold.",
+        [
+          table("class_enrollments", ["class_name", "student_id", "enrolled_at"], [
+            ["Warehouse SQL", 1, "2026-06-01"],
+            ["Warehouse SQL", 2, "2026-06-01"],
+            ["Warehouse SQL", 3, "2026-06-01"],
+            ["Warehouse SQL", 4, "2026-06-01"],
+            ["Warehouse SQL", 4, "2026-06-01"],
+            ["Airflow Debugging", 5, "2026-06-01"],
+            ["Airflow Debugging", 6, "2026-06-01"],
+            ["Airflow Debugging", 7, "2026-06-01"],
+            ["Airflow Debugging", 8, "2026-06-01"],
+            ["Airflow Debugging", 9, "2026-06-01"]
+          ])
+        ],
+        expectedSql
+      )
+    ],
+    dimension_reporting: [
+      sqlCase(
+        "Either-threshold qualification",
+        "Checks rows that qualify by population only and area only.",
+        [
+          table("country_metrics", ["country_name", "population", "area_sq_km"], [
+            ["LargePopSmallArea", 30000000, 90000],
+            ["SmallPopLargeArea", 3000000, 2000000],
+            ["SmallBoth", 3000000, 90000]
+          ])
+        ],
+        expectedSql
+      )
+    ],
+    warehouse_reporting: [
+      sqlCase(
+        "Zero stock and older snapshots",
+        "Checks aggregation by bin, latest-date filtering, and zero-stock removal.",
+        [
+          table("inventory_snapshots", ["snapshot_date", "warehouse_id", "product_id", "bin_id", "quantity_on_hand"], [
+            ["2026-05-30", "WH1", 1, "A", 99],
+            ["2026-05-31", "WH1", 1, "A", 2],
+            ["2026-05-31", "WH1", 1, "B", 3],
+            ["2026-05-31", "WH1", 2, "C", 0],
+            ["2026-05-31", "WH2", 3, "D", 7]
+          ])
+        ],
+        expectedSql
+      )
+    ]
+  };
+
+  return cases[kind] ?? cases.warehouse_reporting;
+}
+
 function buildLabFromCandidate(candidate: Candidate, index: number): CodingLab {
   const kind = classification(candidate.title);
-  const recipe =
+  const baseRecipe =
     kind === "profile_join" ? buildProfileJoinLab(index) :
     kind === "duplicate_quality" ? buildDuplicateLab(index) :
     kind === "anti_join" ? buildAntiJoinLab(index) :
@@ -850,7 +1276,8 @@ function buildLabFromCandidate(candidate: Candidate, index: number): CodingLab {
     kind === "dimension_reporting" ? buildDimensionLab(index) :
     buildWarehouseLab(index);
 
-  const title = `${practiceLabel(candidate.title, kind)} ${index}`;
+  const recipe = enrichRecipe(baseRecipe, kind);
+  const title = uniqueLabTitle(candidate.title, kind, index);
 
   return {
     ...recipe,
@@ -860,6 +1287,120 @@ function buildLabFromCandidate(candidate: Candidate, index: number): CodingLab {
     title,
     isFree: index <= 30 || recipe.difficulty === "beginner"
   };
+}
+
+function uniqueLabTitle(title: string, kind: string, index: number) {
+  const titlePools: Record<string, string[]> = {
+    profile_join: [
+      "CRM Profile Backfill Coverage",
+      "Customer City Enrichment Export",
+      "Late Profile Dimension Join",
+      "Account Master Optional Enrichment",
+      "Missing Profile Preservation Check",
+      "Customer 360 Left Join Audit"
+    ],
+    workforce_rank: [
+      "Department Salary Band Leaderboard",
+      "Compensation Dashboard Tie Handling",
+      "Team Pay Ranking Reconciliation",
+      "Manager Org Salary Snapshot",
+      "HR Leaderboard Window Function",
+      "Payroll Top-Band Audit"
+    ],
+    duplicate_quality: [
+      "CRM Email Duplicate Cleanup",
+      "Case-Normalized Contact Audit",
+      "Marketing Sync Duplicate Detector",
+      "Lead Deduplication Quality Check",
+      "Contact Identity Collision Report",
+      "Duplicate Subscriber Investigation"
+    ],
+    anti_join: [
+      "Dormant Customer Activation List",
+      "Completed-Order Coverage Gap",
+      "NULL-Safe Customer Anti-Join",
+      "No-Purchase Customer Segment",
+      "Order Absence Reconciliation",
+      "CRM Reactivation Candidate Pull"
+    ],
+    time_trend: [
+      "Cold Storage Temperature Increase",
+      "IoT Sensor Day-over-Day Alert",
+      "Warehouse Climate Trend Check",
+      "Rising Reading Detection",
+      "Daily Sensor Movement Report",
+      "Operations Temperature Drift Audit"
+    ],
+    retention: [
+      "Next-Day Product Retention",
+      "First Activity Return Check",
+      "Activation Cohort Follow-up",
+      "User Day-One Retention Audit",
+      "App Event Retention Rebuild",
+      "New User Return Signal"
+    ],
+    engagement: [
+      "Ad CTR Metric Rebuild",
+      "Campaign Click-Through Audit",
+      "Impression Denominator Check",
+      "Engagement Rate Quality Drill",
+      "Marketing Event Metric Fix",
+      "Zero-Impression CTR Guardrail"
+    ],
+    operations: [
+      "Same-Day Delivery SLA Metric",
+      "Logistics Promise Reconciliation",
+      "Delivery Date Quality Audit",
+      "Fulfillment SLA Rate Rebuild",
+      "Ops Dashboard Delivery Check",
+      "Shipment Timeliness Metric"
+    ],
+    finance: [
+      "Signed Ledger Balance Movement",
+      "Debit Credit Netting Drill",
+      "Finance Threshold Reconciliation",
+      "Account Movement Exception Report",
+      "Monthly Ledger Direction Check",
+      "High-Value Balance Change Audit"
+    ],
+    commerce: [
+      "Completed-Order Revenue Mart",
+      "Cancelled Order Leakage Check",
+      "Product Revenue Grain Audit",
+      "E-commerce Item Revenue Rebuild",
+      "Founder Dashboard Revenue Fix",
+      "Order Status Revenue Guardrail"
+    ],
+    education: [
+      "Distinct Enrollment Threshold",
+      "Course Capacity Dedup Check",
+      "Student Count Retry Guardrail",
+      "Class Enrollment Quality Report",
+      "Learning Platform Capacity Audit",
+      "Unique Student Rollup Drill"
+    ],
+    dimension_reporting: [
+      "Market Eligibility Rule Check",
+      "Reference Dimension Filter Audit",
+      "Country Threshold Logic Fix",
+      "OR Rule Reporting Drill",
+      "Regional Enablement Filter",
+      "Dimension Qualification Extract"
+    ],
+    warehouse_reporting: [
+      "Inventory Snapshot Grain Fix",
+      "Warehouse Product Availability",
+      "Bin-Level Stock Rollup",
+      "Zero-Stock Snapshot Reconciliation",
+      "Current Inventory Mart Rebuild",
+      "Warehouse Availability Guardrail"
+    ]
+  };
+
+  const pool = titlePools[kind] ?? titlePools.warehouse_reporting;
+  const base = pool[(index - 1) % pool.length];
+  const concept = practiceLabel(title, kind).replace(/\s+Drill$/, "").replace(/\s+Audit$/, "");
+  return `${base}: ${concept} ${index}`;
 }
 
 function practiceLabel(title: string, kind: string) {
