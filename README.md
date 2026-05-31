@@ -318,6 +318,7 @@ SQL and Python coding practice lives fully in the frontend:
 
 ```text
 frontend/data/coding-labs.generated.json
+frontend/data/public-sql-practice.generated.json
 frontend/lib/coding-labs.ts
 frontend/components/labs/BrowserCodingLab.tsx
 ```
@@ -325,6 +326,7 @@ frontend/components/labs/BrowserCodingLab.tsx
 - SQL Lab uses `sql.js` to execute SQLite-compatible SQL in the browser.
 - Python Lab loads Pyodide in the browser and runs function tests client-side.
 - No backend API is used for SQL/Python coding execution.
+- The public SQL coverage pack is generated from repository file names only; prompts, tables, seed data, and solutions are original Data Foundry content.
 
 Regenerate the coding lab data from the two PDFs:
 
@@ -332,6 +334,19 @@ Regenerate the coding lab data from the two PDFs:
 ./frontend/node_modules/.bin/tsx scripts/import-coding-labs-from-pdf.ts \
   "/path/to/04 - SQL Coding Practice with Solutions - 50 Questions - Data with Pranjal.pdf" \
   "/path/to/06 - Python Coding Practice with Solutions - 50 Questions - Data with Pranjal.pdf"
+```
+
+Regenerate the original SQL coverage pack mapped from public SQL practice repositories:
+
+```bash
+./frontend/node_modules/.bin/tsx scripts/import-public-sql-coverage-pack.ts
+```
+
+The importer reads GitHub tree metadata, deduplicates similar file titles, and writes:
+
+```text
+data/public-sql-practice.generated.json
+frontend/data/public-sql-practice.generated.json
 ```
 
 ## Import The 120-Scenario PDF

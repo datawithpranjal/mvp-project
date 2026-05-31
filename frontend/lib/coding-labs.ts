@@ -1,4 +1,5 @@
 import codingLabData from "../data/coding-labs.generated.json";
+import publicSqlPracticeData from "../data/public-sql-practice.generated.json";
 
 export type CodingLabTrack = "sql" | "python";
 export type CodingLabDifficulty = "beginner" | "intermediate" | "advanced";
@@ -117,7 +118,10 @@ function normalizeLab(value: unknown): CodingLab | null {
   };
 }
 
-export const CODING_LABS = (codingLabData as unknown[])
+export const CODING_LABS = [
+  ...(codingLabData as unknown[]),
+  ...(publicSqlPracticeData as unknown[])
+]
   .map(normalizeLab)
   .filter((lab): lab is CodingLab => Boolean(lab));
 
