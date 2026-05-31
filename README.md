@@ -4,7 +4,7 @@ The Data Foundry is a practice-first platform for Data Engineering interviews, p
 
 Instead of isolated syntax drills or PDF bundles, each lab starts from a production-style scenario with broken logic, sample tables, logs, expected behavior, hints, answer submission, and progress tracking.
 
-This release includes the new Broken Pipeline Lab with 12 interactive production-debugging scenarios, plus the existing backend scenario API for DuckDB SQL validation.
+This release includes the new Broken Pipeline Lab with curated production-debugging scenarios, imported PDF scenario labs, plus the existing backend scenario API for DuckDB SQL validation.
 
 ## Stack
 
@@ -34,7 +34,7 @@ This release includes the new Broken Pipeline Lab with 12 interactive production
 - Mock Interview Room with deterministic AI-evaluator fallback
 - Manual UPI premium payment submission with backend/admin premium access scaffolding
 - Signup email capture happens immediately when a learner creates an account
-- PDF import scaffold for `docs/120-data-engineering-scenarios.pdf`
+- PDF import flow for `docs/120-data-engineering-scenarios.pdf`, including generated PySpark fix labs with broken code samples
 
 ## Project Structure
 
@@ -293,6 +293,7 @@ The new practice system uses typed frontend scenario data in:
 
 ```text
 frontend/lib/scenarios.ts
+frontend/data/scenarios.generated.json
 ```
 
 Each lab supports:
@@ -321,12 +322,19 @@ docs/120-data-engineering-scenarios.pdf
 Then run:
 
 ```bash
-npx tsx scripts/import-scenarios-from-pdf.ts
+./frontend/node_modules/.bin/tsx scripts/import-scenarios-from-pdf.ts
+```
+
+Or pass the PDF path directly:
+
+```bash
+./frontend/node_modules/.bin/tsx scripts/import-scenarios-from-pdf.ts "/path/to/Scenario-Based Data Engineering Interview Handbook - 120 Questions - Data with Pranjal.pdf"
 ```
 
 If needed, install the optional parser tooling:
 
 ```bash
+cd frontend
 npm install --save-dev tsx pdf-parse
 ```
 
@@ -334,9 +342,10 @@ The script writes:
 
 ```text
 data/scenarios.generated.json
+frontend/data/scenarios.generated.json
 ```
 
-PDF extraction still needs human review. Use `docs/scenario-import-guide.md` and `data/scenarios.manual.template.json` to clean up domain, difficulty, practice type, broken code, hints, and model answers before adding generated scenarios into the app.
+The frontend copy is automatically merged into `/scenarios` by `frontend/lib/scenarios.ts`. PDF extraction still needs human review. Use `docs/scenario-import-guide.md` and `data/scenarios.manual.template.json` to clean up domain, difficulty, practice type, broken code, hints, and model answers before publishing broadly.
 
 ## How To Add A Legacy Backend Scenario
 

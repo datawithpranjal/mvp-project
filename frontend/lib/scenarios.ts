@@ -1,3 +1,5 @@
+import generatedScenarioData from "../data/scenarios.generated.json";
+
 export type ScenarioDomain =
   | "sql"
   | "pyspark"
@@ -94,6 +96,34 @@ const DEFAULT_RUBRIC: EvaluationRubric = {
   tradeoffs: 15,
   communication: 15
 };
+
+const VALID_DOMAINS: ScenarioDomain[] = [
+  "sql",
+  "pyspark",
+  "airflow",
+  "aws",
+  "kafka",
+  "data_quality",
+  "data_modeling",
+  "system_design",
+  "mixed"
+];
+
+const VALID_DIFFICULTIES: ScenarioDifficulty[] = [
+  "beginner",
+  "intermediate",
+  "advanced"
+];
+
+const VALID_SCENARIO_TYPES: ScenarioType[] = [
+  "mcq",
+  "broken_sql",
+  "broken_pyspark",
+  "log_analysis",
+  "output_mismatch",
+  "interview_explanation",
+  "mixed_lab"
+];
 
 export const BROKEN_PIPELINE_SCENARIOS: Scenario[] = [
   {
@@ -675,25 +705,152 @@ export const BROKEN_PIPELINE_SCENARIOS: Scenario[] = [
   }
 ];
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function normalizeString(value: unknown, fallback = ""): string {
+  return typeof value === "string" && value.trim().length > 0 ? value : fallback;
+}
+
+function normalizeNumber(value: unknown, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function normalizeStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function normalizeDomain(value: unknown): ScenarioDomain {
+  return VALID_DOMAINS.includes(value as ScenarioDomain) ? (value as ScenarioDomain) : "mixed";
+}
+
+function normalizeDifficulty(value: unknown): ScenarioDifficulty {
+  return VALID_DIFFICULTIES.includes(value as ScenarioDifficulty)
+    ? (value as ScenarioDifficulty)
+    : "intermediate";
+}
+
+function normalizeScenarioType(value: unknown): ScenarioType {
+  return VALID_SCENARIO_TYPES.includes(value as ScenarioType)
+    ? (value as ScenarioType)
+    : "mixed_lab";
+}
+
+function normalizeRubric(value: unknown): EvaluationRubric {
+  if (!isRecord(value)) return DEFAULT_RUBRIC;
+
+  return {
+    rootCause: normalizeNumber(value.rootCause, DEFAULT_RUBRIC.rootCause),
+    correctness: normalizeNumber(value.correctness, DEFAULT_RUBRIC.correctness),
+    productionThinking: normalizeNumber(value.productionThinking, DEFAULT_RUBRIC.productionThinking),
+    tradeoffs: normalizeNumber(value.tradeoffs, DEFAULT_RUBRIC.tradeoffs),
+    communication: normalizeNumber(value.communication, DEFAULT_RUBRIC.communication)
+  };
+}
+
+function normalizeMcqOptions(value: unknown): McqOption[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const options = value
+    .filter(isRecord)
+    .map((option) => ({
+      id: normalizeString(option.id),
+      text: normalizeString(option.text),
+      isCorrect: Boolean(option.isCorrect),
+      explanation: normalizeString(option.explanation)
+    }))
+    .filter((option) => option.id && option.text);
+
+  return options.length ? options : undefined;
+}
+
+function normalizeGeneratedScenario(value: unknown): Scenario | null {
+  if (!isRecord(value)) return null;
+
+  const id = normalizeString(value.id);
+  const title = normalizeString(value.title);
+  const slug = normalizeString(value.slug);
+
+  if (!id || !title || !slug) return null;
+
+  return {
+    id,
+    title,
+    slug,
+    domain: normalizeDomain(value.domain),
+    difficulty: normalizeDifficulty(value.difficulty),
+    scenarioType: normalizeScenarioType(value.scenarioType),
+    isFree: Boolean(value.isFree),
+    estimatedMinutes: normalizeNumber(value.estimatedMinutes, 20),
+    tags: normalizeStringArray(value.tags),
+    businessContext: normalizeString(value.businessContext, "You are debugging a production data engineering issue."),
+    problemStatement: normalizeString(value.problemStatement, "Diagnose the issue and propose a production-safe fix."),
+    requirement: normalizeString(value.requirement),
+    schema: normalizeString(value.schema),
+    sampleInput: normalizeString(value.sampleInput),
+    brokenCode: normalizeString(value.brokenCode),
+    actualOutput: normalizeString(value.actualOutput),
+    expectedOutput: normalizeString(value.expectedOutput),
+    logs: normalizeString(value.logs),
+    mcqOptions: normalizeMcqOptions(value.mcqOptions),
+    hints: normalizeStringArray(value.hints),
+    tasks: normalizeStringArray(value.tasks),
+    modelSolution: normalizeString(
+      value.modelSolution,
+      "Confirm the root cause, apply the safest fix, validate the output, and explain the trade-offs."
+    ),
+    productionExplanation: normalizeString(
+      value.productionExplanation,
+      "A strong production answer includes root cause, fix, validation, monitoring, and trade-offs."
+    ),
+    commonMistakes: normalizeStringArray(value.commonMistakes),
+    evaluationRubric: normalizeRubric(value.evaluationRubric),
+    followUps: normalizeStringArray(value.followUps),
+    relatedProjectMissionId: normalizeString(value.relatedProjectMissionId) || undefined
+  };
+}
+
+function uniqueBySlug(scenarios: Scenario[]): Scenario[] {
+  const seen = new Set<string>();
+  return scenarios.filter((scenario) => {
+    if (seen.has(scenario.slug)) return false;
+    seen.add(scenario.slug);
+    return true;
+  });
+}
+
+const GENERATED_SCENARIOS = (generatedScenarioData as unknown[])
+  .map(normalizeGeneratedScenario)
+  .filter((scenario): scenario is Scenario => Boolean(scenario));
+
+export const ALL_SCENARIOS = uniqueBySlug([
+  ...BROKEN_PIPELINE_SCENARIOS,
+  ...GENERATED_SCENARIOS
+]);
+
 export const DOMAIN_FILTERS = ["All", ...Object.values(DOMAIN_LABELS)];
 export const DIFFICULTY_FILTERS = ["All", "beginner", "intermediate", "advanced"];
 export const TYPE_FILTERS = ["All", ...Object.values(SCENARIO_TYPE_LABELS)];
 export const ACCESS_FILTERS = ["All", "Free", "Premium"];
 
 export function getScenarios(): Scenario[] {
-  return BROKEN_PIPELINE_SCENARIOS;
+  return ALL_SCENARIOS;
 }
 
 export function getScenarioBySlug(slug: string): Scenario | undefined {
-  return BROKEN_PIPELINE_SCENARIOS.find((scenario) => scenario.slug === slug);
+  return ALL_SCENARIOS.find((scenario) => scenario.slug === slug);
 }
 
 export function getFreeScenarios(): Scenario[] {
-  return BROKEN_PIPELINE_SCENARIOS.filter((scenario) => scenario.isFree);
+  return ALL_SCENARIOS.filter((scenario) => scenario.isFree);
 }
 
 export function getRecommendedScenarioSlug(): string {
-  return getFreeScenarios()[0]?.slug ?? BROKEN_PIPELINE_SCENARIOS[0]?.slug ?? "scenarios";
+  return getFreeScenarios()[0]?.slug ?? ALL_SCENARIOS[0]?.slug ?? "scenarios";
 }
 
 export function formatDomain(domain: ScenarioDomain): string {
