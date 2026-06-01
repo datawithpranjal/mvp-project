@@ -292,7 +292,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
   }
 
   return (
-    <main className="mx-auto min-h-screen max-w-[1500px] px-4 py-8 sm:px-8">
+    <main className="mx-auto min-h-screen max-w-[1600px] px-4 py-8 sm:px-8">
       <section className="panel rounded-[2rem] p-7">
         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-200">
           {formatTrackLabel(track)} Lab
@@ -315,8 +315,8 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
         </div>
       </section>
 
-      <section className="mt-6 grid gap-6 2xl:grid-cols-[320px_minmax(0,1fr)_320px]">
-        <aside className="panel h-fit rounded-[2rem] p-5">
+      <section className="mt-6 grid gap-6 md:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)] 2xl:grid-cols-[320px_minmax(0,1fr)_320px]">
+        <aside className="panel h-fit rounded-[2rem] p-5 md:sticky md:top-24 md:max-h-[calc(100vh-7rem)] md:overflow-hidden">
           <div className="flex flex-wrap gap-2">
             {["All", "beginner", "intermediate", "advanced"].map((item) => (
               <button
@@ -344,7 +344,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
               </option>
             ))}
           </select>
-          <div className="mt-5 max-h-[720px] space-y-3 overflow-y-auto pr-1">
+          <div className="mt-5 max-h-[720px] space-y-3 overflow-y-auto pr-1 md:max-h-[calc(100vh-18rem)]">
             {filteredLabs.map((lab) => (
               <button
                 key={lab.slug}
@@ -371,7 +371,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
           </div>
         </aside>
 
-        <section className="space-y-6">
+        <section className="min-w-0 space-y-6">
           <div className="panel rounded-[2rem] p-6">
             <div className="flex flex-wrap items-center gap-2">
               <span className="badge rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em]">
@@ -470,7 +470,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
           {result ? <ResultPanel result={result} /> : null}
         </section>
 
-        <aside className="space-y-6">
+        <aside className="space-y-6 md:col-start-2 2xl:col-start-auto">
           <div className="panel rounded-[2rem] p-6">
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
               Browser runtime
