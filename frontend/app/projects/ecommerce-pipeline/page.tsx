@@ -85,21 +85,54 @@ export default function EcommercePipelinePage() {
       </section>
 
       <section className="panel mt-8 overflow-hidden rounded-[2rem] p-6">
-        <h2 className="text-xl font-semibold text-slate-50">Pipeline flow</h2>
+        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-200">
+              Visual pipeline
+            </p>
+            <h2 className="mt-2 text-2xl font-semibold text-slate-50">Pipeline flow</h2>
+          </div>
+          <p className="max-w-2xl text-sm leading-6 text-slate-400">
+            Move left to right. Every stage has a mission, a decision, a consequence, and a
+            production lesson.
+          </p>
+        </div>
         <div className="mt-5 grid gap-3 md:grid-cols-7">
-          {STAGES.map((stage, index) => (
-            <div key={stage} className="relative rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
-              <p className="text-sm font-semibold text-slate-100">{stage}</p>
-              <p className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-500">
-                Stage {index + 1}
-              </p>
-              {index < STAGES.length - 1 ? (
-                <span className="absolute -right-3 top-1/2 hidden -translate-y-1/2 text-slate-500 md:block">
-                  →
-                </span>
-              ) : null}
-            </div>
-          ))}
+          {STAGES.map((stage, index) => {
+            const stageMissions = ECOMMERCE_PROJECT_MISSIONS.filter(
+              (mission) => mission.stage === stage
+            );
+            const stageComplete =
+              stageMissions.length > 0 &&
+              stageMissions.every((mission) => missionState[mission.id]?.completed);
+            const completedInStage = stageMissions.filter(
+              (mission) => missionState[mission.id]?.completed
+            ).length;
+
+            return (
+              <div
+                key={stage}
+                className={`relative rounded-2xl border p-4 ${
+                  stageComplete
+                    ? "border-teal-300/35 bg-teal-300/10"
+                    : "border-slate-800 bg-slate-950/40"
+                }`}
+              >
+                <p className="text-sm font-semibold text-slate-100">{stage}</p>
+                <p className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-500">
+                  Stage {index + 1}
+                </p>
+                <p className="mt-3 text-xs font-semibold text-teal-100">
+                  {stageMissions.length ? `${completedInStage}/${stageMissions.length} missions` : "serving layer"}
+                </p>
+                {index < STAGES.length - 1 ? (
+                  <span className="absolute -right-3 top-1/2 hidden -translate-y-1/2 text-slate-500 md:block">
+                    -&gt;
+                  </span>
+                ) : null}
+              </div>
+            );
+          })}
         </div>
       </section>
 
@@ -112,7 +145,12 @@ export default function EcommercePipelinePage() {
           );
 
           return (
-            <article key={mission.id} className="panel rounded-[2rem] p-6">
+            <article
+              key={mission.id}
+              className={`panel rounded-[2rem] p-6 ${
+                missionState[mission.id]?.completed ? "border-teal-300/25" : ""
+              }`}
+            >
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-200">
@@ -120,9 +158,16 @@ export default function EcommercePipelinePage() {
                   </p>
                   <h2 className="mt-3 text-2xl font-semibold text-slate-50">{mission.title}</h2>
                 </div>
-                <span className="rounded-full border border-amber-300/25 bg-amber-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-amber-100">
-                  {mission.xpReward} XP
-                </span>
+                <div className="flex flex-wrap gap-2">
+                  {missionState[mission.id]?.completed ? (
+                    <span className="rounded-full border border-teal-300/25 bg-teal-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-teal-100">
+                      Completed
+                    </span>
+                  ) : null}
+                  <span className="rounded-full border border-amber-300/25 bg-amber-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-amber-100">
+                    {mission.xpReward} XP
+                  </span>
+                </div>
               </div>
               <p className="mt-4 text-sm leading-7 text-slate-300">{mission.context}</p>
               <p className="mt-3 text-sm font-semibold text-slate-100">{mission.task}</p>

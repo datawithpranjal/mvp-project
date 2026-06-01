@@ -21,35 +21,143 @@ export const TOPIC_FILTERS = [
 export const CORE_LABS = [
   {
     title: "SQL Lab",
-    description: "Debug query logic, grain issues, NULL traps, CDC, rankings, and warehouse outputs."
+    description: "Debug query logic, grain issues, NULL traps, CDC, rankings, and warehouse outputs.",
+    href: "/labs/sql",
+    status: "available"
   },
   {
     title: "PySpark Lab",
-    description: "Practice performance, partitioning, UDF replacement, skew, and DataFrame reasoning."
+    description: "Practice performance, partitioning, UDF replacement, skew, and DataFrame reasoning.",
+    href: "/labs/pyspark",
+    status: "available"
   },
   {
     title: "Airflow Lab",
-    description: "Diagnose retries, sensors, DAG dependencies, green-but-wrong runs, and alerting gaps."
+    description: "Diagnose retries, sensors, DAG dependencies, green-but-wrong runs, and alerting gaps.",
+    href: "/labs",
+    status: "coming-soon"
   },
   {
     title: "AWS/Data Platform Lab",
-    description: "Reason through storage formats, lakehouse layers, batch jobs, and operational trade-offs."
+    description: "Reason through storage formats, lakehouse layers, batch jobs, and operational trade-offs.",
+    href: "/labs",
+    status: "coming-soon"
   },
   {
     title: "System Design Studio",
-    description: "Design data platforms, defend architecture trade-offs, and practice interview framing."
+    description: "Design data platforms, defend architecture trade-offs, and practice interview framing.",
+    href: "/system-design",
+    status: "available"
   },
   {
     title: "Scenario Playground",
-    description: "Work through production-style incidents with broken logic, logs, data, hints, and feedback."
+    description: "Work through production-style incidents with broken logic, logs, data, hints, and feedback.",
+    href: "/scenarios",
+    status: "available"
   },
   {
     title: "Project Simulator",
-    description: "Make engineering decisions in a simulated pipeline and see the production consequences."
+    description: "Make engineering decisions in a simulated pipeline and see the production consequences.",
+    href: "/projects/ecommerce-pipeline",
+    status: "available"
   },
   {
     title: "Mock Interview Room",
-    description: "Practice explaining root causes, trade-offs, monitoring, and strong interview framing."
+    description: "Practice explaining root causes, trade-offs, monitoring, and strong interview framing.",
+    href: "/mock-interview",
+    status: "available"
+  }
+];
+
+export const HOMEPAGE_STATS = [
+  {
+    value: "132+",
+    label: "Practice scenarios",
+    detail: "SQL, pipelines, incidents, and interview cases"
+  },
+  {
+    value: "SQL + PySpark",
+    label: "Hands-on labs",
+    detail: "Browser-first practice without backend-heavy infra"
+  },
+  {
+    value: "Production",
+    label: "Debugging mindset",
+    detail: "Broken logic, logs, trade-offs, and monitoring"
+  },
+  {
+    value: "Free",
+    label: "Starter labs",
+    detail: "Begin with guided practice before upgrading"
+  }
+];
+
+export const PRODUCT_PREVIEW_STEPS = [
+  {
+    label: "Broken problem",
+    title: "Pipeline rerun doubled revenue",
+    detail: "Inspect the business context, sample data, logs, and broken logic."
+  },
+  {
+    label: "User attempt",
+    title: "Write the fix",
+    detail: "Solve with SQL, PySpark reasoning, architecture trade-offs, or incident analysis."
+  },
+  {
+    label: "Feedback",
+    title: "Check the answer",
+    detail: "Get validation, rubric scoring, hints, and missing production considerations."
+  },
+  {
+    label: "Model answer",
+    title: "Learn the interview framing",
+    detail: "Reveal root cause, fix, monitoring, trade-offs, and follow-up questions."
+  }
+];
+
+export const TRUST_SIGNALS = [
+  {
+    label: "Creator",
+    value: "Built by Pranjal",
+    detail: "Creator of Data with Pranjal, focused on practical Data Engineering preparation."
+  },
+  {
+    label: "YouTube proof",
+    value: "Content-led learning",
+    detail: "Placeholder for channel stats, walkthroughs, and public learner proof."
+  },
+  {
+    label: "Learners",
+    value: "Community proof",
+    detail: "Placeholder for student wins, testimonials, and cohort outcomes."
+  }
+];
+
+export const GUIDED_SCENARIO_PATHS = [
+  {
+    title: "SQL interviews",
+    description: "Start with joins, grain, NULL traps, windows, and metric correctness.",
+    filters: { domain: "SQL", difficulty: "All", type: "All", access: "All" }
+  },
+  {
+    title: "PySpark debugging",
+    description: "Practice skew, UDFs, partitions, retries, and production Spark code review.",
+    filters: { domain: "PySpark", difficulty: "All", type: "All", access: "All" }
+  },
+  {
+    title: "Interview in 7 days",
+    description: "Focus on beginner/intermediate free labs with fast feedback.",
+    filters: { domain: "All", difficulty: "beginner", type: "All", access: "Free" }
+  },
+  {
+    title: "Career switcher",
+    description: "Build confidence with readable production cases and guided explanations.",
+    filters: { domain: "All", difficulty: "beginner", type: "All", access: "All" }
+  },
+  {
+    title: "Production scenarios",
+    description: "Skip theory and practice incidents, logs, output mismatches, and trade-offs.",
+    filters: { domain: "All", difficulty: "All", type: "Mixed Lab", access: "All" }
   }
 ];
 

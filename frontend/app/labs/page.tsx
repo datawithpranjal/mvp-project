@@ -5,18 +5,27 @@ import { LAB_TRACKS } from "../../lib/labs";
 export default function LabsPage() {
   return (
     <main className="mx-auto min-h-screen max-w-7xl px-6 py-10 sm:px-10">
-      <section className="panel rounded-[2rem] p-8">
-        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-200">
-          Labs
-        </p>
-        <h1 className="mt-4 text-4xl font-semibold tracking-tight text-slate-50">
-          Practice directly, not passively.
-        </h1>
-        <p className="mt-4 max-w-4xl text-sm leading-7 text-slate-300">
-          Labs are focused practice tracks for hands-on skill building. SQL, Python,
-          and PySpark Labs now run as browser-first practice workspaces, using
-          production-style data engineering tasks instead of passive reading.
-        </p>
+      <section className="panel overflow-hidden rounded-[2rem] p-8">
+        <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-end">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-200">
+              Labs
+            </p>
+            <h1 className="mt-4 text-4xl font-semibold tracking-tight text-slate-50 sm:text-5xl">
+              Build the hands-on muscle behind interviews.
+            </h1>
+            <p className="mt-4 max-w-4xl text-sm leading-7 text-slate-300">
+              Practice SQL, Python, and PySpark in focused tracks. Each lab is shaped like
+              a data engineering task: inspect data, write the fix, run feedback, and learn
+              the production lesson.
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Stat label="Live tracks" value="3" />
+            <Stat label="Mode" value="Browser" />
+            <Stat label="Focus" value="Practice" />
+          </div>
+        </div>
       </section>
 
       <section className="mt-8 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
@@ -33,14 +42,34 @@ export default function LabsPage() {
                 <span className="badge rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em]">
                   {lab.status === "active" ? "Live" : "Coming soon"}
                 </span>
-                {lab.status === "active" ? (
-                  <span className="rounded-full border border-amber-300/25 bg-amber-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-amber-100">
-                    Practice now
-                  </span>
-                ) : null}
+                <div className="flex flex-wrap gap-2">
+                  {lab.badges.map((badge) => (
+                    <span
+                      key={badge}
+                      className="rounded-full border border-amber-300/25 bg-amber-300/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-100"
+                    >
+                      {badge}
+                    </span>
+                  ))}
+                </div>
               </div>
               <h2 className="mt-5 text-2xl font-semibold text-slate-50">{lab.title}</h2>
               <p className="mt-3 text-sm leading-6 text-slate-300">{lab.description}</p>
+              <div className="mt-5 rounded-3xl border border-slate-800 bg-slate-950/40 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  Practice tracks
+                </p>
+                <div className="mt-3 grid gap-2">
+                  {lab.groups.map((group) => (
+                    <div
+                      key={group}
+                      className="rounded-2xl border border-slate-800 bg-slate-950/50 px-3 py-2 text-sm text-slate-300"
+                    >
+                      {group}
+                    </div>
+                  ))}
+                </div>
+              </div>
               <div className="mt-5 flex flex-wrap gap-2">
                 {lab.skills.map((skill) => (
                   <span
@@ -54,11 +83,20 @@ export default function LabsPage() {
             </div>
             <div className="mt-8 flex items-center justify-between text-sm font-semibold text-teal-200">
               <span>{lab.status === "active" ? "Open lab" : "Track planned"}</span>
-              <span className="transition duration-300 group-hover:translate-x-1">→</span>
+              <span className="transition duration-300 group-hover:translate-x-1">-&gt;</span>
             </div>
           </Link>
         ))}
       </section>
     </main>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-3xl border border-slate-700/70 bg-slate-950/30 p-5 text-center">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">{label}</p>
+      <p className="mt-2 text-xl font-semibold text-slate-50">{value}</p>
+    </div>
   );
 }

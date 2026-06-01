@@ -1,72 +1,64 @@
 import Link from "next/link";
 
-import { AUDIENCE_SEGMENTS, BRAND, CORE_LABS } from "../lib/product";
+import { CoreLabGrid } from "../components/core-lab-grid";
+import {
+  AUDIENCE_SEGMENTS,
+  BRAND,
+  HOMEPAGE_STATS,
+  PRODUCT_PREVIEW_STEPS,
+  TRUST_SIGNALS
+} from "../lib/product";
 import { getRecommendedScenarioSlug } from "../lib/scenarios";
-
-const WORKFLOW_STEPS = [
-  "Think",
-  "Attempt",
-  "Get Feedback",
-  "Reveal Answer",
-  "Practice Follow-ups",
-  "Track Progress"
-];
 
 export default function HomePage() {
   const recommendedScenarioSlug = getRecommendedScenarioSlug();
 
   return (
     <main className="mx-auto min-h-screen max-w-7xl px-6 py-10 sm:px-10">
-      <section className="panel relative overflow-hidden rounded-[2rem] p-8 sm:p-12">
+      <section className="panel relative overflow-hidden rounded-[2rem] p-7 sm:p-10 lg:p-12">
         <div className="absolute inset-y-0 right-0 hidden w-1/2 bg-[radial-gradient(circle_at_center,rgba(94,234,212,0.18),transparent_55%)] lg:block" />
-        <div className="relative max-w-4xl">
-          <span className="badge rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.28em]">
-            {BRAND.name}
-          </span>
-          <h1 className="mt-6 text-4xl font-semibold tracking-tight text-slate-50 sm:text-6xl">
-            Practice Data Engineering like real work.
-          </h1>
-          <p className="mt-6 max-w-3xl text-base leading-8 text-slate-300 sm:text-lg">
-            Prepare for Data Engineering interviews and production scenarios through SQL,
-            PySpark, Airflow, AWS, debugging cases, project simulations, mock interviews,
-            and AI feedback.
-          </p>
-          <p className="mt-4 text-sm font-semibold uppercase tracking-[0.22em] text-teal-200">
-            {BRAND.trustLine}
-          </p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Link
-              href={`/scenarios/${recommendedScenarioSlug}`}
-              className="rounded-full bg-amber-300 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-200"
-            >
-              Start Free Scenario
-            </Link>
-            <Link
-              href="/labs"
-              className="rounded-full border border-slate-700 bg-slate-950/30 px-6 py-3 text-sm font-semibold text-slate-100 transition hover:border-teal-300/50 hover:text-teal-100"
-            >
-              Open Labs
-            </Link>
-            <Link
-              href="/roadmap"
-              className="rounded-full border border-slate-700 bg-slate-950/30 px-6 py-3 text-sm font-semibold text-slate-100 transition hover:border-teal-300/50 hover:text-teal-100"
-            >
-              View Roadmap
-            </Link>
-            <Link
-              href="/system-design"
-              className="rounded-full border border-slate-700 bg-slate-950/30 px-6 py-3 text-sm font-semibold text-slate-100 transition hover:border-teal-300/50 hover:text-teal-100"
-            >
-              Practice System Design
-            </Link>
-            <Link
-              href="/projects/ecommerce-pipeline"
-              className="rounded-full border border-slate-700 bg-slate-950/30 px-6 py-3 text-sm font-semibold text-slate-100 transition hover:border-amber-300/50 hover:text-amber-100"
-            >
-              Explore Project Simulator
-            </Link>
+        <div className="relative grid gap-10 lg:grid-cols-[1fr_420px] lg:items-center">
+          <div>
+            <span className="badge rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.28em]">
+              {BRAND.name}
+            </span>
+            <h1 className="mt-6 text-4xl font-semibold tracking-tight text-slate-50 sm:text-6xl">
+              Practice Data Engineering like real work.
+            </h1>
+            <p className="mt-6 max-w-3xl text-base leading-8 text-slate-300 sm:text-lg">
+              Solve SQL, PySpark, Airflow, AWS, and production debugging scenarios built
+              around real interview and workplace problems.
+            </p>
+            <p className="mt-4 text-sm font-semibold uppercase tracking-[0.22em] text-teal-200">
+              {BRAND.trustLine}
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link
+                href={`/scenarios/${recommendedScenarioSlug}`}
+                className="rounded-full bg-amber-300 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-200"
+              >
+                Start Free SQL Scenario
+              </Link>
+              <Link
+                href="/scenarios"
+                className="rounded-full border border-slate-700 bg-slate-950/30 px-6 py-3 text-sm font-semibold text-slate-100 transition hover:border-teal-300/50 hover:text-teal-100"
+              >
+                Explore Scenario Library
+              </Link>
+            </div>
           </div>
+          <ProductPreview />
         </div>
+      </section>
+
+      <section className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {HOMEPAGE_STATS.map((stat) => (
+          <div key={stat.label} className="panel rounded-3xl p-5">
+            <p className="text-3xl font-semibold text-slate-50">{stat.value}</p>
+            <p className="mt-2 text-sm font-semibold text-teal-100">{stat.label}</p>
+            <p className="mt-2 text-xs leading-5 text-slate-400">{stat.detail}</p>
+          </div>
+        ))}
       </section>
 
       <section className="mt-10 grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
@@ -88,14 +80,15 @@ export default function HomePage() {
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-200">
             How it works
           </p>
-          <div className="mt-5 grid gap-3 sm:grid-cols-3">
-            {WORKFLOW_STEPS.map((step, index) => (
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            {PRODUCT_PREVIEW_STEPS.map((step, index) => (
               <div
-                key={step}
+                key={step.label}
                 className="rounded-2xl border border-slate-800 bg-slate-950/40 p-4"
               >
                 <p className="text-xs font-semibold text-slate-500">Step {index + 1}</p>
-                <p className="mt-2 text-sm font-semibold text-slate-100">{step}</p>
+                <p className="mt-2 text-sm font-semibold text-slate-100">{step.label}</p>
+                <p className="mt-2 text-xs leading-5 text-slate-400">{step.detail}</p>
               </div>
             ))}
           </div>
@@ -111,14 +104,7 @@ export default function HomePage() {
             A platform for practice, simulation, and job readiness.
           </h2>
         </div>
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {CORE_LABS.map((lab) => (
-            <div key={lab.title} className="panel rounded-3xl p-5">
-              <h3 className="text-lg font-semibold text-slate-50">{lab.title}</h3>
-              <p className="mt-3 text-sm leading-6 text-slate-300">{lab.description}</p>
-            </div>
-          ))}
-        </div>
+        <CoreLabGrid />
       </section>
 
       <section className="mt-10 grid gap-6 lg:grid-cols-2">
@@ -189,13 +175,31 @@ export default function HomePage() {
         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-200">
           Creator trust
         </p>
-        <h2 className="mt-3 text-2xl font-semibold text-slate-50">
-          Built from real interview and production patterns.
-        </h2>
-        <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300">
-          The platform is built by Data with Pranjal and will connect to YouTube lessons,
-          walkthroughs, and community challenges as the product grows.
-        </p>
+        <div className="mt-4 grid gap-5 lg:grid-cols-[1fr_1.2fr]">
+          <div>
+            <h2 className="text-2xl font-semibold text-slate-50">
+              Built by Pranjal, creator of Data with Pranjal.
+            </h2>
+            <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300">
+              Practical Data Engineering content focused on real interviews, production
+              problems, and career-switcher friendly explanations.
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {TRUST_SIGNALS.map((signal) => (
+              <div
+                key={signal.label}
+                className="rounded-3xl border border-slate-800 bg-slate-950/40 p-4"
+              >
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  {signal.label}
+                </p>
+                <p className="mt-3 text-sm font-semibold text-slate-100">{signal.value}</p>
+                <p className="mt-2 text-xs leading-5 text-slate-400">{signal.detail}</p>
+              </div>
+            ))}
+          </div>
+        </div>
       </section>
 
       <footer className="mt-10 flex flex-col justify-between gap-4 border-t border-slate-800 py-8 text-sm text-slate-400 sm:flex-row">
@@ -210,5 +214,40 @@ export default function HomePage() {
         </div>
       </footer>
     </main>
+  );
+}
+
+function ProductPreview() {
+  return (
+    <div className="rounded-[2rem] border border-slate-800 bg-slate-950/60 p-5 shadow-2xl shadow-slate-950/40">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-teal-200">
+          Product preview
+        </p>
+        <span className="rounded-full border border-amber-300/25 bg-amber-300/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-100">
+          Practice loop
+        </span>
+      </div>
+      <div className="mt-5 space-y-3">
+        {PRODUCT_PREVIEW_STEPS.map((step, index) => (
+          <div
+            key={step.label}
+            className="rounded-3xl border border-slate-800 bg-slate-950/50 p-4"
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-teal-300 text-sm font-bold text-slate-950">
+                {index + 1}
+              </span>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  {step.label}
+                </p>
+                <p className="mt-1 text-sm font-semibold text-slate-100">{step.title}</p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

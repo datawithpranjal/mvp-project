@@ -44,6 +44,7 @@ export default function DashboardPage() {
     (path) => path.slug === onboarding?.recommendedPathSlug
   ) ?? LEARNING_PATHS[1];
   const completedScenarios = scenarios.filter((scenario) => progressMap[scenario.slug]?.completed);
+  const hasNoProgress = Object.keys(progressMap).length === 0;
   const continueScenario =
     scenarios.find(
       (scenario) =>
@@ -59,7 +60,16 @@ export default function DashboardPage() {
   if (isLoading) {
     return (
       <main className="mx-auto min-h-screen max-w-7xl px-6 py-10 sm:px-10">
-        <div className="panel rounded-3xl p-6 text-sm text-slate-300">Loading dashboard...</div>
+        <div className="panel rounded-[2rem] p-8">
+          <p className="text-sm font-semibold uppercase tracking-[0.22em] text-teal-200">
+            Loading dashboard
+          </p>
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            {[1, 2, 3].map((item) => (
+              <div key={item} className="h-28 rounded-3xl border border-slate-800 bg-slate-950/40" />
+            ))}
+          </div>
+        </div>
       </main>
     );
   }
@@ -92,6 +102,45 @@ export default function DashboardPage() {
             >
               Start onboarding
             </Link>
+          </div>
+        </section>
+      ) : null}
+
+      {hasNoProgress ? (
+        <section className="panel mb-6 rounded-[2rem] p-7">
+          <div className="grid gap-6 lg:grid-cols-[1fr_0.9fr] lg:items-center">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-200">
+                Welcome to The Data Foundry
+              </p>
+              <h1 className="mt-4 text-3xl font-semibold tracking-tight text-slate-50">
+                Start with one free lab today.
+              </h1>
+              <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300">
+                Your dashboard will become useful as soon as you attempt a scenario. Begin
+                with a free SQL debugging case, then follow the 7-day practice path.
+              </p>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Link
+                  href={continueScenario ? `/scenarios/${continueScenario.slug}` : "/scenarios"}
+                  className="rounded-full bg-amber-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-200"
+                >
+                  Start your first free scenario
+                </Link>
+                <Link
+                  href="/roadmap"
+                  className="rounded-full border border-slate-700 px-5 py-3 text-sm font-semibold text-slate-200 transition hover:border-teal-300/40"
+                >
+                  View 7-day path
+                </Link>
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <StartCard label="Recommended first lab" value="SQL correctness" />
+              <StartCard label="Practice time" value="15-20 min" />
+              <StartCard label="Progress" value="0 scenarios" />
+              <StartCard label="Next unlock" value="Readiness score" />
+            </div>
           </div>
         </section>
       ) : null}
@@ -248,6 +297,15 @@ function MissionCard({ label, title, href }: { label: string; title: string; hre
       <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">{label}</p>
       <p className="mt-3 text-sm font-semibold leading-6 text-slate-100">{title}</p>
     </Link>
+  );
+}
+
+function StartCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-3xl border border-slate-800 bg-slate-950/40 p-5">
+      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{label}</p>
+      <p className="mt-2 text-lg font-semibold text-slate-50">{value}</p>
+    </div>
   );
 }
 
