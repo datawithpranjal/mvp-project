@@ -31,12 +31,19 @@ interface SqlCaseResult {
   expected: BrowserSqlResultTable;
 }
 
+interface ReviewKeywordResult {
+  keyword: string;
+  matched: boolean;
+}
+
 interface LabRunResult {
   passed: boolean | null;
   message: string;
   table?: BrowserSqlResultTable;
   sqlResults?: SqlCaseResult[];
   pythonResults?: PythonTestResult[];
+  score?: number;
+  reviewResults?: ReviewKeywordResult[];
 }
 
 declare global {
@@ -201,6 +208,35 @@ async function runPythonLab(lab: CodingLab, answer: string): Promise<LabRunResul
   };
 }
 
+function evaluateCodeReviewLab(lab: CodingLab, answer: string): LabRunResult {
+  const normalizedAnswer = answer.toLowerCase();
+  const keywords =
+    lab.validationKeywords && lab.validationKeywords.length > 0
+      ? lab.validationKeywords
+      : lab.topicTags;
+
+  const reviewResults = keywords.map((keyword) => ({
+    keyword,
+    matched: normalizedAnswer.includes(keyword.toLowerCase())
+  }));
+  const matchedCount = reviewResults.filter((result) => result.matched).length;
+  const answerLooksSubstantial = answer.replace(/\s/g, "").length >= 140;
+  const keywordScore = keywords.length > 0 ? Math.round((matchedCount / keywords.length) * 80) : 50;
+  const score = Math.min(100, keywordScore + (answerLooksSubstantial ? 20 : 0));
+  const passed = score >= 70;
+
+  rememberCompletion(lab, passed);
+
+  return {
+    passed,
+    score,
+    reviewResults,
+    message: passed
+      ? `Good production fix. Your answer hit ${matchedCount}/${keywords.length} expected PySpark concepts and scored ${score}/100.`
+      : `Not complete yet. Your answer hit ${matchedCount}/${keywords.length} expected PySpark concepts and scored ${score}/100. Add the missing Spark API, edge-case handling, and production trade-off.`
+  };
+}
+
 export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
   const labs = useMemo(() => getCodingLabs(track), [track]);
   const [selectedSlug, setSelectedSlug] = useState(labs[0]?.slug ?? "");
@@ -278,7 +314,9 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
       const nextResult =
         selectedLab.track === "sql"
           ? await runSqlLab(selectedLab, answer)
-          : await runPythonLab(selectedLab, answer);
+          : selectedLab.track === "python"
+            ? await runPythonLab(selectedLab, answer)
+            : evaluateCodeReviewLab(selectedLab, answer);
       setResult(nextResult);
     } catch (error) {
       setResult({
@@ -315,14 +353,18 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
               Browser-based data engineering practice.
             </h1>
             <p className="mt-4 max-w-4xl text-sm leading-7 text-slate-300">
-              Run code directly in your browser. No backend judge, no hidden server state:
-              inspect the data, write the fix, run checks, then explain the production lesson.
+              {track === "pyspark"
+                ? "Practice Spark production fixes without paying for a cluster: inspect the data, repair the code, run a concept check, then compare with the model answer."
+                : "Run code directly in your browser. No backend judge, no hidden server state: inspect the data, write the fix, run checks, then explain the production lesson."}
             </p>
           </div>
           <div className="grid grid-cols-3 gap-3 text-center">
             <Stat label="Labs" value={labs.length} />
             <Stat label="Free" value={labs.filter((lab) => lab.isFree).length} />
-            <Stat label="Runtime" value={track === "sql" ? "SQLite" : "Pyodide"} />
+            <Stat
+              label="Runtime"
+              value={track === "sql" ? "SQLite" : track === "python" ? "Pyodide" : "Code review"}
+            />
           </div>
         </div>
       </section>
@@ -464,7 +506,9 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
                 <p className="mt-2 text-sm text-slate-400">
                   {track === "sql"
                     ? "Write a read-only query that returns the expected result."
-                    : `Define the function ${selectedLab.functionName ?? ""} and pass the browser tests.`}
+                    : track === "python"
+                      ? `Define the function ${selectedLab.functionName ?? ""} and pass the browser tests.`
+                      : "Fix the PySpark code or write the production-safe approach. The browser checks the concepts, APIs, and trade-offs."}
                 </p>
               </div>
               <div className="flex flex-wrap gap-3">
@@ -482,7 +526,13 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
                   disabled={isRunning}
                   className="rounded-full bg-amber-300 px-6 py-3 text-sm font-bold text-slate-950 transition hover:bg-amber-200 disabled:cursor-wait disabled:opacity-70"
                 >
-                  {isRunning ? "Running..." : track === "sql" ? "Run query" : "Run tests"}
+                  {isRunning
+                    ? "Running..."
+                    : track === "sql"
+                      ? "Run query"
+                      : track === "python"
+                        ? "Run tests"
+                        : "Check fix"}
                 </button>
               </div>
             </div>
@@ -513,7 +563,9 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
             <p className="mt-3 text-sm leading-6 text-slate-300">
               {track === "sql"
                 ? "The table seed and validation run inside your browser using SQLite/WebAssembly."
-                : "Python loads through Pyodide in your browser, then runs your function against sample tests."}
+                : track === "python"
+                  ? "Python loads through Pyodide in your browser, then runs your function against sample tests."
+                  : "PySpark is taught as production code review here: no cluster required, but your fix is checked against the expected APIs and reasoning."}
             </p>
           </div>
 
@@ -561,6 +613,18 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
                   <code>{selectedLab.solutionCode}</code>
                 </pre>
                 <p className="text-sm leading-6 text-slate-300">{selectedLab.explanation}</p>
+                {selectedLab.commonMistakes?.length ? (
+                  <div className="rounded-3xl border border-amber-300/20 bg-amber-300/10 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-100">
+                      Common mistake
+                    </p>
+                    <ul className="mt-3 space-y-2 text-sm leading-6 text-amber-50">
+                      {selectedLab.commonMistakes.map((mistake) => (
+                        <li key={mistake}>{mistake}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
               </div>
             ) : null}
           </div>
@@ -634,6 +698,9 @@ function ResultPanel({ result }: { result: LabRunResult }) {
       <p className="text-xs font-semibold uppercase tracking-[0.22em]">
         {result.passed === true ? "Passed" : result.passed === false ? "Needs work" : "Result"}
       </p>
+      {typeof result.score === "number" ? (
+        <p className="mt-3 text-3xl font-semibold tracking-tight">{result.score}/100</p>
+      ) : null}
       <p className="mt-3 text-sm leading-6">{result.message}</p>
       {result.table ? (
         <div className="mt-5 overflow-x-auto rounded-3xl border border-slate-800 bg-slate-950/70">
@@ -712,6 +779,23 @@ function ResultPanel({ result }: { result: LabRunResult }) {
               ) : null}
             </div>
           ))}
+        </div>
+      ) : null}
+      {result.reviewResults ? (
+        <div className="mt-5 rounded-3xl border border-slate-800 bg-slate-950/70 p-4">
+          <p className="text-sm font-semibold text-slate-100">Production fix checklist</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {result.reviewResults.map((item) => (
+              <span
+                key={item.keyword}
+                className={`rounded-full px-3 py-1 text-xs font-bold ${
+                  item.matched ? "bg-teal-300 text-slate-950" : "bg-slate-800 text-slate-300"
+                }`}
+              >
+                {item.matched ? "hit" : "missing"}: {item.keyword}
+              </span>
+            ))}
+          </div>
         </div>
       ) : null}
     </div>

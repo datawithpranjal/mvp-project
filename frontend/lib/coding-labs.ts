@@ -1,7 +1,8 @@
 import codingLabData from "../data/coding-labs.generated.json";
+import { pysparkLabData } from "../data/pyspark-labs.generated";
 import publicSqlPracticeData from "../data/public-sql-practice.generated.json";
 
-export type CodingLabTrack = "sql" | "python";
+export type CodingLabTrack = "sql" | "python" | "pyspark";
 export type CodingLabDifficulty = "beginner" | "intermediate" | "advanced";
 
 export interface CodingLabTable {
@@ -46,6 +47,8 @@ export interface CodingLab {
   sqlTestCases?: SqlTestCase[];
   functionName?: string;
   testCases?: PythonTestCase[];
+  validationKeywords?: string[];
+  commonMistakes?: string[];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -96,7 +99,8 @@ function sqlTestCaseArray(value: unknown): SqlTestCase[] {
 }
 
 function normalizeTrack(value: unknown): CodingLabTrack {
-  return value === "python" ? "python" : "sql";
+  if (value === "python" || value === "pyspark") return value;
+  return "sql";
 }
 
 function normalizeDifficulty(value: unknown): CodingLabDifficulty {
@@ -136,12 +140,15 @@ function normalizeLab(value: unknown): CodingLab | null {
     expectedSql: stringValue(value.expectedSql) || undefined,
     sqlTestCases: sqlTestCaseArray(value.sqlTestCases),
     functionName: stringValue(value.functionName) || undefined,
-    testCases: testCaseArray(value.testCases)
+    testCases: testCaseArray(value.testCases),
+    validationKeywords: stringArray(value.validationKeywords),
+    commonMistakes: stringArray(value.commonMistakes)
   };
 }
 
 export const CODING_LABS = [
   ...(codingLabData as unknown[]),
+  ...(pysparkLabData as unknown[]),
   ...(publicSqlPracticeData as unknown[])
 ]
   .map(normalizeLab)
@@ -165,5 +172,7 @@ export function getCodingLabStats(track: CodingLabTrack) {
 }
 
 export function formatTrackLabel(track: CodingLabTrack): string {
-  return track === "sql" ? "SQL" : "Python";
+  if (track === "sql") return "SQL";
+  if (track === "pyspark") return "PySpark";
+  return "Python";
 }

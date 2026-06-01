@@ -29,11 +29,11 @@ export const LAB_TRACKS: LabTrack[] = [
   {
     slug: "pyspark",
     title: "PySpark Lab",
-    status: "coming-soon",
+    status: "active",
     description:
-      "Practice DataFrame transformations, deduplication, skew reasoning, partition strategy, and code reviews.",
+      "Fix production PySpark code without a Spark cluster: reason through DataFrame logic, joins, skew, files, and safe writes.",
     skills: ["DataFrames", "Windows", "Joins", "Skew", "Performance"],
-    href: "/labs"
+    href: "/labs/pyspark"
   },
   {
     slug: "airflow",
