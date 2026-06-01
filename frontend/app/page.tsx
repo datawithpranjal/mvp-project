@@ -54,6 +54,12 @@ export default function HomePage() {
               View Roadmap
             </Link>
             <Link
+              href="/system-design"
+              className="rounded-full border border-slate-700 bg-slate-950/30 px-6 py-3 text-sm font-semibold text-slate-100 transition hover:border-teal-300/50 hover:text-teal-100"
+            >
+              Practice System Design
+            </Link>
+            <Link
               href="/projects/ecommerce-pipeline"
               className="rounded-full border border-slate-700 bg-slate-950/30 px-6 py-3 text-sm font-semibold text-slate-100 transition hover:border-amber-300/50 hover:text-amber-100"
             >
@@ -197,6 +203,7 @@ export default function HomePage() {
         <div className="flex flex-wrap gap-4">
           <Link href="/dashboard">Dashboard</Link>
           <Link href="/labs">Labs</Link>
+          <Link href="/system-design">System Design</Link>
           <Link href="/roadmap">Roadmap</Link>
           <Link href="/projects">Projects</Link>
           <Link href="/mock-interview">Mock Interview</Link>

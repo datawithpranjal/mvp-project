@@ -36,6 +36,10 @@ export const CORE_LABS = [
     description: "Reason through storage formats, lakehouse layers, batch jobs, and operational trade-offs."
   },
   {
+    title: "System Design Studio",
+    description: "Design data platforms, defend architecture trade-offs, and practice interview framing."
+  },
+  {
     title: "Scenario Playground",
     description: "Work through production-style incidents with broken logic, logs, data, hints, and feedback."
   },
@@ -531,4 +535,3 @@ export function estimateScenarioMinutes(scenario: ScenarioSummary): number {
   const validationExtra = scenario.validation_type === "SQL_OUTPUT_MATCH" ? 0 : 10;
   return (baseByDifficulty[scenario.difficulty] ?? 30) + validationExtra;
 }
-
