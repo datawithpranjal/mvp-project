@@ -263,6 +263,12 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
   }
 
   const answer = answers[selectedLab.slug] ?? selectedLab.starterCode;
+  const activeLabQueue = filteredLabs.length > 0 ? filteredLabs : labs;
+  const currentQueueIndex = activeLabQueue.findIndex((lab) => lab.slug === selectedLab.slug);
+  const nextLab =
+    currentQueueIndex >= 0
+      ? activeLabQueue[currentQueueIndex + 1] ?? null
+      : activeLabQueue[0] ?? null;
 
   async function runLab() {
     if (!selectedLab) return;
@@ -289,6 +295,12 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
     setHintCount(0);
     setShowSolution(false);
     setResult(null);
+  }
+
+  function goToNextLab() {
+    if (!nextLab) return;
+    switchLab(nextLab.slug);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   return (
@@ -373,18 +385,28 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
 
         <section className="min-w-0 space-y-6">
           <div className="panel rounded-[2rem] p-6">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="badge rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em]">
-                {selectedLab.difficulty}
-              </span>
-              {selectedLab.topicTags.slice(0, 4).map((tag) => (
-                <span
-                  key={tag}
-                  className="rounded-full border border-slate-700 bg-slate-950/40 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-300"
-                >
-                  {tag}
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="badge rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em]">
+                  {selectedLab.difficulty}
                 </span>
-              ))}
+                {selectedLab.topicTags.slice(0, 4).map((tag) => (
+                  <span
+                    key={tag}
+                    className="rounded-full border border-slate-700 bg-slate-950/40 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-300"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={goToNextLab}
+                disabled={!nextLab}
+                className="rounded-full border border-teal-300/30 px-5 py-2 text-sm font-semibold text-teal-100 transition hover:bg-teal-300/10 disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-500"
+              >
+                Next question
+              </button>
             </div>
             <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-50">
               {selectedLab.title}
@@ -445,14 +467,24 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
                     : `Define the function ${selectedLab.functionName ?? ""} and pass the browser tests.`}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={runLab}
-                disabled={isRunning}
-                className="rounded-full bg-amber-300 px-6 py-3 text-sm font-bold text-slate-950 transition hover:bg-amber-200 disabled:cursor-wait disabled:opacity-70"
-              >
-                {isRunning ? "Running..." : track === "sql" ? "Run query" : "Run tests"}
-              </button>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={goToNextLab}
+                  disabled={!nextLab}
+                  className="rounded-full border border-teal-300/30 px-5 py-3 text-sm font-bold text-teal-100 transition hover:bg-teal-300/10 disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-500"
+                >
+                  Next question
+                </button>
+                <button
+                  type="button"
+                  onClick={runLab}
+                  disabled={isRunning}
+                  className="rounded-full bg-amber-300 px-6 py-3 text-sm font-bold text-slate-950 transition hover:bg-amber-200 disabled:cursor-wait disabled:opacity-70"
+                >
+                  {isRunning ? "Running..." : track === "sql" ? "Run query" : "Run tests"}
+                </button>
+              </div>
             </div>
             <textarea
               value={answer}
