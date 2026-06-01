@@ -449,16 +449,20 @@ function Badge({ children }: { children: ReactNode }) {
 
 function ScenarioTablePreview({ table }: { table: ScenarioSampleTable }) {
   return (
-    <div className="min-w-0 overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/40">
+    <div className="w-full min-w-0 overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/40">
       <div className="border-b border-slate-800 px-4 py-3">
         <p className="font-mono text-sm font-semibold text-teal-100">{table.name}</p>
       </div>
-      <div className="w-full overflow-hidden">
-        <table className="w-full table-fixed text-left text-xs">
+      <div className="w-full overflow-x-auto">
+        <table className="min-w-full table-auto text-left text-sm">
           <thead className="bg-slate-950/70 text-slate-400">
             <tr>
               {table.columns.map((column) => (
-                <th key={column} className="break-words px-4 py-3 align-top font-semibold">
+                <th
+                  key={column}
+                  className="min-w-32 whitespace-nowrap px-5 py-4 align-top font-semibold"
+                  style={{ whiteSpace: "nowrap" }}
+                >
                   {column}
                 </th>
               ))}
@@ -468,7 +472,11 @@ function ScenarioTablePreview({ table }: { table: ScenarioSampleTable }) {
             {table.rows.map((row, rowIndex) => (
               <tr key={`${table.name}-${rowIndex}`}>
                 {table.columns.map((column, columnIndex) => (
-                  <td key={column} className="break-words px-4 py-3 align-top font-mono">
+                  <td
+                    key={column}
+                    className="min-w-32 whitespace-nowrap px-5 py-4 align-top font-mono"
+                    style={{ whiteSpace: "nowrap" }}
+                  >
                     {String(row[columnIndex] ?? "NULL")}
                   </td>
                 ))}

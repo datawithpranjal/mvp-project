@@ -315,7 +315,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
         </div>
       </section>
 
-      <section className="mt-6 grid gap-6 xl:grid-cols-[340px_minmax(0,1fr)_340px]">
+      <section className="mt-6 grid gap-6 2xl:grid-cols-[320px_minmax(0,1fr)_320px]">
         <aside className="panel h-fit rounded-[2rem] p-5">
           <div className="flex flex-wrap gap-2">
             {["All", "beginner", "intermediate", "advanced"].map((item) => (
@@ -425,7 +425,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
                 Sample production data
               </p>
-              <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <div className="mt-4 grid min-w-0 gap-4">
                 {selectedLab.tables.map((table) => (
                   <TablePreview key={table.name} table={table} />
                 ))}
@@ -549,16 +549,20 @@ function Stat({ label, value }: { label: string; value: string | number }) {
 
 function TablePreview({ table }: { table: CodingLabTable }) {
   return (
-    <div className="min-w-0 overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/40">
+    <div className="w-full min-w-0 overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/40">
       <div className="border-b border-slate-800 px-4 py-3">
         <p className="font-mono text-sm font-semibold text-teal-100">{table.name}</p>
       </div>
-      <div className="w-full overflow-hidden">
-        <table className="w-full table-fixed text-left text-xs">
+      <div className="w-full overflow-x-auto">
+        <table className="min-w-full table-auto text-left text-sm">
           <thead className="bg-slate-950/70 text-slate-400">
             <tr>
               {table.columns.map((column) => (
-                <th key={column} className="break-words px-4 py-3 align-top font-semibold">
+                <th
+                  key={column}
+                  className="min-w-32 whitespace-nowrap px-5 py-4 align-top font-semibold"
+                  style={{ whiteSpace: "nowrap" }}
+                >
                   {column}
                 </th>
               ))}
@@ -568,7 +572,11 @@ function TablePreview({ table }: { table: CodingLabTable }) {
             {table.rows.slice(0, 7).map((row, rowIndex) => (
               <tr key={`${table.name}-${rowIndex}`}>
                 {table.columns.map((column, columnIndex) => (
-                  <td key={column} className="break-words px-4 py-3 align-top font-mono">
+                  <td
+                    key={column}
+                    className="min-w-32 whitespace-nowrap px-5 py-4 align-top font-mono"
+                    style={{ whiteSpace: "nowrap" }}
+                  >
                     {String(row[columnIndex] ?? "NULL")}
                   </td>
                 ))}
