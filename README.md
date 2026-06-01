@@ -110,21 +110,18 @@ In Vercel:
 5. Add these environment variables:
 
 ```text
-ENVIRONMENT=production
 BACKEND_CORS_ORIGINS=https://your-frontend-project.vercel.app,http://localhost:3000
 BACKEND_CORS_ORIGIN_REGEX=
 POSTGRES_URL=postgresql://postgres:postgres@postgres:5432/scenario_playground
-ADMIN_API_TOKEN=choose-a-random-token-at-least-32-characters
-EXPOSE_INTERNAL_ERRORS=false
+ADMIN_API_TOKEN=choose-a-long-random-token
 RESEND_API_KEY=
 OTP_EMAIL_FROM=Data Engineering Scenario Playground <onboarding@resend.dev>
-AUTH_SHOW_DEBUG_OTP=false
-AUTH_OTP_SECRET=choose-a-random-token-at-least-32-characters
+AUTH_SHOW_DEBUG_OTP=true
 FRONTEND_BASE_URL=https://your-frontend-project.vercel.app
 GOOGLE_OAUTH_CLIENT_ID=
 GOOGLE_OAUTH_CLIENT_SECRET=
 GOOGLE_OAUTH_REDIRECT_URI=https://your-backend-project.vercel.app/api/v1/auth/google/callback
-GOOGLE_OAUTH_STATE_SECRET=choose-a-random-token-at-least-32-characters
+GOOGLE_OAUTH_STATE_SECRET=choose-a-long-random-token
 ```
 
 For production email capture, set `POSTGRES_URL` to your Supabase Postgres connection string instead of the local Docker value. Use the full URI with your database password, for example:
@@ -146,12 +143,12 @@ GOOGLE_OAUTH_CLIENT_ID=your-google-client-id
 GOOGLE_OAUTH_CLIENT_SECRET=your-google-client-secret
 GOOGLE_OAUTH_REDIRECT_URI=https://your-backend-project.vercel.app/api/v1/auth/google/callback
 FRONTEND_BASE_URL=https://your-frontend-project.vercel.app
-GOOGLE_OAUTH_STATE_SECRET=choose-a-random-token-at-least-32-characters
+GOOGLE_OAUTH_STATE_SECRET=choose-a-long-random-token
 ```
 
 The same redirect URI must be added under **Authorized redirect URIs** in Google Cloud.
 
-If you want preview deployments from many Vercel URLs to call the backend, you can optionally set the regex below during testing. Prefer exact production origins in `BACKEND_CORS_ORIGINS` for the public site.
+If you want preview deployments from many Vercel URLs to call the backend, you can optionally set:
 
 ```text
 BACKEND_CORS_ORIGIN_REGEX=https://.*\\.vercel\\.app

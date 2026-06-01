@@ -23,7 +23,7 @@ class RubricItem(BaseModel):
 
 
 class ValidationRequest(BaseModel):
-    answer: str = Field(max_length=20000)
+    answer: str
 
     @field_validator("answer")
     @classmethod

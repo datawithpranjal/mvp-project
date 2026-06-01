@@ -4,7 +4,6 @@ from urllib.parse import quote
 from fastapi import APIRouter, Header, HTTPException, Query
 from fastapi.responses import RedirectResponse
 
-from app.api.errors import internal_service_error
 from app.schemas.auth import (
     AuthProfileUpdateRequest,
     AuthRequestOtpRequest,
@@ -46,7 +45,7 @@ def auth_error_response(exc: Exception) -> HTTPException:
         return HTTPException(status_code=404, detail=str(exc))
     if isinstance(exc, AuthUnauthorizedError):
         return HTTPException(status_code=401, detail=str(exc))
-    return internal_service_error("Authentication is temporarily unavailable.", exc)
+    return HTTPException(status_code=500, detail=f"Authentication is temporarily unavailable. {exc}")
 
 
 @router.post("/api/v1/auth/request-otp", response_model=AuthRequestOtpResponse)

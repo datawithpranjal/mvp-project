@@ -214,7 +214,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
                 Use these small tables to reason about the bug before writing the fix.
                 The browser checker seeds this data when you click Check Answer.
               </p>
-              <div className="mt-5 grid gap-5 lg:grid-cols-2">
+              <div className="mt-5 grid min-w-0 gap-5">
                 {scenario.sampleTables.map((table) => (
                   <ScenarioTablePreview key={table.name} table={table} />
                 ))}
@@ -449,16 +449,16 @@ function Badge({ children }: { children: ReactNode }) {
 
 function ScenarioTablePreview({ table }: { table: ScenarioSampleTable }) {
   return (
-    <div className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/40">
+    <div className="min-w-0 overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/40">
       <div className="border-b border-slate-800 px-4 py-3">
         <p className="font-mono text-sm font-semibold text-teal-100">{table.name}</p>
       </div>
-      <div className="overflow-x-auto">
-        <table className="min-w-full text-left text-xs">
+      <div className="w-full overflow-hidden">
+        <table className="w-full table-fixed text-left text-xs">
           <thead className="bg-slate-950/70 text-slate-400">
             <tr>
               {table.columns.map((column) => (
-                <th key={column} className="px-4 py-3 font-semibold">
+                <th key={column} className="break-words px-4 py-3 align-top font-semibold">
                   {column}
                 </th>
               ))}
@@ -468,7 +468,7 @@ function ScenarioTablePreview({ table }: { table: ScenarioSampleTable }) {
             {table.rows.map((row, rowIndex) => (
               <tr key={`${table.name}-${rowIndex}`}>
                 {table.columns.map((column, columnIndex) => (
-                  <td key={column} className="whitespace-nowrap px-4 py-3 font-mono">
+                  <td key={column} className="break-words px-4 py-3 align-top font-mono">
                     {String(row[columnIndex] ?? "NULL")}
                   </td>
                 ))}

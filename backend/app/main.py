@@ -13,14 +13,7 @@ from app.core.config import get_settings
 
 settings = get_settings()
 
-is_production = settings.environment in {"production", "prod"}
-
-app = FastAPI(
-    title=settings.app_name,
-    docs_url=None if is_production else "/docs",
-    redoc_url=None if is_production else "/redoc",
-    openapi_url=None if is_production else "/openapi.json",
-)
+app = FastAPI(title=settings.app_name)
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
@@ -29,13 +22,10 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("Referrer-Policy", "no-referrer")
-        response.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
         response.headers.setdefault(
             "Permissions-Policy",
             "camera=(), microphone=(), geolocation=(), payment=()",
         )
-        if "/auth/" in request.url.path or "/admin/" in request.url.path:
-            response.headers.setdefault("Cache-Control", "no-store")
         if request.url.scheme == "https":
             response.headers.setdefault(
                 "Strict-Transport-Security",
@@ -49,9 +39,9 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.backend_cors_origins,
     allow_origin_regex=settings.backend_cors_origin_regex,
-    allow_credentials=False,
+    allow_credentials=True,
     allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "X-Admin-Token"],
+    allow_headers=["*"],
 )
 app.include_router(health_router)
 app.include_router(auth_router)

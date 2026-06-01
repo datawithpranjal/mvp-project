@@ -3,7 +3,6 @@ from typing import Annotated
 
 from fastapi import APIRouter, Header, HTTPException
 
-from app.api.errors import internal_service_error
 from app.core.config import get_settings
 from app.schemas.email_capture import (
     EmailCaptureAdminResponse,
@@ -23,7 +22,10 @@ def capture_email(payload: EmailCaptureRequest) -> EmailCaptureResponse:
     try:
         return email_capture_store.capture(payload)
     except EmailCaptureStoreError as exc:
-        raise internal_service_error("Email capture is temporarily unavailable.", exc) from exc
+        raise HTTPException(
+            status_code=500,
+            detail=f"Email capture is temporarily unavailable. {exc}",
+        ) from exc
 
 
 @router.get("/api/v1/admin/email-captures", response_model=EmailCaptureAdminResponse)
@@ -32,7 +34,7 @@ def list_email_captures(
     x_admin_token: Annotated[str | None, Header()] = None,
     limit: int = 50,
 ) -> EmailCaptureAdminResponse:
-    if not settings.admin_api_token or len(settings.admin_api_token) < 32:
+    if not settings.admin_api_token:
         raise HTTPException(
             status_code=503,
             detail="Admin email capture access is not configured.",
@@ -44,7 +46,7 @@ def list_email_captures(
     try:
         return email_capture_store.list_captures(limit=limit)
     except EmailCaptureStoreError as exc:
-        raise internal_service_error(
-            "Email capture records are temporarily unavailable.",
-            exc,
+        raise HTTPException(
+            status_code=500,
+            detail=f"Email capture records are temporarily unavailable. {exc}",
         ) from exc

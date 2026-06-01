@@ -1,6 +1,6 @@
 import re
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, field_validator
 
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
@@ -13,14 +13,14 @@ def normalize_email(value: str) -> str:
 
 
 class ProfileFields(BaseModel):
-    full_name: str | None = Field(default=None, max_length=120)
-    role: str | None = Field(default=None, max_length=80)
-    experience_level: str | None = Field(default=None, max_length=80)
-    target_role: str | None = Field(default=None, max_length=120)
-    country: str | None = Field(default=None, max_length=80)
-    phone: str | None = Field(default=None, max_length=40)
-    linkedin_url: str | None = Field(default=None, max_length=240)
-    preparation_goal: str | None = Field(default=None, max_length=500)
+    full_name: str | None = None
+    role: str | None = None
+    experience_level: str | None = None
+    target_role: str | None = None
+    country: str | None = None
+    phone: str | None = None
+    linkedin_url: str | None = None
+    preparation_goal: str | None = None
 
     @field_validator("*", mode="before")
     @classmethod
@@ -32,8 +32,8 @@ class ProfileFields(BaseModel):
 
 
 class AuthRequestOtpRequest(ProfileFields):
-    email: str = Field(max_length=254)
-    mode: str = Field(default="signin", max_length=16)
+    email: str
+    mode: str = "signin"
 
     @field_validator("email")
     @classmethod
@@ -58,8 +58,8 @@ class AuthRequestOtpResponse(BaseModel):
 
 
 class AuthVerifyOtpRequest(BaseModel):
-    email: str = Field(max_length=254)
-    otp_code: str = Field(min_length=6, max_length=6)
+    email: str
+    otp_code: str
 
     @field_validator("email")
     @classmethod
