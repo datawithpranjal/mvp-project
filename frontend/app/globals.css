@@ -135,6 +135,38 @@ html[data-theme="light"] [class*="text-slate-500"] {
   color: #64748b;
 }
 
+html[data-theme="light"] [class*="text-teal-50"],
+html[data-theme="light"] [class*="text-teal-100"],
+html[data-theme="light"] [class*="text-teal-200"],
+html[data-theme="light"] [class*="text-teal-300"] {
+  color: #0f766e;
+}
+
+html[data-theme="light"] [class*="text-amber-50"],
+html[data-theme="light"] [class*="text-amber-100"],
+html[data-theme="light"] [class*="text-amber-200"],
+html[data-theme="light"] [class*="text-amber-300"] {
+  color: #92400e;
+}
+
+html[data-theme="light"] [class*="text-rose-50"],
+html[data-theme="light"] [class*="text-rose-100"],
+html[data-theme="light"] [class*="text-rose-200"],
+html[data-theme="light"] [class*="text-rose-300"] {
+  color: #be123c;
+}
+
+html[data-theme="light"] [class*="text-sky-50"],
+html[data-theme="light"] [class*="text-sky-100"],
+html[data-theme="light"] [class*="text-sky-200"],
+html[data-theme="light"] [class*="text-sky-300"] {
+  color: #0369a1;
+}
+
+html[data-theme="light"] [class~="text-white"] {
+  color: #172033;
+}
+
 html[data-theme="light"] [class*="bg-slate-950"],
 html[data-theme="light"] [class*="bg-slate-900"] {
   background-color: rgba(248, 250, 252, 0.76);
