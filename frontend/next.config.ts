@@ -8,7 +8,10 @@ const nextConfig: NextConfig = {
         key: "Content-Security-Policy",
         value: [
           "default-src 'self'",
-          "script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' https://cdn.jsdelivr.net",
+          // Next.js injects small inline bootstrap scripts during hydration.
+          // A nonce-based CSP is the stronger long-term option, but this keeps
+          // the deployed app functional while retaining the rest of the policy.
+          "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' https://cdn.jsdelivr.net",
           "worker-src 'self' blob:",
           "style-src 'self' 'unsafe-inline'",
           "img-src 'self' data: blob:",
