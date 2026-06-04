@@ -579,6 +579,15 @@ class AuthService:
             )
             """
         )
+        for table_name in (
+            "playground_users",
+            "auth_otps",
+            "auth_sessions",
+            "auth_otp_attempts",
+        ):
+            cursor.execute(
+                f"ALTER TABLE public.{table_name} ENABLE ROW LEVEL SECURITY"
+            )
 
     def _postgres_upsert_user(self, profile: dict[str, Any]) -> dict[str, Any]:
         try:

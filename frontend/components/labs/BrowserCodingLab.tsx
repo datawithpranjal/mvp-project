@@ -13,6 +13,7 @@ import {
   type CodingLab,
   type CodingLabTable,
   type CodingLabTrack,
+  type PythonTestCase,
   type SqlTestCase
 } from "../../lib/coding-labs";
 
@@ -482,6 +483,9 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
                 ) : null}
               </div>
             ) : null}
+            {selectedLab.track === "python" && selectedLab.testCases?.length ? (
+              <PythonExamplesPanel lab={selectedLab} testCases={selectedLab.testCases} />
+            ) : null}
           </div>
 
           {selectedLab.tables.length > 0 ? (
@@ -632,6 +636,82 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
       </section>
     </main>
   );
+}
+
+function PythonExamplesPanel({
+  lab,
+  testCases
+}: {
+  lab: CodingLab;
+  testCases: PythonTestCase[];
+}) {
+  return (
+    <div className="mt-4 rounded-3xl border border-sky-300/20 bg-sky-300/10 p-4">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-100">
+          Sample input and output
+        </p>
+        <p className="text-xs leading-5 text-slate-400">
+          Return the value from your function. Do not print it.
+        </p>
+      </div>
+      <div className="mt-4 grid gap-3">
+        {testCases.slice(0, 3).map((testCase) => (
+          <div
+            key={testCase.name}
+            className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/60"
+          >
+            <div className="border-b border-slate-800 px-4 py-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
+                {testCase.name}
+              </p>
+            </div>
+            <div className="grid gap-0 md:grid-cols-2">
+              <ExampleBlock
+                label="Input"
+                value={`${lab.functionName ?? "your_function"}(${testCase.args
+                  .map(formatPythonLiteral)
+                  .join(", ")})`}
+              />
+              <ExampleBlock label="Expected output" value={formatPythonLiteral(testCase.expected)} />
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="mt-3 text-xs leading-5 text-slate-400">
+        The browser tests may also include similar edge cases, so keep your solution general.
+      </p>
+    </div>
+  );
+}
+
+function ExampleBlock({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="border-t border-slate-800 p-4 first:border-t-0 md:border-l md:border-t-0 md:first:border-l-0">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+        {label}
+      </p>
+      <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-words text-xs leading-6 text-slate-200">
+        <code>{value}</code>
+      </pre>
+    </div>
+  );
+}
+
+function formatPythonLiteral(value: unknown): string {
+  if (value === null || typeof value === "undefined") return "None";
+  if (typeof value === "boolean") return value ? "True" : "False";
+  if (typeof value === "number") return Number.isFinite(value) ? String(value) : "None";
+  if (typeof value === "string") return JSON.stringify(value);
+  if (Array.isArray(value)) {
+    return `[${value.map(formatPythonLiteral).join(", ")}]`;
+  }
+  if (typeof value === "object") {
+    return `{${Object.entries(value as Record<string, unknown>)
+      .map(([key, item]) => `${JSON.stringify(key)}: ${formatPythonLiteral(item)}`)
+      .join(", ")}}`;
+  }
+  return JSON.stringify(value);
 }
 
 function Stat({ label, value }: { label: string; value: string | number }) {

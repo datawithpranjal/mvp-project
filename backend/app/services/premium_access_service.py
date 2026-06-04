@@ -96,6 +96,9 @@ class PremiumAccessService:
             )
             """
         )
+        cursor.execute(
+            "ALTER TABLE public.premium_access_grants ENABLE ROW LEVEL SECURITY"
+        )
 
     def _ensure_payment_request_schema(self, cursor: Any) -> None:
         cursor.execute(
@@ -111,6 +114,9 @@ class PremiumAccessService:
                 submitted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
             )
             """
+        )
+        cursor.execute(
+            "ALTER TABLE public.premium_payment_requests ENABLE ROW LEVEL SECURITY"
         )
 
     def _postgres_grant(self, record: dict[str, Any]) -> dict[str, Any]:

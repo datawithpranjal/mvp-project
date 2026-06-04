@@ -84,6 +84,9 @@ class EmailCaptureStore:
                         """
                     )
                     cursor.execute(
+                        "ALTER TABLE public.email_captures ENABLE ROW LEVEL SECURITY"
+                    )
+                    cursor.execute(
                         """
                         INSERT INTO email_captures (
                             email,

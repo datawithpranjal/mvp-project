@@ -211,6 +211,18 @@ NEXT_PUBLIC_API_BASE_URL=https://api.yourdomain.com
 - Login, signup, profile, OTPs, and sessions are backed by Postgres in production.
 - Premium checkout is still a manual MVP flow and the browser unlock is not a real payment-gateway verification.
 
+### Supabase security / RLS
+
+Supabase exposes tables in the `public` schema through its Data API, so production tables must have Row-Level Security enabled. Backend-owned tables in this project should not be directly readable or writable from the browser.
+
+If Supabase reports `rls_disabled_in_public`, run the hardening script in **Supabase Dashboard -> SQL Editor**:
+
+```text
+docs/SUPABASE_RLS_FIX.sql
+```
+
+The backend also enables RLS automatically when it creates its Postgres tables. Do not add public `anon` or `authenticated` policies for `email_captures`, `playground_users`, `auth_otps`, `auth_sessions`, `auth_otp_attempts`, `premium_access_grants`, or `premium_payment_requests`; those tables are accessed through the FastAPI backend only.
+
 ## Email Capture
 
 Production email captures are stored in the `email_captures` table. The backend creates the table automatically the first time a student submits an email.
