@@ -82,6 +82,12 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
     if (scenario.scenarioType === "output_mismatch") return "Explain and fix the mismatch";
     return "Write your answer";
   }, [scenario.scenarioType]);
+  const submitLabel = useMemo(() => {
+    if (canRunSql) return "Submit query";
+    if (scenario.scenarioType === "broken_pyspark") return "Submit fix";
+    if (scenario.scenarioType === "mcq") return "Submit answer";
+    return "Submit answer";
+  }, [canRunSql, scenario.scenarioType]);
 
   function revealHint() {
     const nextCount = Math.min(hintsRevealed + 1, scenario.hints.length);
@@ -169,6 +175,12 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
     }
   }
 
+  function goToNextScenario() {
+    if (!nextScenario) return;
+    router.push(`/scenarios/${nextScenario.slug}`);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   function tryFollowUp() {
     setActiveFollowUpIndex((current) => (current + 1) % Math.max(1, scenario.followUps.length));
     setEvaluation(null);
@@ -246,7 +258,27 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
                     : "Think before revealing the answer. A partial but honest attempt is better practice than reading the model solution first."}
                 </p>
               </div>
-              {draftMessage ? <p className="text-sm font-semibold text-teal-100">{draftMessage}</p> : null}
+              <div className="flex flex-wrap items-center gap-3">
+                {draftMessage ? (
+                  <p className="text-sm font-semibold text-teal-100">{draftMessage}</p>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={checkAnswer}
+                  disabled={isChecking}
+                  className="rounded-full bg-teal-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-teal-200 disabled:cursor-wait disabled:opacity-70"
+                >
+                  {isChecking ? "Submitting..." : submitLabel}
+                </button>
+                <button
+                  type="button"
+                  onClick={goToNextScenario}
+                  disabled={!nextScenario}
+                  className="rounded-full border border-teal-300/30 px-5 py-3 text-sm font-semibold text-teal-100 transition hover:bg-teal-300/10 disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-500"
+                >
+                  Next scenario
+                </button>
+              </div>
             </div>
 
             {scenario.scenarioType === "mcq" ? (
@@ -313,9 +345,17 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
                 type="button"
                 onClick={checkAnswer}
                 disabled={isChecking}
-                className="rounded-full bg-teal-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-teal-200"
+                className="rounded-full bg-teal-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-teal-200 disabled:cursor-wait disabled:opacity-70"
               >
-                {isChecking ? "Checking..." : canRunSql ? "Run & Check Answer" : "Check Answer"}
+                {isChecking ? "Submitting..." : submitLabel}
+              </button>
+              <button
+                type="button"
+                onClick={goToNextScenario}
+                disabled={!nextScenario}
+                className="rounded-full border border-teal-300/30 px-5 py-3 text-sm font-semibold text-teal-100 transition hover:bg-teal-300/10 disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-500"
+              >
+                Next scenario
               </button>
               <button
                 type="button"
