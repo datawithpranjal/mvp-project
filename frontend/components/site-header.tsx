@@ -57,7 +57,7 @@ export function SiteHeader() {
               >
                 Practice
               </button>
-              <div className="invisible absolute left-0 top-full z-50 w-[340px] translate-y-2 rounded-3xl border border-slate-800 bg-slate-950/95 p-3 opacity-0 shadow-2xl shadow-slate-950/40 backdrop-blur-xl transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
+              <div className="practice-menu invisible absolute left-0 top-full z-50 w-[340px] translate-y-2 rounded-3xl border p-3 opacity-0 transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
                 <PracticeLink href="/scenarios" title="Scenario Playground" detail="Broken pipelines, logs, and debugging cases" />
                 <PracticeLink href="/labs/sql" title="SQL Lab" detail="Interview SQL with real data and validation" />
                 <PracticeLink href="/labs/python" title="Python Lab" detail="Data engineering Python practice" />
