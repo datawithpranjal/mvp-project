@@ -1,6 +1,6 @@
 [
   {
-    "title": "CRM Profile Backfill Coverage: Profile Enrichment Join 1",
+    "title": "CRM Profile Backfill Coverage: Profile Enrichment Join 001",
     "difficulty": "beginner",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -131,7 +131,7 @@
     "isFree": true
   },
   {
-    "title": "Compensation Dashboard Tie Handling: Department Salary Ranking 2",
+    "title": "Compensation Dashboard Tie Handling: Workforce Ranking 002",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -300,7 +300,7 @@
     "isFree": true
   },
   {
-    "title": "Team Pay Ranking Reconciliation: Department Salary Ranking 3",
+    "title": "Team Pay Ranking Reconciliation: Workforce Ranking 003",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -469,7 +469,7 @@
     "isFree": true
   },
   {
-    "title": "Manager Org Salary Snapshot: Department Salary Ranking 4",
+    "title": "Manager Org Salary Snapshot: Workforce Ranking 004",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -638,7 +638,7 @@
     "isFree": true
   },
   {
-    "title": "Current Inventory Mart Rebuild: Warehouse Grain Reconciliation 5",
+    "title": "Current Inventory Mart Rebuild: Warehouse Grain Reconciliation 005",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -779,7 +779,7 @@
     "isFree": true
   },
   {
-    "title": "Payroll Top-Band Audit: Manager Hierarchy Exception 6",
+    "title": "Payroll Top-Band Audit: Workforce Ranking 006",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -948,7 +948,7 @@
     "isFree": true
   },
   {
-    "title": "CRM Email Duplicate Cleanup: Case-Normalized Duplicate Detection 7",
+    "title": "CRM Email Duplicate Cleanup: Case-Normalized Duplicate Detection 007",
     "difficulty": "beginner",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -1068,7 +1068,7 @@
     "isFree": true
   },
   {
-    "title": "Completed-Order Coverage Gap: NULL-Safe Missing Activity 8",
+    "title": "Completed-Order Coverage Gap: First Activity Retention 008",
     "difficulty": "beginner",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -1260,7 +1260,7 @@
     "isFree": true
   },
   {
-    "title": "Team Pay Ranking Reconciliation: Department Salary Ranking 9",
+    "title": "Team Pay Ranking Reconciliation: Workforce Ranking 009",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -1429,7 +1429,7 @@
     "isFree": true
   },
   {
-    "title": "Manager Org Salary Snapshot: Department Salary Ranking 10",
+    "title": "Manager Org Salary Snapshot: Workforce Ranking 010",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -1598,7 +1598,7 @@
     "isFree": true
   },
   {
-    "title": "Contact Identity Collision Report: Case-Normalized Duplicate Detection 11",
+    "title": "Contact Identity Collision Report: Case-Normalized Duplicate Detection 011",
     "difficulty": "beginner",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -1718,7 +1718,7 @@
     "isFree": true
   },
   {
-    "title": "Operations Temperature Drift Audit: Day-over-Day Sensor Trend 12",
+    "title": "Operations Temperature Drift Audit: Operations SLA Metric 012",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -1816,7 +1816,7 @@
     "isFree": true
   },
   {
-    "title": "Same-Day Delivery SLA Metric: Operations SLA Metric 13",
+    "title": "Same-Day Delivery SLA Metric: Operations SLA Metric 013",
     "difficulty": "beginner",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -1932,7 +1932,7 @@
     "isFree": true
   },
   {
-    "title": "First Activity Return Check: First Activity Retention 14",
+    "title": "First Activity Return Check: First Activity Retention 014",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -2072,7 +2072,7 @@
     "isFree": true
   },
   {
-    "title": "Activation Cohort Follow-up: First Activity Retention 15",
+    "title": "Activation Cohort Follow-up: First Activity Retention 015",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -2212,7 +2212,7 @@
     "isFree": true
   },
   {
-    "title": "User Day-One Retention Audit: First Activity Retention 16",
+    "title": "User Day-One Retention Audit: First Activity Retention 016",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -2352,7 +2352,7 @@
     "isFree": true
   },
   {
-    "title": "App Event Retention Rebuild: First Activity Retention 17",
+    "title": "App Event Retention Rebuild: First Activity Retention 017",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -2492,7 +2492,7 @@
     "isFree": true
   },
   {
-    "title": "Payroll Top-Band Audit: Department Salary Ranking 18",
+    "title": "Payroll Top-Band Audit: Workforce Ranking 018",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -2661,7 +2661,7 @@
     "isFree": true
   },
   {
-    "title": "Department Salary Band Leaderboard: Manager Hierarchy Exception 19",
+    "title": "Department Salary Band Leaderboard: Workforce Ranking 019",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -2830,7 +2830,7 @@
     "isFree": true
   },
   {
-    "title": "Warehouse Product Availability: Warehouse Grain Reconciliation 20",
+    "title": "Warehouse Product Availability: Warehouse Grain Reconciliation 020",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -2971,7 +2971,7 @@
     "isFree": true
   },
   {
-    "title": "Bin-Level Stock Rollup: Warehouse Grain Reconciliation 21",
+    "title": "Bin-Level Stock Rollup: Warehouse Grain Reconciliation 021",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -3112,7 +3112,7 @@
     "isFree": true
   },
   {
-    "title": "Manager Org Salary Snapshot: Bonus Eligibility Rule 22",
+    "title": "Manager Org Salary Snapshot: Workforce Ranking 022",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -3281,7 +3281,7 @@
     "isFree": true
   },
   {
-    "title": "Marketing Event Metric Fix: Department Salary Ranking 23",
+    "title": "Marketing Event Metric Fix: Conditional Engagement Metric 023",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -3391,7 +3391,7 @@
     "isFree": true
   },
   {
-    "title": "Payroll Top-Band Audit: Department Salary Ranking 24",
+    "title": "Payroll Top-Band Audit: Workforce Ranking 024",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -3560,7 +3560,7 @@
     "isFree": true
   },
   {
-    "title": "Department Salary Band Leaderboard: Distinct Enrollment Threshold 25",
+    "title": "Department Salary Band Leaderboard: Workforce Ranking 025",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -3729,7 +3729,7 @@
     "isFree": true
   },
   {
-    "title": "Cancelled Order Leakage Check: Completed-Order Revenue 26",
+    "title": "Cancelled Order Leakage Check: Completed-Order Revenue 026",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -3939,7 +3939,7 @@
     "isFree": true
   },
   {
-    "title": "Finance Threshold Reconciliation: Signed Finance Ledger 27",
+    "title": "Finance Threshold Reconciliation: Signed Finance Ledger 027",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -4067,7 +4067,7 @@
     "isFree": true
   },
   {
-    "title": "E-commerce Item Revenue Rebuild: Completed-Order Revenue 28",
+    "title": "E-commerce Item Revenue Rebuild: Completed-Order Revenue 028",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -4277,7 +4277,7 @@
     "isFree": true
   },
   {
-    "title": "Regional Enablement Filter: Reference Dimension Filter 29",
+    "title": "Regional Enablement Filter: Reference Dimension Filter 029",
     "difficulty": "beginner",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -4377,7 +4377,7 @@
     "isFree": true
   },
   {
-    "title": "Unique Student Rollup Drill: Distinct Enrollment Threshold 30",
+    "title": "Unique Student Rollup Drill: Distinct Enrollment Threshold 030",
     "difficulty": "beginner",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -4527,7 +4527,7 @@
     "isFree": true
   },
   {
-    "title": "Ad CTR Metric Rebuild: Conditional Engagement Metric 31",
+    "title": "Ad CTR Metric Rebuild: Conditional Engagement Metric 031",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -4637,7 +4637,7 @@
     "isFree": false
   },
   {
-    "title": "Warehouse Product Availability: Warehouse Grain Reconciliation 32",
+    "title": "Warehouse Product Availability: Warehouse Grain Reconciliation 032",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -4778,7 +4778,7 @@
     "isFree": false
   },
   {
-    "title": "Country Threshold Logic Fix: Reference Dimension Filter 33",
+    "title": "Country Threshold Logic Fix: Reference Dimension Filter 033",
     "difficulty": "beginner",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -4878,7 +4878,7 @@
     "isFree": true
   },
   {
-    "title": "Zero-Stock Snapshot Reconciliation: Warehouse Grain Reconciliation 34",
+    "title": "Zero-Stock Snapshot Reconciliation: Warehouse Grain Reconciliation 034",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -5019,7 +5019,7 @@
     "isFree": false
   },
   {
-    "title": "Founder Dashboard Revenue Fix: Completed-Order Revenue 35",
+    "title": "Founder Dashboard Revenue Fix: Completed-Order Revenue 035",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -5229,7 +5229,7 @@
     "isFree": false
   },
   {
-    "title": "Warehouse Availability Guardrail: Warehouse Grain Reconciliation 36",
+    "title": "Warehouse Availability Guardrail: Warehouse Grain Reconciliation 036",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -5370,7 +5370,7 @@
     "isFree": false
   },
   {
-    "title": "Inventory Snapshot Grain Fix: Warehouse Grain Reconciliation 37",
+    "title": "Inventory Snapshot Grain Fix: Warehouse Grain Reconciliation 037",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -5511,7 +5511,7 @@
     "isFree": false
   },
   {
-    "title": "Warehouse Product Availability: Warehouse Grain Reconciliation 38",
+    "title": "Warehouse Product Availability: Warehouse Grain Reconciliation 038",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -5652,7 +5652,7 @@
     "isFree": false
   },
   {
-    "title": "Bin-Level Stock Rollup: Warehouse Grain Reconciliation 39",
+    "title": "Bin-Level Stock Rollup: Warehouse Grain Reconciliation 039",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -5793,7 +5793,7 @@
     "isFree": false
   },
   {
-    "title": "OR Rule Reporting Drill: Department Salary Ranking 40",
+    "title": "OR Rule Reporting Drill: Reference Dimension Filter 040",
     "difficulty": "beginner",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -5893,7 +5893,7 @@
     "isFree": true
   },
   {
-    "title": "HR Leaderboard Window Function: Department Salary Ranking 41",
+    "title": "HR Leaderboard Window Function: Workforce Ranking 041",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -6062,7 +6062,7 @@
     "isFree": false
   },
   {
-    "title": "Unique Student Rollup Drill: Manager Hierarchy Exception 42",
+    "title": "Unique Student Rollup Drill: Distinct Enrollment Threshold 042",
     "difficulty": "beginner",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -6212,7 +6212,7 @@
     "isFree": true
   },
   {
-    "title": "Inventory Snapshot Grain Fix: Warehouse Grain Reconciliation 43",
+    "title": "Inventory Snapshot Grain Fix: Warehouse Grain Reconciliation 043",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -6353,7 +6353,7 @@
     "isFree": false
   },
   {
-    "title": "Reference Dimension Filter Audit: Reference Dimension Filter 44",
+    "title": "Reference Dimension Filter Audit: Reference Dimension Filter 044",
     "difficulty": "beginner",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -6453,7 +6453,7 @@
     "isFree": true
   },
   {
-    "title": "Bin-Level Stock Rollup: Warehouse Grain Reconciliation 45",
+    "title": "Bin-Level Stock Rollup: Warehouse Grain Reconciliation 045",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -6594,7 +6594,7 @@
     "isFree": false
   },
   {
-    "title": "Manager Org Salary Snapshot: Department Salary Ranking 46",
+    "title": "Manager Org Salary Snapshot: Workforce Ranking 046",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -6763,7 +6763,7 @@
     "isFree": false
   },
   {
-    "title": "Founder Dashboard Revenue Fix: Completed-Order Revenue 47",
+    "title": "Founder Dashboard Revenue Fix: Completed-Order Revenue 047",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -6973,7 +6973,7 @@
     "isFree": false
   },
   {
-    "title": "Zero-Impression CTR Guardrail: Conditional Engagement Metric 48",
+    "title": "Zero-Impression CTR Guardrail: Conditional Engagement Metric 048",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -7083,7 +7083,7 @@
     "isFree": false
   },
   {
-    "title": "Completed-Order Revenue Mart: Completed-Order Revenue 49",
+    "title": "Completed-Order Revenue Mart: Completed-Order Revenue 049",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -7293,7 +7293,7 @@
     "isFree": false
   },
   {
-    "title": "Cancelled Order Leakage Check: Completed-Order Revenue 50",
+    "title": "Cancelled Order Leakage Check: Completed-Order Revenue 050",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -7503,7 +7503,7 @@
     "isFree": false
   },
   {
-    "title": "Product Revenue Grain Audit: Completed-Order Revenue 51",
+    "title": "Product Revenue Grain Audit: Completed-Order Revenue 051",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -7713,7 +7713,7 @@
     "isFree": false
   },
   {
-    "title": "Manager Org Salary Snapshot: Workforce Ranking 52",
+    "title": "Manager Org Salary Snapshot: Workforce Ranking 052",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -7882,7 +7882,7 @@
     "isFree": false
   },
   {
-    "title": "HR Leaderboard Window Function: Workforce Ranking 53",
+    "title": "HR Leaderboard Window Function: Workforce Ranking 053",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -8051,7 +8051,7 @@
     "isFree": false
   },
   {
-    "title": "Payroll Top-Band Audit: Workforce Ranking 54",
+    "title": "Payroll Top-Band Audit: Workforce Ranking 054",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -8220,7 +8220,7 @@
     "isFree": false
   },
   {
-    "title": "Completed-Order Revenue Mart: Completed-Order Revenue 55",
+    "title": "Completed-Order Revenue Mart: Completed-Order Revenue 055",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -8430,7 +8430,7 @@
     "isFree": false
   },
   {
-    "title": "Cancelled Order Leakage Check: Completed-Order Revenue 56",
+    "title": "Cancelled Order Leakage Check: Completed-Order Revenue 056",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -8640,7 +8640,7 @@
     "isFree": false
   },
   {
-    "title": "Product Revenue Grain Audit: Completed-Order Revenue 57",
+    "title": "Product Revenue Grain Audit: Completed-Order Revenue 057",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -8850,7 +8850,7 @@
     "isFree": false
   },
   {
-    "title": "User Day-One Retention Audit: First Activity Retention 58",
+    "title": "User Day-One Retention Audit: First Activity Retention 058",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -8990,7 +8990,7 @@
     "isFree": false
   },
   {
-    "title": "Current Inventory Mart Rebuild: Warehouse Grain Reconciliation 59",
+    "title": "Current Inventory Mart Rebuild: Warehouse Grain Reconciliation 059",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -9131,7 +9131,7 @@
     "isFree": false
   },
   {
-    "title": "Dimension Qualification Extract: Reference Dimension Filter 60",
+    "title": "Dimension Qualification Extract: Reference Dimension Filter 060",
     "difficulty": "beginner",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -9231,7 +9231,7 @@
     "isFree": true
   },
   {
-    "title": "Distinct Enrollment Threshold: Department Salary Ranking 61",
+    "title": "Distinct Enrollment Threshold: Distinct Enrollment Threshold 061",
     "difficulty": "beginner",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -9381,7 +9381,7 @@
     "isFree": true
   },
   {
-    "title": "Campaign Click-Through Audit: Manager Hierarchy Exception 62",
+    "title": "Campaign Click-Through Audit: Conditional Engagement Metric 062",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -9491,7 +9491,7 @@
     "isFree": false
   },
   {
-    "title": "Delivery Date Quality Audit: First Activity Retention 63",
+    "title": "Delivery Date Quality Audit: Operations SLA Metric 063",
     "difficulty": "beginner",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -9607,7 +9607,7 @@
     "isFree": true
   },
   {
-    "title": "E-commerce Item Revenue Rebuild: Completed-Order Revenue 64",
+    "title": "E-commerce Item Revenue Rebuild: Completed-Order Revenue 064",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -9817,7 +9817,7 @@
     "isFree": false
   },
   {
-    "title": "Marketing Event Metric Fix: Manager Hierarchy Exception 65",
+    "title": "Marketing Event Metric Fix: Conditional Engagement Metric 065",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -9927,7 +9927,7 @@
     "isFree": false
   },
   {
-    "title": "New User Return Signal: First Activity Retention 66",
+    "title": "New User Return Signal: First Activity Retention 066",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -10067,7 +10067,7 @@
     "isFree": false
   },
   {
-    "title": "Next-Day Product Retention: First Activity Retention 67",
+    "title": "Next-Day Product Retention: First Activity Retention 067",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -10207,7 +10207,7 @@
     "isFree": false
   },
   {
-    "title": "Campaign Click-Through Audit: Conditional Engagement Metric 68",
+    "title": "Campaign Click-Through Audit: Conditional Engagement Metric 068",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -10317,7 +10317,7 @@
     "isFree": false
   },
   {
-    "title": "Impression Denominator Check: Conditional Engagement Metric 69",
+    "title": "Impression Denominator Check: Conditional Engagement Metric 069",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -10427,7 +10427,7 @@
     "isFree": false
   },
   {
-    "title": "E-commerce Item Revenue Rebuild: Completed-Order Revenue 70",
+    "title": "E-commerce Item Revenue Rebuild: Completed-Order Revenue 070",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -10637,7 +10637,7 @@
     "isFree": false
   },
   {
-    "title": "Founder Dashboard Revenue Fix: Completed-Order Revenue 71",
+    "title": "Founder Dashboard Revenue Fix: Completed-Order Revenue 071",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -10847,7 +10847,7 @@
     "isFree": false
   },
   {
-    "title": "Order Status Revenue Guardrail: Completed-Order Revenue 72",
+    "title": "Order Status Revenue Guardrail: Completed-Order Revenue 072",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -11057,7 +11057,7 @@
     "isFree": false
   },
   {
-    "title": "Same-Day Delivery SLA Metric: Operations SLA Metric 73",
+    "title": "Same-Day Delivery SLA Metric: Operations SLA Metric 073",
     "difficulty": "beginner",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -11173,7 +11173,7 @@
     "isFree": true
   },
   {
-    "title": "Logistics Promise Reconciliation: Operations SLA Metric 74",
+    "title": "Logistics Promise Reconciliation: Operations SLA Metric 074",
     "difficulty": "beginner",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -11289,7 +11289,7 @@
     "isFree": true
   },
   {
-    "title": "Team Pay Ranking Reconciliation: Workforce Ranking 75",
+    "title": "Team Pay Ranking Reconciliation: Workforce Ranking 075",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -11458,7 +11458,7 @@
     "isFree": false
   },
   {
-    "title": "Account Movement Exception Report: Department Salary Ranking 76",
+    "title": "Account Movement Exception Report: Signed Finance Ledger 076",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -11586,7 +11586,7 @@
     "isFree": false
   },
   {
-    "title": "Current Inventory Mart Rebuild: Warehouse Grain Reconciliation 77",
+    "title": "Current Inventory Mart Rebuild: Warehouse Grain Reconciliation 077",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -11727,7 +11727,7 @@
     "isFree": false
   },
   {
-    "title": "Shipment Timeliness Metric: Operations SLA Metric 78",
+    "title": "Shipment Timeliness Metric: Operations SLA Metric 078",
     "difficulty": "beginner",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -11843,7 +11843,7 @@
     "isFree": true
   },
   {
-    "title": "Inventory Snapshot Grain Fix: Department Salary Ranking 79",
+    "title": "Inventory Snapshot Grain Fix: Warehouse Grain Reconciliation 079",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -11984,7 +11984,7 @@
     "isFree": false
   },
   {
-    "title": "Campaign Click-Through Audit: Conditional Engagement Metric 80",
+    "title": "Campaign Click-Through Audit: Conditional Engagement Metric 080",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -12094,7 +12094,7 @@
     "isFree": false
   },
   {
-    "title": "Team Pay Ranking Reconciliation: Workforce Ranking 81",
+    "title": "Team Pay Ranking Reconciliation: Workforce Ranking 081",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -12263,7 +12263,7 @@
     "isFree": false
   },
   {
-    "title": "Zero-Stock Snapshot Reconciliation: Manager Hierarchy Exception 82",
+    "title": "Zero-Stock Snapshot Reconciliation: Warehouse Grain Reconciliation 082",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -12404,7 +12404,7 @@
     "isFree": false
   },
   {
-    "title": "Marketing Event Metric Fix: Conditional Engagement Metric 83",
+    "title": "Marketing Event Metric Fix: Conditional Engagement Metric 083",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -12514,7 +12514,7 @@
     "isFree": false
   },
   {
-    "title": "Order Status Revenue Guardrail: Completed-Order Revenue 84",
+    "title": "Order Status Revenue Guardrail: Completed-Order Revenue 084",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -12724,7 +12724,7 @@
     "isFree": false
   },
   {
-    "title": "Inventory Snapshot Grain Fix: Warehouse Grain Reconciliation 85",
+    "title": "Inventory Snapshot Grain Fix: Warehouse Grain Reconciliation 085",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -12865,7 +12865,7 @@
     "isFree": false
   },
   {
-    "title": "Compensation Dashboard Tie Handling: Manager Hierarchy Exception 86",
+    "title": "Compensation Dashboard Tie Handling: Workforce Ranking 086",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -13034,7 +13034,7 @@
     "isFree": false
   },
   {
-    "title": "Student Count Retry Guardrail: Distinct Enrollment Threshold 87",
+    "title": "Student Count Retry Guardrail: Distinct Enrollment Threshold 087",
     "difficulty": "beginner",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -13184,7 +13184,7 @@
     "isFree": true
   },
   {
-    "title": "Zero-Stock Snapshot Reconciliation: Warehouse Grain Reconciliation 88",
+    "title": "Zero-Stock Snapshot Reconciliation: Warehouse Grain Reconciliation 088",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -13325,7 +13325,7 @@
     "isFree": false
   },
   {
-    "title": "Daily Sensor Movement Report: Day-over-Day Sensor Trend 89",
+    "title": "Daily Sensor Movement Report: Operations SLA Metric 089",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -13423,7 +13423,7 @@
     "isFree": false
   },
   {
-    "title": "Payroll Top-Band Audit: Workforce Ranking 90",
+    "title": "Payroll Top-Band Audit: Workforce Ranking 090",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -13592,7 +13592,7 @@
     "isFree": false
   },
   {
-    "title": "Inventory Snapshot Grain Fix: Warehouse Grain Reconciliation 91",
+    "title": "Inventory Snapshot Grain Fix: Warehouse Grain Reconciliation 091",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -13733,7 +13733,7 @@
     "isFree": false
   },
   {
-    "title": "Logistics Promise Reconciliation: Operations SLA Metric 92",
+    "title": "Logistics Promise Reconciliation: Operations SLA Metric 092",
     "difficulty": "beginner",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -13849,7 +13849,7 @@
     "isFree": true
   },
   {
-    "title": "Impression Denominator Check: Conditional Engagement Metric 93",
+    "title": "Impression Denominator Check: Conditional Engagement Metric 093",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -13959,7 +13959,7 @@
     "isFree": false
   },
   {
-    "title": "E-commerce Item Revenue Rebuild: Completed-Order Revenue 94",
+    "title": "E-commerce Item Revenue Rebuild: Completed-Order Revenue 094",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -14169,7 +14169,7 @@
     "isFree": false
   },
   {
-    "title": "Monthly Ledger Direction Check: Signed Finance Ledger 95",
+    "title": "Monthly Ledger Direction Check: Signed Finance Ledger 095",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -14297,7 +14297,7 @@
     "isFree": false
   },
   {
-    "title": "Dimension Qualification Extract: Reference Dimension Filter 96",
+    "title": "Dimension Qualification Extract: Reference Dimension Filter 096",
     "difficulty": "beginner",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -14397,7 +14397,7 @@
     "isFree": true
   },
   {
-    "title": "Department Salary Band Leaderboard: Distinct Enrollment Threshold 97",
+    "title": "Department Salary Band Leaderboard: Workforce Ranking 097",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -14566,7 +14566,7 @@
     "isFree": false
   },
   {
-    "title": "First Activity Return Check: First Activity Retention 98",
+    "title": "First Activity Return Check: First Activity Retention 098",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -14706,7 +14706,7 @@
     "isFree": false
   },
   {
-    "title": "Product Revenue Grain Audit: Completed-Order Revenue 99",
+    "title": "Product Revenue Grain Audit: Completed-Order Revenue 099",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -14916,7 +14916,7 @@
     "isFree": false
   },
   {
-    "title": "Zero-Stock Snapshot Reconciliation: Department Salary Ranking 100",
+    "title": "Zero-Stock Snapshot Reconciliation: Warehouse Grain Reconciliation 100",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -15774,7 +15774,7 @@
     "isFree": false
   },
   {
-    "title": "Delivery Date Quality Audit: Department Salary Ranking 105",
+    "title": "Delivery Date Quality Audit: Operations SLA Metric 105",
     "difficulty": "beginner",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -17432,7 +17432,7 @@
     "isFree": false
   },
   {
-    "title": "Reference Dimension Filter Audit: Department Salary Ranking 116",
+    "title": "Reference Dimension Filter Audit: Reference Dimension Filter 116",
     "difficulty": "beginner",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -18889,7 +18889,7 @@
     "isFree": false
   },
   {
-    "title": "Founder Dashboard Revenue Fix: Department Salary Ranking 125",
+    "title": "Founder Dashboard Revenue Fix: Completed-Order Revenue 125",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -19099,7 +19099,7 @@
     "isFree": false
   },
   {
-    "title": "Payroll Top-Band Audit: Manager Hierarchy Exception 126",
+    "title": "Payroll Top-Band Audit: Workforce Ranking 126",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -19734,7 +19734,7 @@
     "isFree": false
   },
   {
-    "title": "No-Purchase Customer Segment: NULL-Safe Missing Activity 130",
+    "title": "No-Purchase Customer Segment: First Activity Retention 130",
     "difficulty": "beginner",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -19926,7 +19926,7 @@
     "isFree": true
   },
   {
-    "title": "Order Absence Reconciliation: NULL-Safe Missing Activity 131",
+    "title": "Order Absence Reconciliation: First Activity Retention 131",
     "difficulty": "beginner",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -21710,7 +21710,7 @@
     "isFree": true
   },
   {
-    "title": "Payroll Top-Band Audit: Manager Hierarchy Exception 144",
+    "title": "Payroll Top-Band Audit: Workforce Ranking 144",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -24368,7 +24368,7 @@
     "isFree": false
   },
   {
-    "title": "Manager Org Salary Snapshot: Bonus Eligibility Rule 160",
+    "title": "Manager Org Salary Snapshot: Workforce Ranking 160",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -24537,7 +24537,7 @@
     "isFree": false
   },
   {
-    "title": "HR Leaderboard Window Function: Department Salary Ranking 161",
+    "title": "HR Leaderboard Window Function: Workforce Ranking 161",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -24846,7 +24846,7 @@
     "isFree": false
   },
   {
-    "title": "Department Salary Band Leaderboard: Department Salary Ranking 163",
+    "title": "Department Salary Band Leaderboard: Workforce Ranking 163",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -25125,7 +25125,7 @@
     "isFree": false
   },
   {
-    "title": "Country Threshold Logic Fix: First Activity Retention 165",
+    "title": "Country Threshold Logic Fix: Reference Dimension Filter 165",
     "difficulty": "beginner",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -25425,7 +25425,7 @@
     "isFree": true
   },
   {
-    "title": "CRM Reactivation Candidate Pull: NULL-Safe Missing Activity 168",
+    "title": "CRM Reactivation Candidate Pull: First Activity Retention 168",
     "difficulty": "beginner",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -25758,7 +25758,7 @@
     "isFree": false
   },
   {
-    "title": "Compensation Dashboard Tie Handling: Manager Hierarchy Exception 170",
+    "title": "Compensation Dashboard Tie Handling: Workforce Ranking 170",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -25927,7 +25927,7 @@
     "isFree": false
   },
   {
-    "title": "Team Pay Ranking Reconciliation: Distinct Enrollment Threshold 171",
+    "title": "Team Pay Ranking Reconciliation: Workforce Ranking 171",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -28247,7 +28247,7 @@
     "isFree": false
   },
   {
-    "title": "Department Salary Band Leaderboard: Department Salary Ranking 187",
+    "title": "Department Salary Band Leaderboard: Workforce Ranking 187",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -28416,7 +28416,7 @@
     "isFree": false
   },
   {
-    "title": "Campaign Click-Through Audit: Department Salary Ranking 188",
+    "title": "Campaign Click-Through Audit: Conditional Engagement Metric 188",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -29628,7 +29628,7 @@
     "isFree": false
   },
   {
-    "title": "HR Leaderboard Window Function: Department Salary Ranking 197",
+    "title": "HR Leaderboard Window Function: Workforce Ranking 197",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -32941,7 +32941,7 @@
     "isFree": false
   },
   {
-    "title": "Compensation Dashboard Tie Handling: Department Salary Ranking 218",
+    "title": "Compensation Dashboard Tie Handling: Workforce Ranking 218",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -33110,7 +33110,7 @@
     "isFree": false
   },
   {
-    "title": "Team Pay Ranking Reconciliation: Department Salary Ranking 219",
+    "title": "Team Pay Ranking Reconciliation: Workforce Ranking 219",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -33779,7 +33779,7 @@
     "isFree": false
   },
   {
-    "title": "Distinct Enrollment Threshold: Manager Hierarchy Exception 223",
+    "title": "Distinct Enrollment Threshold: Distinct Enrollment Threshold 223",
     "difficulty": "beginner",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -35038,7 +35038,7 @@
     "isFree": false
   },
   {
-    "title": "User Day-One Retention Audit: Department Salary Ranking 232",
+    "title": "User Day-One Retention Audit: First Activity Retention 232",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -35435,7 +35435,7 @@
     "isFree": false
   },
   {
-    "title": "Department Salary Band Leaderboard: Manager Hierarchy Exception 235",
+    "title": "Department Salary Band Leaderboard: Workforce Ranking 235",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -35814,7 +35814,7 @@
     "isFree": false
   },
   {
-    "title": "Finance Threshold Reconciliation: Department Salary Ranking 237",
+    "title": "Finance Threshold Reconciliation: Signed Finance Ledger 237",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -35942,7 +35942,7 @@
     "isFree": false
   },
   {
-    "title": "Account Movement Exception Report: Department Salary Ranking 238",
+    "title": "Account Movement Exception Report: Signed Finance Ledger 238",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [
@@ -36590,7 +36590,7 @@
     "isFree": false
   },
   {
-    "title": "Campaign Click-Through Audit: Manager Hierarchy Exception 242",
+    "title": "Campaign Click-Through Audit: Conditional Engagement Metric 242",
     "difficulty": "intermediate",
     "section": "SQL Coverage Pack",
     "topicTags": [

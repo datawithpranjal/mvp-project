@@ -1139,11 +1139,30 @@
     "businessContext": "A curated customer table receives multiple records per customer from upstream CRM loads, including retries and out-of-order updates.",
     "problemStatement": "Business users report duplicate customers in reporting and the metrics team is getting inconsistent counts.",
     "requirement": "Diagnose and fix the issue: Latest-record deduplication in SQL",
-    "schema": "",
-    "sampleInput": "",
-    "brokenCode": "SELECT\n  o.order_id,\n  SUM(p.payment_amount) - COALESCE(SUM(r.refund_amount), 0) AS net_revenue\nFROM orders o\nLEFT JOIN payments p ON o.order_id = p.order_id\nLEFT JOIN refunds r ON o.order_id = r.order_id\nGROUP BY o.order_id;",
+    "schema": "customer_updates(customer_id, customer_name, email, updated_at, ingestion_id)",
+    "sampleInput": "customer_id | customer_name | email | updated_at | ingestion_id\n101 | Asha | old@example.com | 2026-05-01 10:00:00 | 1\n101 | Asha | asha@example.com | 2026-05-02 09:00:00 | 2\n102 | Ben | ben-old@example.com | 2026-05-03 12:00:00 | 3\n102 | Ben | ben@example.com | 2026-05-03 12:00:00 | 4",
+    "brokenCode": "SELECT\n  customer_id,\n  customer_name,\n  email,\n  updated_at\nFROM customer_updates;",
     "actualOutput": "",
-    "expectedOutput": "",
+    "expectedOutput": "customer_id | customer_name | email | updated_at\n101 | Asha | asha@example.com | 2026-05-02 09:00:00\n102 | Ben | ben@example.com | 2026-05-03 12:00:00",
+    "sampleTables": [
+      {
+        "name": "customer_updates",
+        "columns": [
+          "customer_id",
+          "customer_name",
+          "email",
+          "updated_at",
+          "ingestion_id"
+        ],
+        "rows": [
+          [101, "Asha", "old@example.com", "2026-05-01 10:00:00", 1],
+          [101, "Asha", "asha@example.com", "2026-05-02 09:00:00", 2],
+          [102, "Ben", "ben-old@example.com", "2026-05-03 12:00:00", 3],
+          [102, "Ben", "ben@example.com", "2026-05-03 12:00:00", 4]
+        ]
+      }
+    ],
+    "expectedSql": "WITH ranked AS (\n  SELECT\n    customer_id,\n    customer_name,\n    email,\n    updated_at,\n    ROW_NUMBER() OVER (\n      PARTITION BY customer_id\n      ORDER BY updated_at DESC, ingestion_id DESC\n    ) AS row_number\n  FROM customer_updates\n)\nSELECT customer_id, customer_name, email, updated_at\nFROM ranked\nWHERE row_number = 1;",
     "logs": "Business users report duplicate customers in reporting and the metrics team is getting inconsistent\ncounts.",
     "mcqOptions": [],
     "hints": [
@@ -1182,7 +1201,7 @@
     "slug": "the-null-trap",
     "domain": "sql",
     "difficulty": "beginner",
-    "scenarioType": "log_analysis",
+    "scenarioType": "broken_sql",
     "isFree": false,
     "estimatedMinutes": 20,
     "tags": [
@@ -1194,11 +1213,24 @@
     "businessContext": "A data analyst writes a query to find customers who never placed an order by using NOT IN against the orders table.",
     "problemStatement": "The result set comes back empty or much smaller than expected, even though everyone knows there are customers without orders.",
     "requirement": "Diagnose and fix the issue: NOT IN returns unexpected results because of NULL handling",
-    "schema": "",
-    "sampleInput": "",
+    "schema": "customers(customer_id, customer_name)\norders(order_id, customer_id)",
+    "sampleInput": "customers\n1 | Asha\n2 | Ben\n3 | Chen\n\norders\n101 | 1\n102 | NULL",
     "brokenCode": "SELECT c.customer_id\nFROM customers c\nWHERE c.customer_id NOT IN (\n  SELECT customer_id\n  FROM orders\n);",
-    "actualOutput": "",
-    "expectedOutput": "",
+    "actualOutput": "No rows returned because the NOT IN list contains NULL.",
+    "expectedOutput": "customer_id | customer_name\n2 | Ben\n3 | Chen",
+    "sampleTables": [
+      {
+        "name": "customers",
+        "columns": ["customer_id", "customer_name"],
+        "rows": [[1, "Asha"], [2, "Ben"], [3, "Chen"]]
+      },
+      {
+        "name": "orders",
+        "columns": ["order_id", "customer_id"],
+        "rows": [[101, 1], [102, null]]
+      }
+    ],
+    "expectedSql": "SELECT c.customer_id, c.customer_name\nFROM customers c\nWHERE NOT EXISTS (\n  SELECT 1\n  FROM orders o\n  WHERE o.customer_id = c.customer_id\n);",
     "logs": "The result set comes back empty or much smaller than expected, even though everyone knows\nthere are customers without orders.",
     "mcqOptions": [],
     "hints": [
@@ -1303,11 +1335,29 @@
     "businessContext": "A sales dashboard joins an orders fact table with order_items and promotions tables. Revenue suddenly looks too high after a model change.",
     "problemStatement": "The SQL runs fine, but totals are inflated because the join grain is misunderstood.",
     "requirement": "Diagnose and fix the issue: Join pattern causes duplicated fact rows",
-    "schema": "",
-    "sampleInput": "",
+    "schema": "orders(order_id)\npayments(payment_id, order_id, payment_amount)\nrefunds(refund_id, order_id, refund_amount)",
+    "sampleInput": "Order 1 has two payment rows and two refund rows. Joining both child tables directly creates four joined rows and multiplies both amounts.",
     "brokenCode": "SELECT\n  o.order_id,\n  SUM(p.payment_amount) - COALESCE(SUM(r.refund_amount), 0) AS net_revenue\nFROM orders o\nLEFT JOIN payments p ON o.order_id = p.order_id\nLEFT JOIN refunds r ON o.order_id = r.order_id\nGROUP BY o.order_id;",
-    "actualOutput": "",
-    "expectedOutput": "",
+    "actualOutput": "order_id | net_revenue\n1 | 280",
+    "expectedOutput": "order_id | net_revenue\n1 | 70\n2 | 50",
+    "sampleTables": [
+      {
+        "name": "orders",
+        "columns": ["order_id"],
+        "rows": [[1], [2]]
+      },
+      {
+        "name": "payments",
+        "columns": ["payment_id", "order_id", "payment_amount"],
+        "rows": [[1, 1, 60], [2, 1, 40], [3, 2, 50]]
+      },
+      {
+        "name": "refunds",
+        "columns": ["refund_id", "order_id", "refund_amount"],
+        "rows": [[1, 1, 20], [2, 1, 10]]
+      }
+    ],
+    "expectedSql": "WITH payment_totals AS (\n  SELECT order_id, SUM(payment_amount) AS paid_amount\n  FROM payments\n  GROUP BY order_id\n), refund_totals AS (\n  SELECT order_id, SUM(refund_amount) AS refunded_amount\n  FROM refunds\n  GROUP BY order_id\n)\nSELECT\n  o.order_id,\n  COALESCE(p.paid_amount, 0) - COALESCE(r.refunded_amount, 0) AS net_revenue\nFROM orders o\nLEFT JOIN payment_totals p ON p.order_id = o.order_id\nLEFT JOIN refund_totals r ON r.order_id = o.order_id;",
     "logs": "The SQL runs fine, but totals are inflated because the join grain is misunderstood.",
     "mcqOptions": [],
     "hints": [
@@ -1346,7 +1396,7 @@
     "slug": "the-query-that-became-slow-overnight",
     "domain": "sql",
     "difficulty": "intermediate",
-    "scenarioType": "broken_sql",
+    "scenarioType": "log_analysis",
     "isFree": false,
     "estimatedMinutes": 20,
     "tags": [
@@ -3804,7 +3854,7 @@
     "slug": "the-time-travel-misread",
     "domain": "sql",
     "difficulty": "beginner",
-    "scenarioType": "broken_sql",
+    "scenarioType": "log_analysis",
     "isFree": false,
     "estimatedMinutes": 20,
     "tags": [

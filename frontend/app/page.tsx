@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { CoreLabGrid } from "../components/core-lab-grid";
+import { TrackedLink } from "../components/tracked-link";
 import {
   AUDIENCE_SEGMENTS,
   BRAND,
@@ -8,11 +9,8 @@ import {
   PRODUCT_PREVIEW_STEPS,
   TRUST_SIGNALS
 } from "../lib/product";
-import { getRecommendedScenarioSlug } from "../lib/scenarios";
 
 export default function HomePage() {
-  const recommendedScenarioSlug = getRecommendedScenarioSlug();
-
   return (
     <main className="mx-auto min-h-screen max-w-7xl px-6 py-10 sm:px-10">
       <section className="panel relative overflow-hidden rounded-[2rem] p-7 sm:p-10 lg:p-12">
@@ -26,25 +24,29 @@ export default function HomePage() {
               Practice Data Engineering like real work.
             </h1>
             <p className="mt-6 max-w-3xl text-base leading-8 text-slate-300 sm:text-lg">
-              Solve SQL, PySpark, Airflow, AWS, and production debugging scenarios built
-              around real interview and workplace problems.
+              Practice real data engineering scenarios, get feedback, and build
+              interview-ready judgment across SQL, PySpark, Airflow, AWS, and production
+              debugging.
             </p>
             <p className="mt-4 text-sm font-semibold uppercase tracking-[0.22em] text-teal-200">
               {BRAND.trustLine}
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link
-                href={`/scenarios/${recommendedScenarioSlug}`}
+              <TrackedLink
+                href="/onboarding"
+                event="homepage_start_clicked"
                 className="rounded-full bg-amber-300 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-200"
               >
-                Start Free SQL Scenario
-              </Link>
-              <Link
-                href="/scenarios"
+                Start Free Practice
+              </TrackedLink>
+              <TrackedLink
+                href="/labs"
+                event="homepage_start_clicked"
+                eventPayload={{ choice: "explore_labs" }}
                 className="rounded-full border border-slate-700 bg-slate-950/30 px-6 py-3 text-sm font-semibold text-slate-100 transition hover:border-teal-300/50 hover:text-teal-100"
               >
-                Explore Scenario Library
-              </Link>
+                Explore Labs
+              </TrackedLink>
             </div>
           </div>
           <ProductPreview />
@@ -81,17 +83,48 @@ export default function HomePage() {
             How it works
           </p>
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
-            {PRODUCT_PREVIEW_STEPS.map((step, index) => (
+            {[
+              ["Pick your goal", "Tell us your stage, target, available time, and timeline."],
+              ["Solve a real scenario", "Start with a free lab using realistic data and broken logic."],
+              ["Get feedback", "Run checks and see what is correct, missing, or risky."],
+              ["Explain like an interview", "Practice root cause, fix, trade-offs, and monitoring."],
+              ["Track progress", "Use the dashboard to continue the next recommended lab."]
+            ].map(([label, detail], index) => (
               <div
-                key={step.label}
+                key={label}
                 className="rounded-2xl border border-slate-800 bg-slate-950/40 p-4"
               >
                 <p className="text-xs font-semibold text-slate-500">Step {index + 1}</p>
-                <p className="mt-2 text-sm font-semibold text-slate-100">{step.label}</p>
-                <p className="mt-2 text-xs leading-5 text-slate-400">{step.detail}</p>
+                <p className="mt-2 text-sm font-semibold text-slate-100">{label}</p>
+                <p className="mt-2 text-xs leading-5 text-slate-400">{detail}</p>
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      <section className="panel mt-10 rounded-[2rem] border border-teal-300/20 p-7">
+        <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-center">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-200">
+              Try before signup
+            </p>
+            <h2 className="mt-3 text-2xl font-semibold text-slate-50">
+              Solve one free production SQL lab without creating an account.
+            </h2>
+            <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300">
+              Inspect sample data, submit a corrected query, compare actual versus expected
+              output, and get feedback. Signup is only suggested after your first attempt.
+            </p>
+          </div>
+          <TrackedLink
+            href="/scenarios/wrong-group-by-grain-customer-revenue"
+            event="first_lab_started"
+            eventPayload={{ source: "homepage_free_trial" }}
+            className="shrink-0 rounded-full bg-teal-300 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-teal-200"
+          >
+            Try free lab
+          </TrackedLink>
         </div>
       </section>
 
@@ -135,8 +168,8 @@ export default function HomePage() {
             <div className="rounded-3xl border border-amber-300/25 bg-amber-300/10 p-5">
               <p className="text-sm font-semibold text-amber-100">Premium</p>
               <p className="mt-3 text-sm leading-6 text-slate-300">
-                Unlock the full library, deeper debugging labs, simulator missions, and
-                interview-prep expansion.
+                Unlock the full library, deeper debugging labs, model answers, follow-ups,
+                and advanced system design practice.
               </p>
             </div>
           </div>
@@ -209,8 +242,7 @@ export default function HomePage() {
           <Link href="/labs">Labs</Link>
           <Link href="/system-design">System Design</Link>
           <Link href="/roadmap">Roadmap</Link>
-          <Link href="/projects">Projects</Link>
-          <Link href="/mock-interview">Mock Interview</Link>
+          <Link href="/pricing">Pricing</Link>
         </div>
       </footer>
     </main>

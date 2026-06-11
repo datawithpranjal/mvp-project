@@ -7,6 +7,7 @@ import {
   validateSqlOutput,
   type BrowserSqlResultTable
 } from "../../lib/browser-sql";
+import { trackEvent } from "../../lib/analytics";
 import {
   formatTrackLabel,
   getCodingLabs,
@@ -251,6 +252,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
   const [difficulty, setDifficulty] = useState("All");
   const [expectedPreview, setExpectedPreview] = useState<BrowserSqlResultTable | null>(null);
   const [expectedPreviewError, setExpectedPreviewError] = useState("");
+  const [workspaceMessage, setWorkspaceMessage] = useState("");
 
   const topics = useMemo(() => {
     const all = new Set<string>();
@@ -289,6 +291,13 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
     };
   }, [selectedLab]);
 
+  useEffect(() => {
+    const requestedSlug = new URLSearchParams(window.location.search).get("lab");
+    if (requestedSlug && labs.some((lab) => lab.slug === requestedSlug)) {
+      setSelectedSlug(requestedSlug);
+    }
+  }, [labs]);
+
   if (!selectedLab) {
     return (
       <main className="mx-auto min-h-screen max-w-7xl px-6 py-10 sm:px-10">
@@ -319,6 +328,14 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
             ? await runPythonLab(selectedLab, answer)
             : evaluateCodeReviewLab(selectedLab, answer);
       setResult(nextResult);
+      trackEvent("first_lab_submitted", {
+        lab: selectedLab.slug,
+        track: selectedLab.track,
+        passed: nextResult.passed
+      });
+      if (nextResult.passed) {
+        trackEvent("lab_completed", { lab: selectedLab.slug, track: selectedLab.track });
+      }
     } catch (error) {
       setResult({
         passed: false,
@@ -329,11 +346,56 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
     }
   }
 
+  async function runSqlPreview() {
+    if (selectedLab.track !== "sql") return;
+    try {
+      setIsRunning(true);
+      setResult(null);
+      const table = await runReadOnlySql(selectedLab.tables, answer);
+      setResult({
+        passed: null,
+        message:
+          "Query ran successfully on the visible sample data. Submit the answer when you are ready for validation and edge-case checks.",
+        table
+      });
+    } catch (error) {
+      setResult({
+        passed: false,
+        message: error instanceof Error ? error.message : "The query could not run.",
+        table: { columns: [], rows: [] }
+      });
+    } finally {
+      setIsRunning(false);
+    }
+  }
+
+  function resetWorkspace() {
+    setAnswers((current) => ({
+      ...current,
+      [selectedLab.slug]: selectedLab.starterCode
+    }));
+    setResult(null);
+    setWorkspaceMessage("Sample database and editor reset.");
+  }
+
+  async function copySchema() {
+    const schema = selectedLab.tables
+      .map((table) => `${table.name}(${table.columns.join(", ")})`)
+      .join("\n");
+    try {
+      await navigator.clipboard.writeText(schema);
+      setWorkspaceMessage("Schema copied.");
+    } catch {
+      setWorkspaceMessage("Copy was blocked by the browser. Select the schema text manually.");
+    }
+  }
+
   function switchLab(slug: string) {
     setSelectedSlug(slug);
     setHintCount(0);
     setShowSolution(false);
     setResult(null);
+    setWorkspaceMessage("");
   }
 
   function goToNextLab() {
@@ -524,22 +586,58 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
                 >
                   Next question
                 </button>
-                <button
-                  type="button"
-                  onClick={runLab}
-                  disabled={isRunning}
-                  className="rounded-full bg-amber-300 px-6 py-3 text-sm font-bold text-slate-950 transition hover:bg-amber-200 disabled:cursor-wait disabled:opacity-70"
-                >
-                  {isRunning
-                    ? "Running..."
-                    : track === "sql"
-                      ? "Run query"
+                {track === "sql" ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={resetWorkspace}
+                      className="rounded-full border border-slate-700 px-4 py-3 text-sm font-semibold text-slate-300 transition hover:border-teal-300/40"
+                    >
+                      Reset sample DB
+                    </button>
+                    <button
+                      type="button"
+                      onClick={copySchema}
+                      className="rounded-full border border-slate-700 px-4 py-3 text-sm font-semibold text-slate-300 transition hover:border-teal-300/40"
+                    >
+                      Copy schema
+                    </button>
+                    <button
+                      type="button"
+                      onClick={runSqlPreview}
+                      disabled={isRunning}
+                      className="rounded-full border border-amber-300/35 px-5 py-3 text-sm font-bold text-amber-100 transition hover:bg-amber-300/10 disabled:cursor-wait disabled:opacity-70"
+                    >
+                      {isRunning ? "Running..." : "Run query"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={runLab}
+                      disabled={isRunning}
+                      className="rounded-full bg-amber-300 px-6 py-3 text-sm font-bold text-slate-950 transition hover:bg-amber-200 disabled:cursor-wait disabled:opacity-70"
+                    >
+                      {isRunning ? "Submitting..." : "Submit answer"}
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={runLab}
+                    disabled={isRunning}
+                    className="rounded-full bg-amber-300 px-6 py-3 text-sm font-bold text-slate-950 transition hover:bg-amber-200 disabled:cursor-wait disabled:opacity-70"
+                  >
+                    {isRunning
+                      ? "Running..."
                       : track === "python"
                         ? "Run tests"
                         : "Check fix"}
-                </button>
+                  </button>
+                )}
               </div>
             </div>
+            {workspaceMessage ? (
+              <p className="mt-3 text-sm font-semibold text-teal-100">{workspaceMessage}</p>
+            ) : null}
             <textarea
               value={answer}
               onChange={(event) =>

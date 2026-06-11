@@ -1,20 +1,56 @@
 import { PremiumUpgradePanel } from "../../components/premium-upgrade-panel";
+import { TrackedLink } from "../../components/tracked-link";
+import { getCodingLabs } from "../../lib/coding-labs";
+import { getScenarios } from "../../lib/scenarios";
 
 const FREE_FEATURES = [
   "Selected free SQL, PySpark, and scenario labs",
-  "Basic hints and model-answer previews where available",
+  "Basic hints and feedback on starter labs",
   "Progress tracking on this device",
-  "Starter practice for interviews and production thinking"
+  "Starter roadmap and interview practice"
 ];
 
-const PREMIUM_FEATURES = [
-  "Full scenario library across SQL, PySpark, Airflow, AWS, and data quality",
-  "Advanced labs, model answers, follow-ups, and interview framing",
-  "Project simulator missions and deeper debugging practice",
-  "Premium roadmap access as the platform expands"
+const FAQ_ITEMS = [
+  {
+    question: "How does UPI activation work?",
+    answer:
+      "Choose a plan, scan the UPI QR, and submit the payment reference. Access is activated after the payment is verified."
+  },
+  {
+    question: "How long does access last?",
+    answer:
+      "Annual access lasts 12 months from activation. Monthly access lasts one month from activation."
+  },
+  {
+    question: "When will my access be activated?",
+    answer:
+      "Most payments are reviewed within 24 hours. Keep the UPI reference so support can locate the payment quickly."
+  },
+  {
+    question: "What is the refund policy?",
+    answer:
+      "If activation cannot be completed, contact support with your payment reference. Refund and access requests are reviewed individually during this early-access period."
+  }
 ];
 
 export default function PricingPage() {
+  const codingLabs = getCodingLabs();
+  const scenarios = getScenarios();
+  const premiumCount =
+    codingLabs.filter((lab) => !lab.isFree).length +
+    scenarios.filter((scenario) => !scenario.isFree).length;
+  const freeCount =
+    codingLabs.filter((lab) => lab.isFree).length +
+    scenarios.filter((scenario) => scenario.isFree).length;
+
+  const premiumFeatures = [
+    `${premiumCount}+ premium labs and production scenarios`,
+    "Full scenario library across SQL, PySpark, Airflow, AWS, and data quality",
+    "Advanced labs, model answers, follow-ups, and interview framing",
+    "Advanced system design cases and complete progress dashboard",
+    "Detailed model answers, follow-ups, and production explanations"
+  ];
+
   return (
     <main className="mx-auto min-h-screen max-w-6xl px-6 py-10 sm:px-10">
       <section className="panel overflow-hidden rounded-[2rem] p-8">
@@ -32,10 +68,10 @@ export default function PricingPage() {
             </p>
           </div>
           <div className="rounded-3xl border border-amber-300/20 bg-amber-300/10 p-5">
-            <p className="text-sm font-semibold text-amber-100">Beta payment note</p>
+            <p className="text-sm font-semibold text-amber-100">Simple UPI activation</p>
             <p className="mt-2 text-sm leading-6 text-slate-300">
-              Beta access is currently verified manually after UPI payment. Payment gateway
-              coming soon.
+              Pay via UPI and access will be activated after verification. Your payment
+              reference is recorded securely for support and activation.
             </p>
           </div>
         </div>
@@ -45,26 +81,70 @@ export default function PricingPage() {
         <PlanCard
           title="Free"
           price="Rs 0"
-          description="Best for trying the practice flow and building the first habit."
+          description={`Start with ${freeCount} free labs and learn the complete attempt-feedback flow.`}
           features={FREE_FEATURES}
           tone="free"
+          action={
+            <TrackedLink
+              href="/onboarding"
+              event="homepage_start_clicked"
+              eventPayload={{ source: "pricing_free" }}
+              className="mt-6 inline-flex w-full items-center justify-center rounded-full border border-teal-300/30 bg-teal-300/10 px-5 py-3 text-sm font-semibold text-teal-50 transition hover:bg-teal-300/20"
+            >
+              Start free
+            </TrackedLink>
+          }
         />
         <PlanCard
           title="Premium"
           price="Rs 500/year"
           compareAt="Rs 1999"
           description="Best for serious interview prep and production-style depth."
-          features={PREMIUM_FEATURES}
+          features={premiumFeatures}
           tone="premium"
+          action={
+            <TrackedLink
+              href="#unlock-premium"
+              event="premium_unlock_clicked"
+              eventPayload={{ source: "pricing_plan" }}
+              className="mt-6 inline-flex w-full items-center justify-center rounded-full bg-amber-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-200"
+            >
+              Unlock premium
+            </TrackedLink>
+          }
         />
       </section>
 
-      <div className="mt-8">
+      <div id="unlock-premium" className="mt-8 scroll-mt-28">
         <PremiumUpgradePanel
           title="The Data Foundry Premium"
-          description="Annual access is Rs 500/year, marked down from Rs 1999. Monthly access is Rs 219/month. Complete payment through the manual UPI checkout; premium access is enabled after verification during beta."
+          description="Annual access is Rs 500/year, marked down from Rs 1999. Monthly access is Rs 219/month. Pay through UPI and submit the payment reference for activation."
         />
       </div>
+
+      <section className="mt-10">
+        <div className="mb-5">
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-teal-200">
+            Questions
+          </p>
+          <h2 className="mt-2 text-3xl font-semibold text-slate-50">Before you unlock</h2>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          {FAQ_ITEMS.map((item) => (
+            <article
+              key={item.question}
+              className="rounded-3xl border border-slate-800 bg-slate-950/35 p-5"
+            >
+              <h3 className="font-semibold text-slate-50">{item.question}</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-300">{item.answer}</p>
+            </article>
+          ))}
+        </div>
+        <p className="mt-5 text-sm text-slate-400">
+          Need activation help? Contact the Data with Pranjal support channel with your
+          registered email and UPI reference.
+        </p>
+      </section>
     </main>
   );
 }
@@ -75,7 +155,8 @@ function PlanCard({
   compareAt,
   description,
   features,
-  tone
+  tone,
+  action
 }: {
   title: string;
   price: string;
@@ -83,6 +164,7 @@ function PlanCard({
   description: string;
   features: string[];
   tone: "free" | "premium";
+  action: React.ReactNode;
 }) {
   return (
     <div
@@ -127,6 +209,7 @@ function PlanCard({
           </div>
         ))}
       </div>
+      {action}
     </div>
   );
 }

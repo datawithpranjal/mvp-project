@@ -1406,6 +1406,20 @@ function uniqueLabTitle(title: string, kind: string, index: number) {
 function practiceLabel(title: string, kind: string) {
   const lower = title.toLowerCase();
 
+  if (kind === "profile_join") return "Profile Enrichment Join Drill";
+  if (kind === "duplicate_quality") return "Case-Normalized Duplicate Detection";
+  if (kind === "anti_join") return "Missing Record Anti-Join Drill";
+  if (kind === "workforce_rank") return "Workforce Ranking Drill";
+  if (kind === "time_trend") return "Day-over-Day Sensor Trend Drill";
+  if (kind === "retention") return "First Activity Retention Drill";
+  if (kind === "engagement") return "Conditional Engagement Metric Drill";
+  if (kind === "operations") return "Operations SLA Metric Drill";
+  if (kind === "finance") return "Signed Finance Ledger Drill";
+  if (kind === "commerce") return "Completed-Order Revenue Drill";
+  if (kind === "education") return "Distinct Enrollment Threshold Drill";
+  if (kind === "dimension_reporting") return "Reference Dimension Filter Drill";
+  if (kind === "warehouse_reporting") return "Warehouse Grain Reconciliation Drill";
+
   if (/combine|join/.test(lower)) return "Profile Enrichment Join Drill";
   if (/second|nth|top|rank|highest|salary/.test(lower)) return "Department Salary Ranking Drill";
   if (/manager|report/.test(lower)) return "Manager Hierarchy Exception Drill";
@@ -1431,10 +1445,6 @@ function practiceLabel(title: string, kind: string) {
     return "Reference Dimension Filter Drill";
   }
 
-  if (kind === "workforce_rank") return "Workforce Ranking Drill";
-  if (kind === "anti_join") return "Missing Record Anti-Join Drill";
-  if (kind === "commerce") return "Commerce Aggregation Drill";
-  if (kind === "engagement") return "Engagement Reporting Drill";
   return "Warehouse Grain Reconciliation Drill";
 }
 

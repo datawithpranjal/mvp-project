@@ -4,7 +4,7 @@ export const BRAND = {
   name: "The Data Foundry",
   trustLine: "Built by Data with Pranjal",
   positioning:
-    "A practice-first platform for Data Engineering interviews, production scenarios, project simulation, and job readiness."
+    "A practice-first platform for Data Engineering interviews, production scenarios, and job readiness."
 };
 
 export const DIFFICULTY_FILTERS = ["All", "Beginner", "Intermediate", "Advanced"];
@@ -56,16 +56,16 @@ export const CORE_LABS = [
     status: "available"
   },
   {
-    title: "Project Simulator",
-    description: "Make engineering decisions in a simulated pipeline and see the production consequences.",
+    title: "Project Sandbox",
+    description: "Practice end-to-end pipeline decisions and production consequences in a guided sandbox.",
     href: "/projects/ecommerce-pipeline",
-    status: "available"
+    status: "coming-soon"
   },
   {
     title: "Mock Interview Room",
     description: "Practice explaining root causes, trade-offs, monitoring, and strong interview framing.",
     href: "/mock-interview",
-    status: "available"
+    status: "coming-soon"
   }
 ];
 
@@ -225,15 +225,15 @@ export const LEARNING_PATHS: LearningPathTemplate[] = [
       },
       {
         day: 6,
-        title: "Project simulator mission",
+        title: "Pipeline decision scenario",
         taskType: "project",
-        description: "Complete one e-commerce pipeline decision mission and capture the lesson."
+        description: "Complete one architecture or pipeline decision scenario and capture the lesson."
       },
       {
         day: 7,
-        title: "Mock mixed interview",
+        title: "Interview explanation review",
         taskType: "interview",
-        description: "Attempt three mixed data engineering prompts and refine your answer."
+        description: "Explain three completed scenarios and refine your answer framing."
       }
     ]
   },
@@ -264,15 +264,15 @@ export const LEARNING_PATHS: LearningPathTemplate[] = [
       },
       {
         day: 21,
-        title: "Project simulator checkpoint",
+        title: "Pipeline design checkpoint",
         taskType: "project",
-        description: "Finish at least four project missions and explain trade-offs."
+        description: "Complete four production scenarios and explain the design trade-offs."
       },
       {
         day: 30,
         title: "Readiness review",
         taskType: "interview",
-        description: "Run a mixed mock interview and compare readiness score movement."
+        description: "Review scenario explanations and compare readiness score movement."
       }
     ]
   },
@@ -297,9 +297,9 @@ export const LEARNING_PATHS: LearningPathTemplate[] = [
       },
       {
         day: 30,
-        title: "Pipeline simulator block",
+        title: "Pipeline scenario block",
         taskType: "project",
-        description: "Complete storage, dedup, late-arrival, and revenue-mart missions."
+        description: "Complete storage, dedup, late-arrival, and revenue-mart scenarios."
       },
       {
         day: 45,
@@ -311,7 +311,7 @@ export const LEARNING_PATHS: LearningPathTemplate[] = [
         day: 60,
         title: "Interview story block",
         taskType: "interview",
-        description: "Turn your simulator decisions into interview-ready project stories."
+        description: "Turn your scenario decisions into interview-ready project stories."
       }
     ]
   },
@@ -344,13 +344,13 @@ export const LEARNING_PATHS: LearningPathTemplate[] = [
         day: 70,
         title: "Project ownership sprint",
         taskType: "project",
-        description: "Finish the e-commerce simulator and document monitoring choices."
+        description: "Finish a production scenario track and document monitoring choices."
       },
       {
         day: 90,
         title: "Job-ready review",
         taskType: "interview",
-        description: "Run mixed mock interviews and review readiness score by dimension."
+        description: "Review mixed scenario explanations and readiness score by dimension."
       }
     ]
   }

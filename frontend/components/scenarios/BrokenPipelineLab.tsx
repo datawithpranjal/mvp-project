@@ -30,6 +30,8 @@ const INITIAL_FILTERS: ScenarioFilterState = {
 
 export function BrokenPipelineLab() {
   const [filters, setFilters] = useState<ScenarioFilterState>(INITIAL_FILTERS);
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState("recommended");
   const [progressMap, setProgressMap] = useState<Record<string, ScenarioProgressSummary>>({});
   const [premiumAccess, setPremiumAccess] = useState<PremiumAccessRecord | null>(null);
   const scenarios = getScenarios();
@@ -66,20 +68,52 @@ export function BrokenPipelineLab() {
   );
 
   const filteredScenarios = useMemo(() => {
-    return scenarios.filter((scenario) => {
-      const domainMatches =
-        filters.domain === "All" || DOMAIN_LABELS[scenario.domain] === filters.domain;
-      const difficultyMatches =
-        filters.difficulty === "All" || scenario.difficulty === filters.difficulty;
-      const typeMatches =
-        filters.type === "All" || SCENARIO_TYPE_LABELS[scenario.scenarioType] === filters.type;
-      const accessMatches =
-        filters.access === "All" ||
-        (filters.access === "Free" && scenario.isFree) ||
-        (filters.access === "Premium" && !scenario.isFree);
-      return domainMatches && difficultyMatches && typeMatches && accessMatches;
+    const difficultyOrder = { beginner: 0, intermediate: 1, advanced: 2 };
+    const search = query.trim().toLowerCase();
+    const matching = scenarios.filter((scenario) => {
+        const domainMatches =
+          filters.domain === "All" || DOMAIN_LABELS[scenario.domain] === filters.domain;
+        const difficultyMatches =
+          filters.difficulty === "All" || scenario.difficulty === filters.difficulty;
+        const typeMatches =
+          filters.type === "All" || SCENARIO_TYPE_LABELS[scenario.scenarioType] === filters.type;
+        const accessMatches =
+          filters.access === "All" ||
+          (filters.access === "Free" && scenario.isFree) ||
+          (filters.access === "Premium" && !scenario.isFree);
+        const searchMatches =
+          !search ||
+          [
+            scenario.title,
+            scenario.businessContext,
+            DOMAIN_LABELS[scenario.domain],
+            SCENARIO_TYPE_LABELS[scenario.scenarioType],
+            scenario.difficulty,
+            ...scenario.tags
+          ]
+            .join(" ")
+            .toLowerCase()
+            .includes(search);
+        return domainMatches && difficultyMatches && typeMatches && accessMatches && searchMatches;
+      });
+
+    return [...matching].sort((left, right) => {
+      if (sort === "beginner") {
+        return difficultyOrder[left.difficulty] - difficultyOrder[right.difficulty];
+      }
+      if (sort === "shortest") return left.estimatedMinutes - right.estimatedMinutes;
+      if (sort === "free") return Number(right.isFree) - Number(left.isFree);
+      if (sort === "interview") {
+        const score = (scenario: Scenario) =>
+          scenario.tags.some((tag) => /sql|pyspark|airflow|interview/i.test(tag)) ? 1 : 0;
+        return score(right) - score(left);
+      }
+      const progressDifference =
+        Number(Boolean(progressMap[right.slug]?.attemptCount)) -
+        Number(Boolean(progressMap[left.slug]?.attemptCount));
+      return progressDifference || Number(right.isFree) - Number(left.isFree);
     });
-  }, [filters, scenarios]);
+  }, [filters, progressMap, query, scenarios, sort]);
 
   const firstFreeScenario = scenarios.find((scenario) => scenario.isFree);
 
@@ -110,10 +144,10 @@ export function BrokenPipelineLab() {
                 Start Free Lab
               </Link>
               <Link
-                href="/projects/ecommerce-pipeline"
+                href="/roadmap"
                 className="rounded-full border border-slate-700 px-6 py-3 text-sm font-semibold text-slate-200 transition hover:border-teal-300/40"
               >
-                Explore Project Simulator
+                View guided roadmap
               </Link>
             </div>
           </div>
@@ -157,12 +191,57 @@ export function BrokenPipelineLab() {
         </div>
       </section>
 
-      <ScenarioFilters value={filters} onChange={setFilters} />
+      <section className="panel rounded-[2rem] p-5">
+        <div className="grid gap-4 lg:grid-cols-[1fr_260px]">
+          <div>
+            <label htmlFor="scenario-search" className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+              Search scenarios
+            </label>
+            <input
+              id="scenario-search"
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search SQL, joins, CDC, Airflow, difficulty..."
+              className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950/45 px-4 py-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-teal-300/45"
+            />
+          </div>
+          <div>
+            <label htmlFor="scenario-sort" className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+              Sort
+            </label>
+            <select
+              id="scenario-sort"
+              value={sort}
+              onChange={(event) => setSort(event.target.value)}
+              className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950/45 px-4 py-3 text-sm text-slate-100 outline-none focus:border-teal-300/45"
+            >
+              <option value="recommended">Recommended</option>
+              <option value="beginner">Beginner first</option>
+              <option value="interview">Most interview-relevant</option>
+              <option value="shortest">Shortest first</option>
+              <option value="free">Free first</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <details className="panel rounded-[2rem] p-4 lg:hidden">
+        <summary className="cursor-pointer list-none text-sm font-semibold text-slate-100">
+          Advanced filters
+        </summary>
+        <div className="mt-4">
+          <ScenarioFilters value={filters} onChange={setFilters} />
+        </div>
+      </details>
+      <div className="hidden lg:block">
+        <ScenarioFilters value={filters} onChange={setFilters} />
+      </div>
 
       {!premiumAccess ? (
         <PremiumUpgradePanel
           title="Unlock the full debugging library"
-          description="Free labs are open now. Premium labs show the skill and production failure, then unlock with manual UPI verification while the payment gateway is still MVP."
+          description="Free labs are open now. Premium cards still show the skill and production failure, and access is activated after UPI verification."
         />
       ) : null}
 
@@ -175,7 +254,11 @@ export function BrokenPipelineLab() {
         </div>
         <button
           type="button"
-          onClick={() => setFilters(INITIAL_FILTERS)}
+          onClick={() => {
+            setFilters(INITIAL_FILTERS);
+            setQuery("");
+            setSort("recommended");
+          }}
           className="rounded-full border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-teal-300/40"
         >
           Reset filters

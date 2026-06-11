@@ -4,7 +4,14 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
+import { trackEvent } from "../../lib/analytics";
 import {
+  AUTH_UPDATED_EVENT,
+  getCurrentUser,
+  type AuthUser
+} from "../../lib/auth";
+import {
+  runReadOnlySql,
   validateSqlOutput,
   type BrowserSqlResultTable,
   type BrowserSqlValidationResult
@@ -31,6 +38,7 @@ import {
 import { CodeBlock } from "./CodeBlock";
 import { EvaluationPanel } from "./EvaluationPanel";
 import { RubricBreakdown } from "./RubricBreakdown";
+import { AuthDialog } from "../auth-dialog";
 
 interface ScenarioWorkspaceProps {
   scenario: Scenario;
@@ -48,7 +56,11 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
   const [activeFollowUpIndex, setActiveFollowUpIndex] = useState(0);
   const [draftMessage, setDraftMessage] = useState<string | null>(null);
   const [sqlExecution, setSqlExecution] = useState<BrowserSqlValidationResult | null>(null);
+  const [sqlPreview, setSqlPreview] = useState<BrowserSqlResultTable | null>(null);
   const [isChecking, setIsChecking] = useState(false);
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [showRevealConfirmation, setShowRevealConfirmation] = useState(false);
 
   useEffect(() => {
     const savedProgress = getScenarioProgress(scenario.slug);
@@ -61,9 +73,29 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
     setHintsRevealed(Math.min(savedProgress.hintsRevealed, scenario.hints.length));
     setProgress(summarizeScenarioProgress(savedProgress, scenario.slug));
     setSqlExecution(null);
+    setSqlPreview(null);
     setEvaluation(null);
     setModelSolutionVisible(false);
   }, [scenario]);
+
+  useEffect(() => {
+    function syncUser() {
+      setCurrentUser(getCurrentUser());
+    }
+    syncUser();
+    window.addEventListener(AUTH_UPDATED_EVENT, syncUser);
+    window.addEventListener("storage", syncUser);
+    return () => {
+      window.removeEventListener(AUTH_UPDATED_EVENT, syncUser);
+      window.removeEventListener("storage", syncUser);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (evaluation && !currentUser) {
+      trackEvent("signup_prompt_seen", { source: "scenario_feedback", scenario: scenario.slug });
+    }
+  }, [currentUser, evaluation, scenario.slug]);
 
   const visibleHints = scenario.hints.slice(0, hintsRevealed);
   const canRunSql =
@@ -94,6 +126,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
     setHintsRevealed(nextCount);
     const nextProgress = setScenarioHintsRevealed(scenario.slug, nextCount);
     setProgress(summarizeScenarioProgress(nextProgress, scenario.slug));
+    trackEvent("hint_used", { scenario: scenario.slug, hint_number: nextCount });
   }
 
   function saveDraft() {
@@ -147,6 +180,11 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
       setEvaluation(nextEvaluation);
       setProgress(summarizeScenarioProgress(nextProgress, scenario.slug));
       setDraftMessage(null);
+      trackEvent("first_lab_submitted", {
+        scenario: scenario.slug,
+        type: scenario.scenarioType,
+        passed
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : "The browser checker could not run this answer.";
       const nextProgress = recordScenarioAttempt(scenario.slug, {
@@ -167,12 +205,63 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
     }
   }
 
+  async function runSqlPreview() {
+    if (!canRunSql || !scenario.sampleTables) return;
+    setIsChecking(true);
+    setSqlExecution(null);
+    try {
+      const result = await runReadOnlySql(scenario.sampleTables, answer);
+      setSqlPreview(result);
+      setDraftMessage("Query ran against a fresh copy of the sample database.");
+    } catch (error) {
+      setSqlPreview(null);
+      setDraftMessage(error instanceof Error ? error.message : "The query could not be run.");
+    } finally {
+      setIsChecking(false);
+    }
+  }
+
+  function resetSqlWorkspace() {
+    setAnswer(scenario.brokenCode || "");
+    setSqlPreview(null);
+    setSqlExecution(null);
+    setEvaluation(null);
+    setDraftMessage("Sample database and editor reset.");
+  }
+
+  async function copySchema() {
+    const schemaText =
+      scenario.schema ||
+      scenario.sampleTables
+        ?.map((table) => `${table.name}(${table.columns.join(", ")})`)
+        .join("\n") ||
+      "";
+    await navigator.clipboard.writeText(schemaText);
+    setDraftMessage("Schema copied.");
+  }
+
   function completeLab() {
     const nextProgress = markScenarioCompleted(scenario.slug);
     setProgress(summarizeScenarioProgress(nextProgress, scenario.slug));
+    trackEvent("lab_completed", { scenario: scenario.slug });
     if (nextScenario) {
       router.push(`/scenarios/${nextScenario.slug}`);
     }
+  }
+
+  function requestModelSolution() {
+    const hasAttempted = Boolean(evaluation || (progress?.attemptCount ?? 0) > 0);
+    if (!hasAttempted) {
+      setShowRevealConfirmation(true);
+      return;
+    }
+    revealModelSolution();
+  }
+
+  function revealModelSolution() {
+    setModelSolutionVisible(true);
+    setShowRevealConfirmation(false);
+    trackEvent("model_solution_revealed", { scenario: scenario.slug });
   }
 
   function goToNextScenario() {
@@ -212,13 +301,34 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
             <p className="mt-4 text-sm leading-7 text-slate-300">
               {scenario.businessContext}
             </p>
+            <nav
+              aria-label="Scenario sections"
+              className="mt-6 flex flex-wrap gap-2 border-t border-slate-800 pt-5"
+            >
+              {[
+                ["Context", "#context"],
+                ["Data", "#data"],
+                ["Broken code", "#broken-code"],
+                ["Attempt", "#attempt"],
+                ["Explanation", "#explanation"],
+                ["Rubric", "#rubric"]
+              ].map(([label, href]) => (
+                <a
+                  key={href}
+                  href={href}
+                  className="rounded-full border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-300 transition hover:border-teal-300/40 hover:text-teal-100"
+                >
+                  {label}
+                </a>
+              ))}
+            </nav>
           </section>
 
-          <InfoSection title="Scenario context" body={scenario.problemStatement} />
+          <InfoSection id="context" title="Scenario context" body={scenario.problemStatement} />
           <InfoSection title="Business requirement" body={scenario.requirement ?? ""} />
 
           {scenario.sampleTables?.length ? (
-            <section className="panel rounded-[2rem] p-6">
+            <section id="data" className="panel scroll-mt-32 rounded-[2rem] p-6">
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-200">
                 Sample production data
               </p>
@@ -234,7 +344,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
             </section>
           ) : null}
 
-          <div className="grid gap-5 lg:grid-cols-2">
+          <div id="broken-code" className="grid scroll-mt-32 gap-5 lg:grid-cols-2">
             <CodeBlock title="Schema" code={scenario.schema ?? ""} />
             <CodeBlock title="Sample input" code={scenario.sampleInput ?? ""} />
           </div>
@@ -245,7 +355,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
             <CodeBlock title="Expected output / expected logic" code={scenario.expectedOutput ?? ""} />
           </div>
 
-          <section className="panel rounded-[2rem] p-6">
+          <section id="attempt" className="panel scroll-mt-32 rounded-[2rem] p-6">
             <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-200">
@@ -261,6 +371,32 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
               <div className="flex flex-wrap items-center gap-3">
                 {draftMessage ? (
                   <p className="text-sm font-semibold text-teal-100">{draftMessage}</p>
+                ) : null}
+                {canRunSql ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={resetSqlWorkspace}
+                      className="rounded-full border border-slate-700 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:border-teal-300/40"
+                    >
+                      Reset sample DB
+                    </button>
+                    <button
+                      type="button"
+                      onClick={copySchema}
+                      className="rounded-full border border-slate-700 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:border-teal-300/40"
+                    >
+                      Copy schema
+                    </button>
+                    <button
+                      type="button"
+                      onClick={runSqlPreview}
+                      disabled={isChecking}
+                      className="rounded-full border border-teal-300/35 px-5 py-3 text-sm font-semibold text-teal-100 transition hover:bg-teal-300/10 disabled:opacity-60"
+                    >
+                      Run query
+                    </button>
+                  </>
                 ) : null}
                 <button
                   type="button"
@@ -308,7 +444,10 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
               />
             )}
 
-            <div className="mt-5 rounded-3xl border border-slate-800 bg-slate-950/35 p-5">
+            <div
+              id="explanation"
+              className="mt-5 scroll-mt-32 rounded-3xl border border-slate-800 bg-slate-950/35 p-5"
+            >
               <h3 className="text-lg font-semibold text-slate-50">
                 Interview-style explanation
               </h3>
@@ -359,7 +498,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
               </button>
               <button
                 type="button"
-                onClick={() => setModelSolutionVisible(true)}
+                onClick={requestModelSolution}
                 className="rounded-full bg-amber-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-200"
               >
                 Reveal Model Solution
@@ -372,7 +511,50 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
                 Try Follow-up
               </button>
             </div>
+
+            {showRevealConfirmation ? (
+              <div className="mt-5 rounded-3xl border border-amber-300/25 bg-amber-300/10 p-5">
+                <p className="text-sm font-semibold text-amber-100">
+                  Try once before revealing the solution?
+                </p>
+                <p className="mt-2 text-sm leading-6 text-slate-300">
+                  You have not submitted an attempt yet. Revealing now can reduce the value
+                  of the exercise, but you can continue if you are intentionally reviewing.
+                </p>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowRevealConfirmation(false)}
+                    className="rounded-full bg-teal-300 px-4 py-2 text-sm font-semibold text-slate-950"
+                  >
+                    Return to attempt
+                  </button>
+                  <button
+                    type="button"
+                    onClick={revealModelSolution}
+                    className="rounded-full border border-amber-300/35 px-4 py-2 text-sm font-semibold text-amber-100"
+                  >
+                    Reveal anyway
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </section>
+
+          {sqlPreview ? (
+            <section className="panel rounded-[2rem] p-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-200">
+                Query preview
+              </p>
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                This is your current result. Submit when you are ready to compare it with the
+                expected output and edge-case rules.
+              </p>
+              <div className="mt-5">
+                <ResultTable title="Current output" table={sqlPreview} />
+              </div>
+            </section>
+          ) : null}
 
           {sqlExecution ? <ScenarioSqlResultPanel result={sqlExecution} /> : null}
 
@@ -393,11 +575,66 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
           ) : null}
 
           {evaluation ? (
-            <EvaluationPanel
-              result={evaluation}
-              commonMistakes={scenario.commonMistakes}
-              followUps={scenario.followUps}
-            />
+            <>
+              <EvaluationPanel
+                result={evaluation}
+                commonMistakes={scenario.commonMistakes}
+                followUps={scenario.followUps}
+              />
+              <section className="panel rounded-[2rem] border border-teal-300/20 p-6">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-teal-200">
+                  Attempt complete
+                </p>
+                <div className="mt-3 flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
+                  <div>
+                    <h2 className="text-2xl font-semibold text-slate-50">
+                      Score: {evaluation.score}/100
+                    </h2>
+                    <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
+                      Review the gaps above, mark this lab complete, or move to the next
+                      recommended scenario and revisit this one later.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={completeLab}
+                      className="rounded-full bg-teal-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-teal-200"
+                    >
+                      Mark complete & go next
+                    </button>
+                    <button
+                      type="button"
+                      onClick={goToNextScenario}
+                      className="rounded-full border border-slate-700 px-5 py-3 text-sm font-semibold text-slate-200"
+                    >
+                      Next scenario
+                    </button>
+                  </div>
+                </div>
+                {!currentUser ? (
+                  <div className="mt-5 rounded-3xl border border-amber-300/25 bg-amber-300/10 p-5">
+                    <p className="text-sm font-semibold text-amber-100">
+                      Save this practice journey
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-slate-300">
+                      Your progress is saved on this device now. Create an account to prepare
+                      for future cross-device progress and account-backed practice history.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        trackEvent("signup_started", { source: "scenario_feedback" });
+                        setIsAuthOpen(true);
+                      }}
+                      className="mt-4 rounded-full bg-amber-300 px-5 py-3 text-sm font-semibold text-slate-950"
+                    >
+                      Sign up to save progress
+                    </button>
+                  </div>
+                ) : null}
+              </section>
+            </>
           ) : null}
 
           {modelSolutionVisible ? (
@@ -421,7 +658,26 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
           ) : null}
         </div>
 
-        <aside className="space-y-5 xl:sticky xl:top-24 xl:self-start">
+        <aside className="space-y-5 xl:sticky xl:top-32 xl:self-start">
+          <div className="panel rounded-[2rem] p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-200">
+              Output contract
+            </p>
+            <p className="mt-3 text-sm font-semibold leading-6 text-slate-100">
+              {scenario.requirement || scenario.problemStatement}
+            </p>
+            {scenario.expectedOutput ? (
+              <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/45 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Expected grain / columns
+                </p>
+                <p className="mt-2 line-clamp-5 whitespace-pre-line font-mono text-xs leading-5 text-slate-300">
+                  {scenario.expectedOutput}
+                </p>
+              </div>
+            ) : null}
+          </div>
+
           <div className="panel rounded-[2rem] p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-200">
               Lab checklist
@@ -463,7 +719,9 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
             </div>
           </div>
 
-          <RubricBreakdown rubric={scenario.evaluationRubric} />
+          <div id="rubric" className="scroll-mt-32">
+            <RubricBreakdown rubric={scenario.evaluationRubric} />
+          </div>
 
           <div className="panel rounded-[2rem] p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">
@@ -475,6 +733,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
           </div>
         </aside>
       </section>
+      <AuthDialog isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
     </main>
   );
 }
@@ -596,13 +855,13 @@ function ResultTable({ title, table }: { title: string; table: BrowserSqlResultT
   );
 }
 
-function InfoSection({ title, body }: { title: string; body: string }) {
+function InfoSection({ id, title, body }: { id?: string; title: string; body: string }) {
   if (!body.trim()) {
     return null;
   }
 
   return (
-    <section className="panel rounded-[2rem] p-6">
+    <section id={id} className="panel scroll-mt-32 rounded-[2rem] p-6">
       <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-200">
         {title}
       </p>

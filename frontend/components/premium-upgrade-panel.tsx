@@ -10,6 +10,7 @@ import {
   type BillingInterval,
   type PremiumAccessRecord
 } from "../lib/premium-access";
+import { trackEvent } from "../lib/analytics";
 import { AuthForm } from "./auth-form";
 import { PaymentQrCode } from "./payment-qr-code";
 
@@ -105,6 +106,10 @@ export function PremiumUpgradePanel({
       setIsCompletingPayment(true);
       setCheckoutError(null);
       setCheckoutSuccess(null);
+      trackEvent("payment_started", {
+        plan: activePlan.id,
+        amount_inr: activePlan.amountInr
+      });
       const nextPaymentReference = paymentReference.trim() || `MANUAL-UPI-${Date.now()}`;
 
       await captureEmail({
@@ -137,7 +142,7 @@ export function PremiumUpgradePanel({
     return (
       <AuthForm
         title="Create an account to continue"
-        description="Sign in with OTP first, then choose a plan and pay through the manual UPI QR."
+        description="Sign in with OTP first, then choose a plan and complete UPI activation."
       />
     );
   }
@@ -238,8 +243,8 @@ export function PremiumUpgradePanel({
               What happens next
             </p>
             <div className="mt-3 space-y-2 text-sm leading-6 text-slate-300">
-            <p>1. Pick a plan.</p>
-            <p>2. Scan the Paytm UPI QR and complete the payment manually.</p>
+              <p>1. Pick a plan.</p>
+              <p>2. Scan the Paytm UPI QR and complete the payment.</p>
               <p>3. Enter a reference if you have one, then submit it for manual review.</p>
             </div>
           </div>
@@ -249,12 +254,12 @@ export function PremiumUpgradePanel({
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">
-                Manual UPI Checkout
+                UPI Checkout
               </p>
               <h4 className="mt-2 text-2xl font-semibold text-slate-50">{activePlan.label}</h4>
             </div>
             <span className="rounded-full border border-sky-300/20 bg-sky-300/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-100">
-              MVP manual flow
+              Verified activation
             </span>
           </div>
 
@@ -288,8 +293,8 @@ export function PremiumUpgradePanel({
           </div>
 
           <p className="mt-4 text-sm leading-6 text-slate-400">
-            This is an MVP manual checkout. We record your payment reference and unlock premium
-            after verification instead of trusting the browser to grant access.
+            Your payment reference is submitted for verification. Premium access is activated
+            after the payment is confirmed.
           </p>
 
           {checkoutError ? (

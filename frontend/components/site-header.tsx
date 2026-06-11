@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { AUTH_UPDATED_EVENT, getCurrentUser, logoutCurrentUser, type AuthUser } from "../lib/auth";
@@ -10,13 +11,22 @@ import {
   type PremiumAccessRecord
 } from "../lib/premium-access";
 import { AuthDialog } from "./auth-dialog";
+import { PracticeTabs } from "./practice-tabs";
 import { ThemeToggle } from "./theme-toggle";
 
 export function SiteHeader() {
+  const pathname = usePathname();
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [premiumAccess, setPremiumAccess] = useState<PremiumAccessRecord | null>(null);
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const isPracticeRoute =
+    pathname === "/labs" ||
+    pathname.startsWith("/labs/") ||
+    pathname === "/scenarios" ||
+    pathname.startsWith("/scenarios/") ||
+    pathname === "/system-design";
 
   useEffect(() => {
     function syncState() {
@@ -49,22 +59,21 @@ export function SiteHeader() {
             </p>
           </Link>
 
-          <nav className="hidden items-center gap-5 text-sm font-semibold text-slate-300 lg:flex">
+          <nav className="hidden items-center gap-4 text-sm font-semibold text-slate-300 lg:flex">
             <div className="group relative">
-              <button
-                type="button"
+              <Link
+                href="/labs"
                 className="rounded-full px-3 py-2 transition hover:bg-slate-900/80 hover:text-teal-100"
               >
                 Practice
-              </button>
+              </Link>
               <div className="practice-menu invisible absolute left-0 top-full z-50 w-[340px] translate-y-2 rounded-3xl border p-3 opacity-0 transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
+                <PracticeLink href="/labs" title="All Practice" detail="Choose a guided lab or practice track" />
                 <PracticeLink href="/scenarios" title="Scenario Playground" detail="Broken pipelines, logs, and debugging cases" />
                 <PracticeLink href="/labs/sql" title="SQL Lab" detail="Interview SQL with real data and validation" />
                 <PracticeLink href="/labs/python" title="Python Lab" detail="Data engineering Python practice" />
                 <PracticeLink href="/labs/pyspark" title="PySpark Lab" detail="Spark code review and production fixes" />
                 <PracticeLink href="/system-design" title="System Design Studio" detail="Architecture trade-offs and interview framing" />
-                <PracticeLink href="/projects/ecommerce-pipeline" title="Project Simulator" detail="Decision-based e-commerce pipeline simulation" />
-                <PracticeLink href="/mock-interview" title="Mock Interview" detail="Explain fixes like a real interview" />
               </div>
             </div>
             <Link href="/roadmap" className="transition hover:text-teal-100">
@@ -113,6 +122,16 @@ export function SiteHeader() {
               >
                 {isLoggingOut ? "Logging out..." : "Logout"}
               </button>
+              <button
+                type="button"
+                onClick={() => setIsMobileMenuOpen((isOpen) => !isOpen)}
+                aria-expanded={isMobileMenuOpen}
+                aria-controls="mobile-navigation"
+                aria-label={isMobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-700 text-slate-200 lg:hidden"
+              >
+                <MenuIcon isOpen={isMobileMenuOpen} />
+              </button>
             </div>
           ) : (
             <div className="flex items-center gap-3">
@@ -124,30 +143,72 @@ export function SiteHeader() {
               >
                 Log in / Sign up
               </button>
+              <button
+                type="button"
+                onClick={() => setIsMobileMenuOpen((isOpen) => !isOpen)}
+                aria-expanded={isMobileMenuOpen}
+                aria-controls="mobile-navigation"
+                aria-label={isMobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-700 text-slate-200 lg:hidden"
+              >
+                <MenuIcon isOpen={isMobileMenuOpen} />
+              </button>
             </div>
           )}
         </div>
-        <nav className="mx-auto flex max-w-7xl gap-2 overflow-x-auto px-4 pb-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-300 sm:px-8 lg:hidden">
-          <Link href="/scenarios" className="rounded-full border border-slate-800 px-3 py-2">
-            Practice
-          </Link>
-          <Link href="/labs" className="rounded-full border border-slate-800 px-3 py-2">
-            Labs
-          </Link>
-          <Link href="/system-design" className="rounded-full border border-slate-800 px-3 py-2">
-            Design
-          </Link>
-          <Link href="/roadmap" className="rounded-full border border-slate-800 px-3 py-2">
-            Roadmap
-          </Link>
-          <Link href="/pricing" className="rounded-full border border-slate-800 px-3 py-2">
-            Pricing
-          </Link>
-        </nav>
+        {isMobileMenuOpen ? (
+          <nav
+            id="mobile-navigation"
+            className="mx-auto grid max-w-7xl grid-cols-2 gap-2 px-4 pb-4 text-sm font-semibold text-slate-300 sm:px-8 lg:hidden"
+          >
+            {[
+              ["Practice", "/labs"],
+              ["Roadmap", "/roadmap"],
+              ["Pricing", "/pricing"]
+            ].map(([label, href]) => (
+              <Link
+                key={href}
+                href={href}
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="rounded-2xl border border-slate-800 bg-slate-950/35 px-4 py-3"
+              >
+                {label}
+              </Link>
+            ))}
+          </nav>
+        ) : null}
+        {isPracticeRoute ? <PracticeTabs /> : null}
       </header>
 
       <AuthDialog isOpen={isAuthDialogOpen} onClose={() => setIsAuthDialogOpen(false)} />
     </>
+  );
+}
+
+function MenuIcon({ isOpen }: { isOpen: boolean }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      className="h-5 w-5"
+    >
+      {isOpen ? (
+        <>
+          <path d="m6 6 12 12" />
+          <path d="M18 6 6 18" />
+        </>
+      ) : (
+        <>
+          <path d="M4 7h16" />
+          <path d="M4 12h16" />
+          <path d="M4 17h16" />
+        </>
+      )}
+    </svg>
   );
 }
 

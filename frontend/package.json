@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "validate:content": "tsx ../scripts/validate-labs.ts"
   },
   "dependencies": {
     "@types/sql.js": "^1.4.11",

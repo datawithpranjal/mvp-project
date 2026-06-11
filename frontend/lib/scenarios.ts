@@ -628,6 +628,8 @@ export const BROKEN_PIPELINE_SCENARIOS: Scenario[] = [
       "Revenue dropped by 30% overnight, but product says order volume is normal. A new payment provider was launched yesterday.",
     problemStatement:
       "The revenue query only accepts status = 'SUCCESS'. The new provider sends 'SUCCESSFUL'.",
+    requirement:
+      "Return one row per order_date with revenue from every provider status mapped to paid_success. Use the mapping table rather than hardcoding provider-specific values.",
     brokenCode:
       "SELECT order_date, SUM(amount) AS revenue\nFROM payments\nWHERE payment_status = 'SUCCESS'\nGROUP BY order_date;",
     actualOutput: "2026-05-21 revenue = 700000",
@@ -652,6 +654,8 @@ export const BROKEN_PIPELINE_SCENARIOS: Scenario[] = [
         ]
       }
     ],
+    expectedSql:
+      "SELECT\n  p.order_date,\n  SUM(p.amount) AS revenue\nFROM payments p\nJOIN status_mapping m\n  ON m.payment_status = p.payment_status\nWHERE m.normalized_status = 'paid_success'\nGROUP BY p.order_date;",
     hints: [
       "Inspect distinct payment_status values by date.",
       "Do not hardcode business status mapping in one hidden query.",

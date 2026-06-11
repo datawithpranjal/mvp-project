@@ -3,18 +3,32 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
+import {
+  AUTH_UPDATED_EVENT,
+  getCurrentUser,
+  type AuthUser
+} from "../../lib/auth";
 import { getOnboardingProfile, type OnboardingProfile } from "../../lib/onboarding";
 import { LEARNING_PATHS } from "../../lib/product";
 import { getScenarioProgressMap, type ScenarioProgressSummary } from "../../lib/progress";
 import { calculateReadinessScore } from "../../lib/readiness";
+import { getRoadmapProgress, type RoadmapProgress } from "../../lib/roadmap-progress";
 import { getScenarios, type Scenario } from "../../lib/scenarios";
+import { AuthDialog } from "../../components/auth-dialog";
 
 export default function DashboardPage() {
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [progressMap, setProgressMap] = useState<Record<string, ScenarioProgressSummary>>({});
   const [onboarding, setOnboarding] = useState<OnboardingProfile | null>(null);
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const [roadmapProgress, setRoadmapProgress] = useState<RoadmapProgress>({
+    activePathSlug: null,
+    completedDays: {},
+    updatedAt: null
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
 
   useEffect(() => {
     function loadDashboard() {
@@ -24,6 +38,8 @@ export default function DashboardPage() {
         setScenarios(getScenarios());
         setProgressMap(getScenarioProgressMap());
         setOnboarding(getOnboardingProfile());
+        setCurrentUser(getCurrentUser());
+        setRoadmapProgress(getRoadmapProgress());
       } catch (loadError) {
         const message =
           loadError instanceof Error ? loadError.message : "Failed to load dashboard.";
@@ -34,6 +50,12 @@ export default function DashboardPage() {
     }
 
     loadDashboard();
+    window.addEventListener("storage", loadDashboard);
+    window.addEventListener(AUTH_UPDATED_EVENT, loadDashboard);
+    return () => {
+      window.removeEventListener("storage", loadDashboard);
+      window.removeEventListener(AUTH_UPDATED_EVENT, loadDashboard);
+    };
   }, []);
 
   const readiness = useMemo(
@@ -45,6 +67,7 @@ export default function DashboardPage() {
   ) ?? LEARNING_PATHS[1];
   const completedScenarios = scenarios.filter((scenario) => progressMap[scenario.slug]?.completed);
   const hasNoProgress = Object.keys(progressMap).length === 0;
+  const hasGuestActivity = Boolean(onboarding) || !hasNoProgress;
   const continueScenario =
     scenarios.find(
       (scenario) =>
@@ -84,8 +107,87 @@ export default function DashboardPage() {
     );
   }
 
+  if (!currentUser && !hasGuestActivity) {
+    return (
+      <>
+        <main className="mx-auto min-h-screen max-w-7xl px-6 py-10 sm:px-10">
+          <section className="panel rounded-[2rem] p-8 sm:p-10">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-200">
+              Dashboard preview
+            </p>
+            <h1 className="mt-4 text-4xl font-semibold tracking-tight text-slate-50">
+              Your dashboard becomes useful after one practice attempt.
+            </h1>
+            <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300">
+              Start free without signup, take the four-question onboarding, or sign in to
+              continue an existing account. We do not block the first lab behind login.
+            </p>
+            <div className="mt-7 flex flex-wrap gap-3">
+              <Link
+                href="/scenarios/wrong-group-by-grain-customer-revenue"
+                className="rounded-full bg-amber-300 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-200"
+              >
+                Start free lab
+              </Link>
+              <Link
+                href="/onboarding"
+                className="rounded-full border border-teal-300/30 px-6 py-3 text-sm font-semibold text-teal-100 transition hover:bg-teal-300/10"
+              >
+                Take onboarding
+              </Link>
+              <button
+                type="button"
+                onClick={() => setIsAuthOpen(true)}
+                className="rounded-full border border-slate-700 px-6 py-3 text-sm font-semibold text-slate-200 transition hover:border-teal-300/40"
+              >
+                Sign in
+              </button>
+            </div>
+          </section>
+          <section className="mt-6 grid gap-4 md:grid-cols-3">
+            <StartCard label="Continue practice" value="Resume your latest lab" />
+            <StartCard label="Weak skills" value="Detected from attempts" />
+            <StartCard label="Recommended next" value="Based on your path" />
+          </section>
+        </main>
+        <AuthDialog isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
+      </>
+    );
+  }
+
   return (
     <main className="mx-auto min-h-screen max-w-7xl px-6 py-10 sm:px-10">
+      {!currentUser ? (
+        <section className="panel mb-6 rounded-[2rem] border border-teal-300/20 p-6">
+          <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-teal-200">
+                Guest dashboard
+              </p>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
+                Your onboarding and practice progress are saved on this device. Sign up
+                when you want the account-ready experience and future cross-device sync.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsAuthOpen(true)}
+              className="rounded-full bg-teal-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-teal-200"
+            >
+              Sign up to save progress
+            </button>
+          </div>
+        </section>
+      ) : (
+        <section className="panel mb-6 rounded-[2rem] p-6">
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-teal-200">
+            Welcome back
+          </p>
+          <h1 className="mt-2 text-2xl font-semibold text-slate-50">
+            Continue practice, {currentUser.name}.
+          </h1>
+        </section>
+      )}
       {!onboarding ? (
         <section className="panel mb-6 rounded-[2rem] border border-amber-300/20 p-6">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-200">
@@ -154,8 +256,8 @@ export default function DashboardPage() {
             Today’s mission
           </h1>
           <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300">
-            Focus on one practice item, one production scenario, one interview answer, and
-            one weak-area revision. Small reps, daily compounding.
+            Focus on one practice item, one production scenario, and one weak-area revision.
+            Small reps, daily compounding.
           </p>
           <div className="mt-6 grid gap-4 md:grid-cols-2">
             <MissionCard
@@ -169,9 +271,9 @@ export default function DashboardPage() {
               href={productionScenario ? `/scenarios/${productionScenario.slug}` : "/scenarios"}
             />
             <MissionCard
-              label="Interview prompt"
-              title="Explain root cause, fix, trade-offs, and monitoring"
-              href="/mock-interview"
+              label="Explanation practice"
+              title="Explain one completed fix in interview-ready language"
+              href={continueScenario ? `/scenarios/${continueScenario.slug}` : "/scenarios"}
             />
             <MissionCard
               label="Weak-area revision"
@@ -254,6 +356,37 @@ export default function DashboardPage() {
 
       <section className="mt-6 grid gap-6 lg:grid-cols-3">
         <DashboardList
+          title="Current roadmap"
+          items={[
+            roadmapProgress.activePathSlug
+              ? `Active: ${LEARNING_PATHS.find((path) => path.slug === roadmapProgress.activePathSlug)?.name ?? roadmapProgress.activePathSlug}`
+              : recommendedPath.name,
+            `${(roadmapProgress.completedDays[roadmapProgress.activePathSlug ?? recommendedPath.slug] ?? []).length} roadmap steps completed`
+          ]}
+        />
+        <DashboardList
+          title="Saved explanations"
+          items={
+            Object.values(progressMap).some((entry) => entry.aiScore !== null)
+              ? Object.values(progressMap)
+                  .filter((entry) => entry.aiScore !== null)
+                  .slice(0, 4)
+                  .map((entry) => `${entry.slug}: ${entry.aiScore}/100`)
+              : ["Submit an interview explanation to save your first feedback score."]
+          }
+        />
+        <DashboardList
+          title="Premium suggestions"
+          items={[
+            "Advanced Airflow and production incident labs",
+            "Deeper system design practice",
+            "Project Sandbox and Mock Interview are coming soon"
+          ]}
+        />
+      </section>
+
+      <section className="mt-6 grid gap-6 lg:grid-cols-3">
+        <DashboardList
           title="Weak Areas"
           items={readiness.weakAreas.length ? readiness.weakAreas : ["No weak areas yet. Attempt a scenario first."]}
         />
@@ -272,18 +405,19 @@ export default function DashboardPage() {
       </section>
 
       <section className="panel mt-6 rounded-3xl p-6">
-        <h2 className="text-xl font-semibold text-slate-50">Project Simulator Progress</h2>
+        <h2 className="text-xl font-semibold text-slate-50">Project Sandbox</h2>
         <p className="mt-3 text-sm leading-6 text-slate-300">
-          E-commerce Orders Data Pipeline Simulator is available now. Mission persistence is
-          local in v1 and will move to the backend when the account model is expanded.
+          The E-commerce Orders Pipeline Sandbox is being prepared for a future release.
+          Continue building the same production skills through the scenario library today.
         </p>
         <Link
-          href="/projects/ecommerce-pipeline"
+          href="/scenarios"
           className="mt-5 inline-flex rounded-full bg-amber-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-200"
         >
-          Open simulator
+          Practice production scenarios
         </Link>
       </section>
+      <AuthDialog isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
     </main>
   );
 }
