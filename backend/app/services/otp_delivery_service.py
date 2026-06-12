@@ -16,13 +16,22 @@ class OtpDeliveryService:
         settings = get_settings()
         self.resend_api_key = settings.resend_api_key
         self.otp_email_from = settings.otp_email_from
+        self.allow_demo_otp = (
+            settings.auth_allow_demo_otp and settings.environment.lower() != "production"
+        )
 
     def delivery_channel(self) -> str:
-        return "email" if self.resend_api_key else "demo"
+        if self.resend_api_key:
+            return "email"
+        return "demo" if self.allow_demo_otp else "unconfigured"
 
     def send_otp(self, email: str, otp_code: str, expires_in_minutes: int) -> None:
         if not self.resend_api_key:
-            return
+            if self.allow_demo_otp:
+                return
+            raise OtpDeliveryError(
+                "Email OTP delivery is not configured. Set RESEND_API_KEY on the backend."
+            )
 
         escaped_code = html.escape(otp_code)
         escaped_email = html.escape(email)

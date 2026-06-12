@@ -9,6 +9,7 @@ import type {
   EmailCaptureRequest,
   EmailCaptureResponse,
   GoogleAuthStartUrlResponse,
+  PremiumCouponQuote,
   PremiumManualUnlockRequest,
   PremiumManualUnlockResponse,
   ScenarioDetail,
@@ -141,6 +142,20 @@ export function submitManualPremiumPayment(
   payload: PremiumManualUnlockRequest
 ): Promise<PremiumManualUnlockResponse> {
   return apiFetch<PremiumManualUnlockResponse>("/api/v1/premium/manual-unlock", {
+    method: "POST",
+    authToken: token,
+    body: JSON.stringify(payload)
+  });
+}
+
+export function validatePremiumCoupon(
+  token: string,
+  payload: {
+    billing_interval: "monthly" | "yearly";
+    coupon_code: string;
+  }
+): Promise<PremiumCouponQuote> {
+  return apiFetch<PremiumCouponQuote>("/api/v1/premium/coupons/validate", {
     method: "POST",
     authToken: token,
     body: JSON.stringify(payload)

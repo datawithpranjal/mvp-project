@@ -49,12 +49,18 @@ class PremiumAccessService:
         billing_interval: str,
         amount_inr: int,
         payment_reference: str,
+        original_amount_inr: int | None = None,
+        discount_amount_inr: int = 0,
+        coupon_code: str | None = None,
     ) -> dict[str, Any]:
         record = {
             "email": email.strip().lower(),
             "plan_label": plan_label,
             "billing_interval": billing_interval,
             "amount_inr": amount_inr,
+            "original_amount_inr": original_amount_inr or amount_inr,
+            "discount_amount_inr": discount_amount_inr,
+            "coupon_code": coupon_code,
             "payment_reference": payment_reference,
             "status": "pending",
             "submitted_at": datetime.now(timezone.utc),
@@ -109,10 +115,34 @@ class PremiumAccessService:
                 plan_label TEXT NOT NULL,
                 billing_interval TEXT NOT NULL,
                 amount_inr INTEGER NOT NULL,
+                original_amount_inr INTEGER NOT NULL,
+                discount_amount_inr INTEGER NOT NULL DEFAULT 0,
+                coupon_code TEXT,
                 payment_reference TEXT NOT NULL,
                 status TEXT NOT NULL DEFAULT 'pending',
                 submitted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
             )
+            """
+        )
+        cursor.execute(
+            """
+            ALTER TABLE premium_payment_requests
+                ADD COLUMN IF NOT EXISTS original_amount_inr INTEGER,
+                ADD COLUMN IF NOT EXISTS discount_amount_inr INTEGER NOT NULL DEFAULT 0,
+                ADD COLUMN IF NOT EXISTS coupon_code TEXT
+            """
+        )
+        cursor.execute(
+            """
+            UPDATE premium_payment_requests
+            SET original_amount_inr = amount_inr
+            WHERE original_amount_inr IS NULL
+            """
+        )
+        cursor.execute(
+            """
+            ALTER TABLE premium_payment_requests
+            ALTER COLUMN original_amount_inr SET NOT NULL
             """
         )
         cursor.execute(
@@ -171,9 +201,10 @@ class PremiumAccessService:
                         """
                         INSERT INTO premium_payment_requests (
                             email, plan_label, billing_interval, amount_inr,
+                            original_amount_inr, discount_amount_inr, coupon_code,
                             payment_reference, status, submitted_at
                         )
-                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         RETURNING id, email, status, submitted_at
                         """,
                         (
@@ -181,6 +212,9 @@ class PremiumAccessService:
                             record["plan_label"],
                             record["billing_interval"],
                             record["amount_inr"],
+                            record["original_amount_inr"],
+                            record["discount_amount_inr"],
+                            record["coupon_code"],
                             record["payment_reference"],
                             record["status"],
                             record["submitted_at"],

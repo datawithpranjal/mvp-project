@@ -27,6 +27,11 @@ const FAQ_ITEMS = [
       "Most payments are reviewed within 24 hours. Keep the UPI reference so support can locate the payment quickly."
   },
   {
+    question: "How do coupon codes work?",
+    answer:
+      "Choose your plan, enter the coupon in the UPI checkout, and select Apply coupon. Pay only the discounted amount shown after the coupon is verified."
+  },
+  {
     question: "What is the refund policy?",
     answer:
       "If activation cannot be completed, contact support with your payment reference. Refund and access requests are reviewed individually during this early-access period."

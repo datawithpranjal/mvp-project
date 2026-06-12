@@ -457,3 +457,33 @@ The preferred path is one JSON file per scenario in `backend/app/scenarios/`.
 - Authentication uses the FastAPI OTP/profile endpoints and stores sessions in Postgres when `POSTGRES_URL` points at Supabase.
 - Practice progress is currently localStorage-based and documented for future server-side persistence.
 - Premium checkout is a manual UPI flow for product prototyping, not a real payment-gateway integration.
+
+## Managing Premium Coupons
+
+Coupon definitions live in:
+
+```text
+backend/app/data/premium_coupons.json
+```
+
+Codes are case-insensitive. The backend calculates the final amount and rejects
+client-side price changes. To add another coupon, append an object:
+
+```json
+{
+  "code": "INTERVIEW100",
+  "description": "Rs 100 interview-prep offer",
+  "discount_type": "fixed",
+  "discount_value": 100,
+  "active": true,
+  "applies_to": ["yearly"],
+  "starts_at": "2026-06-01T00:00:00Z",
+  "expires_at": "2026-06-30T23:59:59Z"
+}
+```
+
+Supported discount types are `percent` and `fixed`. Supported plans are
+`monthly` and `yearly`. Set `active` to `false` to disable a code, then redeploy
+the backend. Coupon codes in this file are visible to anyone who can read the
+repository, so use this catalog for shareable marketing coupons rather than
+private one-time codes.

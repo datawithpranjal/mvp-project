@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 import hmac
 import hashlib
 import json
+import math
 import secrets
 from typing import Any
 from urllib.parse import urlencode
@@ -27,6 +28,7 @@ from app.services.otp_delivery_service import OtpDeliveryError, OtpDeliveryServi
 
 OTP_REQUEST_LIMIT = 5
 OTP_REQUEST_WINDOW = timedelta(minutes=15)
+OTP_RESEND_COOLDOWN = timedelta(seconds=60)
 OTP_VERIFY_FAILURE_LIMIT = 8
 OTP_VERIFY_FAILURE_WINDOW = timedelta(minutes=15)
 
@@ -63,7 +65,6 @@ class AuthService:
         self.postgres_url = self._active_postgres_url(configured_postgres_url)
         self.otp_ttl = timedelta(minutes=settings.auth_otp_ttl_minutes)
         self.session_ttl = timedelta(days=settings.auth_session_ttl_days)
-        self.show_debug_otp = settings.auth_show_debug_otp
         self.frontend_base_url = settings.frontend_base_url.rstrip("/")
         self.google_client_id = settings.google_oauth_client_id
         self.google_client_secret = settings.google_oauth_client_secret
@@ -75,6 +76,10 @@ class AuthService:
         )
         self.email_capture_store = EmailCaptureStore(postgres_url=configured_postgres_url)
         self.otp_delivery_service = OtpDeliveryService()
+        self.show_debug_otp = (
+            settings.auth_show_debug_otp
+            and self.otp_delivery_service.delivery_channel() == "demo"
+        )
 
     def request_otp(self, payload: AuthRequestOtpRequest) -> AuthRequestOtpResponse:
         now = self._now()
@@ -100,6 +105,7 @@ class AuthService:
             otp_required=True,
             delivery_channel=self.otp_delivery_service.delivery_channel(),
             expires_in_seconds=int(self.otp_ttl.total_seconds()),
+            resend_after_seconds=int(OTP_RESEND_COOLDOWN.total_seconds()),
             debug_otp=otp_code if self.show_debug_otp else None,
         )
 
@@ -270,6 +276,9 @@ class AuthService:
             self._postgres_store_otp(otp_row)
             return
 
+        for existing_otp in self._memory_otps:
+            if existing_otp["email"] == email and existing_otp["consumed_at"] is None:
+                existing_otp["consumed_at"] = now
         self._memory_otps.append(otp_row)
 
     def _check_otp_request_rate_limit(self, email: str, now: datetime) -> None:
@@ -277,16 +286,31 @@ class AuthService:
 
         if self.postgres_url:
             recent_count = self._postgres_count_recent_otp_requests(email, window_start)
+            latest_request_at = self._postgres_latest_otp_request(email)
         else:
             self._memory_otps = [
                 otp for otp in self._memory_otps if otp["created_at"] >= window_start
             ]
-            recent_count = sum(1 for otp in self._memory_otps if otp["email"] == email)
+            matching_otps = [otp for otp in self._memory_otps if otp["email"] == email]
+            recent_count = len(matching_otps)
+            latest_request_at = (
+                max(otp["created_at"] for otp in matching_otps)
+                if matching_otps
+                else None
+            )
 
         if recent_count >= OTP_REQUEST_LIMIT:
             raise AuthRateLimitError(
                 "Too many OTP requests. Please wait 15 minutes before trying again."
             )
+        if latest_request_at:
+            remaining_seconds = math.ceil(
+                (latest_request_at + OTP_RESEND_COOLDOWN - now).total_seconds()
+            )
+            if remaining_seconds > 0:
+                raise AuthRateLimitError(
+                    f"Please wait {remaining_seconds} seconds before requesting a new OTP."
+                )
 
     def _check_otp_verify_rate_limit(self, email: str, now: datetime) -> None:
         window_start = now - OTP_VERIFY_FAILURE_WINDOW
@@ -665,6 +689,15 @@ class AuthService:
                     self._ensure_postgres_schema(cursor)
                     cursor.execute(
                         """
+                        UPDATE auth_otps
+                        SET consumed_at = %s
+                        WHERE email = %s
+                          AND consumed_at IS NULL
+                        """,
+                        (otp_row["created_at"], otp_row["email"]),
+                    )
+                    cursor.execute(
+                        """
                         INSERT INTO auth_otps (email, code_hash, purpose, expires_at, created_at)
                         VALUES (%s, %s, %s, %s, %s)
                         """,
@@ -679,6 +712,26 @@ class AuthService:
                 connection.commit()
         except Exception as exc:
             raise AuthServiceError(f"Unable to create OTP. {exc}") from exc
+
+    def _postgres_latest_otp_request(self, email: str) -> datetime | None:
+        try:
+            with self._postgres_connect() as connection:
+                with connection.cursor() as cursor:
+                    self._ensure_postgres_schema(cursor)
+                    cursor.execute(
+                        """
+                        SELECT created_at
+                        FROM auth_otps
+                        WHERE email = %s
+                        ORDER BY created_at DESC
+                        LIMIT 1
+                        """,
+                        (email,),
+                    )
+                    row = cursor.fetchone()
+                    return row[0] if row else None
+        except Exception as exc:
+            raise AuthServiceError(f"Unable to check OTP resend timing. {exc}") from exc
 
     def _postgres_count_recent_otp_requests(
         self,

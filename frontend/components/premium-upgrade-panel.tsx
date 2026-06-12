@@ -3,7 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { AUTH_UPDATED_EVENT, getAuthToken, getCurrentUser, type AuthUser } from "../lib/auth";
-import { captureEmail, submitManualPremiumPayment } from "../lib/api";
+import {
+  captureEmail,
+  submitManualPremiumPayment,
+  validatePremiumCoupon
+} from "../lib/api";
+import type { PremiumCouponQuote } from "../lib/types";
 import {
   PREMIUM_ACCESS_UPDATED_EVENT,
   getPremiumAccess,
@@ -65,6 +70,10 @@ export function PremiumUpgradePanel({
   const [premiumAccess, setPremiumAccessState] = useState<PremiumAccessRecord | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<BillingInterval>("yearly");
   const [paymentReference, setPaymentReference] = useState("");
+  const [couponCode, setCouponCode] = useState("");
+  const [couponQuote, setCouponQuote] = useState<PremiumCouponQuote | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [checkoutSuccess, setCheckoutSuccess] = useState<string | null>(null);
   const [isCompletingPayment, setIsCompletingPayment] = useState(false);
@@ -91,6 +100,52 @@ export function PremiumUpgradePanel({
     () => PRICING_PLANS.find((plan) => plan.id === selectedPlan) ?? PRICING_PLANS[0],
     [selectedPlan]
   );
+  const payableAmount = couponQuote?.final_amount_inr ?? activePlan.amountInr;
+
+  function choosePlan(plan: BillingInterval) {
+    setSelectedPlan(plan);
+    setCouponQuote(null);
+    setCouponError(null);
+    setCheckoutError(null);
+    setCheckoutSuccess(null);
+  }
+
+  async function applyCoupon() {
+    const token = getAuthToken();
+    const normalizedCode = couponCode.trim();
+    if (!token) {
+      setCouponError("Please sign in again before applying a coupon.");
+      return;
+    }
+    if (!normalizedCode) {
+      setCouponError("Enter a coupon code first.");
+      return;
+    }
+
+    try {
+      setIsApplyingCoupon(true);
+      setCouponError(null);
+      setCouponQuote(
+        await validatePremiumCoupon(token, {
+          billing_interval: activePlan.id,
+          coupon_code: normalizedCode
+        })
+      );
+    } catch (error) {
+      setCouponQuote(null);
+      setCouponError(
+        error instanceof Error ? error.message : "Unable to apply this coupon."
+      );
+    } finally {
+      setIsApplyingCoupon(false);
+    }
+  }
+
+  function removeCoupon() {
+    setCouponCode("");
+    setCouponQuote(null);
+    setCouponError(null);
+  }
 
   async function handleCompleteDemoPayment() {
     if (!currentUser) {
@@ -106,9 +161,14 @@ export function PremiumUpgradePanel({
       setIsCompletingPayment(true);
       setCheckoutError(null);
       setCheckoutSuccess(null);
+      if (couponCode.trim() && !couponQuote) {
+        setCheckoutError("Apply the coupon before submitting the payment.");
+        return;
+      }
       trackEvent("payment_started", {
         plan: activePlan.id,
-        amount_inr: activePlan.amountInr
+        amount_inr: payableAmount,
+        coupon_code: couponQuote?.coupon_code ?? undefined
       });
       const nextPaymentReference = paymentReference.trim() || `MANUAL-UPI-${Date.now()}`;
 
@@ -119,12 +179,13 @@ export function PremiumUpgradePanel({
       await submitManualPremiumPayment(token, {
         plan_label: activePlan.label,
         billing_interval: activePlan.id,
-        amount_inr: activePlan.amountInr,
-        payment_reference: nextPaymentReference
+        amount_inr: payableAmount,
+        payment_reference: nextPaymentReference,
+        coupon_code: couponQuote?.coupon_code ?? undefined
       });
 
       setCheckoutSuccess(
-        "Payment submitted for manual review. Premium access will be enabled after verification."
+        `Payment of Rs ${payableAmount} submitted for manual review. Premium access will be enabled after verification.`
       );
       onUnlocked?.();
     } catch (error) {
@@ -203,7 +264,7 @@ export function PremiumUpgradePanel({
               <button
                 key={plan.id}
                 type="button"
-                onClick={() => setSelectedPlan(plan.id)}
+                onClick={() => choosePlan(plan.id)}
                 className={`rounded-3xl border p-5 text-left transition ${
                   selectedPlan === plan.id
                     ? "border-amber-300/50 bg-amber-300/10 shadow-glow"
@@ -263,6 +324,61 @@ export function PremiumUpgradePanel({
             </span>
           </div>
 
+          <div className="mt-5 rounded-3xl border border-slate-700 bg-slate-950/35 p-4">
+            <label
+              htmlFor="premium-coupon-code"
+              className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400"
+            >
+              Have a coupon?
+            </label>
+            <div className="mt-3 flex flex-col gap-3 sm:flex-row">
+              <input
+                id="premium-coupon-code"
+                type="text"
+                value={couponCode}
+                onChange={(event) => {
+                  setCouponCode(event.target.value);
+                  setCouponQuote(null);
+                  setCouponError(null);
+                }}
+                placeholder="Enter coupon code"
+                autoComplete="off"
+                className="min-w-0 flex-1 rounded-2xl border border-slate-700 bg-slate-950/60 px-4 py-3 text-sm uppercase text-slate-100 outline-none transition focus:border-amber-300/40"
+              />
+              {couponQuote ? (
+                <button
+                  type="button"
+                  onClick={removeCoupon}
+                  className="rounded-full border border-slate-700 px-5 py-3 text-sm font-semibold text-slate-200 transition hover:border-rose-300/40"
+                >
+                  Remove
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={applyCoupon}
+                  disabled={isApplyingCoupon}
+                  className="rounded-full border border-amber-300/35 bg-amber-300/10 px-5 py-3 text-sm font-semibold text-amber-100 transition hover:bg-amber-300/20 disabled:cursor-wait disabled:opacity-60"
+                >
+                  {isApplyingCoupon ? "Applying..." : "Apply coupon"}
+                </button>
+              )}
+            </div>
+            {couponQuote ? (
+              <div className="mt-3 rounded-2xl border border-teal-300/20 bg-teal-300/10 px-4 py-3">
+                <p className="text-sm font-semibold text-teal-100">
+                  {couponQuote.discount_label} applied
+                </p>
+                <p className="mt-1 text-xs leading-5 text-teal-100/80">
+                  {couponQuote.coupon_description}
+                </p>
+              </div>
+            ) : null}
+            {couponError ? (
+              <p className="mt-3 text-sm text-rose-200">{couponError}</p>
+            ) : null}
+          </div>
+
           <div className="mt-5 flex justify-center">
             <PaymentQrCode />
           </div>
@@ -270,7 +386,14 @@ export function PremiumUpgradePanel({
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
             <div className="rounded-2xl border border-slate-700 bg-slate-950/50 px-4 py-4">
               <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Payable</p>
-              <p className="mt-2 text-xl font-semibold text-slate-50">Rs {activePlan.amountInr}</p>
+              <div className="mt-2 flex flex-wrap items-baseline gap-2">
+                <p className="text-xl font-semibold text-slate-50">Rs {payableAmount}</p>
+                {couponQuote ? (
+                  <p className="text-sm text-slate-500 line-through">
+                    Rs {couponQuote.original_amount_inr}
+                  </p>
+                ) : null}
+              </div>
             </div>
             <div className="rounded-2xl border border-slate-700 bg-slate-950/50 px-4 py-4">
               <p className="text-xs uppercase tracking-[0.18em] text-slate-500">UPI ID</p>

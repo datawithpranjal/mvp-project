@@ -54,6 +54,7 @@ class AuthRequestOtpResponse(BaseModel):
     otp_required: bool
     delivery_channel: str
     expires_in_seconds: int
+    resend_after_seconds: int = 60
     debug_otp: str | None = None
 
 

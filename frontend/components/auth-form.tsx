@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
 import { getGoogleAuthStartUrl, requestAuthOtp, verifyAuthOtp } from "../lib/api";
 import { saveAuthSession, type AuthUser } from "../lib/auth";
@@ -25,15 +25,45 @@ export function AuthForm({ title, description, onSuccess }: AuthFormProps) {
   const [preparationGoal, setPreparationGoal] = useState("");
   const [otpCode, setOtpCode] = useState("");
   const [demoOtp, setDemoOtp] = useState<string | null>(null);
+  const [resendSeconds, setResendSeconds] = useState(0);
+  const [resendMessage, setResendMessage] = useState<string | null>(null);
+  const [isResendingOtp, setIsResendingOtp] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (step !== "otp" || resendSeconds <= 0) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setResendSeconds((seconds) => Math.max(0, seconds - 1));
+    }, 1000);
+
+    return () => window.clearTimeout(timer);
+  }, [resendSeconds, step]);
 
   function switchMode(nextMode: "signin" | "signup") {
     setMode(nextMode);
     setStep("details");
     setOtpCode("");
     setDemoOtp(null);
+    setResendSeconds(0);
+    setResendMessage(null);
     setError(null);
+  }
+
+  function otpRequestPayload() {
+    return {
+      mode,
+      email,
+      full_name: mode === "signup" ? fullName : undefined,
+      role: mode === "signup" ? role : undefined,
+      experience_level: mode === "signup" ? experienceLevel : undefined,
+      target_role: mode === "signup" ? targetRole : undefined,
+      country: mode === "signup" ? country : undefined,
+      preparation_goal: mode === "signup" ? preparationGoal : undefined
+    } as const;
   }
 
   async function handleRequestOtp(event: FormEvent<HTMLFormElement>) {
@@ -43,19 +73,12 @@ export function AuthForm({ title, description, onSuccess }: AuthFormProps) {
       setIsSubmitting(true);
       setError(null);
 
-      const response = await requestAuthOtp({
-        mode,
-        email,
-        full_name: mode === "signup" ? fullName : undefined,
-        role: mode === "signup" ? role : undefined,
-        experience_level: mode === "signup" ? experienceLevel : undefined,
-        target_role: mode === "signup" ? targetRole : undefined,
-        country: mode === "signup" ? country : undefined,
-        preparation_goal: mode === "signup" ? preparationGoal : undefined
-      });
+      const response = await requestAuthOtp(otpRequestPayload());
 
       setEmail(response.email);
       setDemoOtp(response.debug_otp ?? null);
+      setResendSeconds(response.resend_after_seconds ?? 60);
+      setResendMessage(null);
       setStep("otp");
     } catch (requestError) {
       const message =
@@ -65,6 +88,31 @@ export function AuthForm({ title, description, onSuccess }: AuthFormProps) {
       setError(message);
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function handleResendOtp() {
+    if (resendSeconds > 0 || isResendingOtp) {
+      return;
+    }
+
+    try {
+      setIsResendingOtp(true);
+      setError(null);
+      setResendMessage(null);
+      const response = await requestAuthOtp(otpRequestPayload());
+      setDemoOtp(response.debug_otp ?? null);
+      setOtpCode("");
+      setResendSeconds(response.resend_after_seconds ?? 60);
+      setResendMessage(`A new OTP was sent to ${response.email}.`);
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Unable to resend OTP right now."
+      );
+    } finally {
+      setIsResendingOtp(false);
     }
   }
 
@@ -315,6 +363,31 @@ export function AuthForm({ title, description, onSuccess }: AuthFormProps) {
             />
           </div>
 
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-950/30 px-4 py-3">
+            <p className="text-sm text-slate-400">Didn&apos;t receive the code?</p>
+            <button
+              type="button"
+              onClick={handleResendOtp}
+              disabled={resendSeconds > 0 || isResendingOtp}
+              className="text-sm font-semibold text-teal-200 transition hover:text-teal-100 disabled:cursor-not-allowed disabled:text-slate-500"
+            >
+              {isResendingOtp
+                ? "Sending..."
+                : resendSeconds > 0
+                  ? `Resend OTP in ${resendSeconds}s`
+                  : "Resend OTP"}
+            </button>
+          </div>
+
+          {resendMessage ? (
+            <div
+              aria-live="polite"
+              className="rounded-2xl border border-teal-300/20 bg-teal-300/10 px-4 py-3 text-sm text-teal-100"
+            >
+              {resendMessage}
+            </div>
+          ) : null}
+
           {error ? (
             <div className="rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">
               {error}
@@ -324,7 +397,12 @@ export function AuthForm({ title, description, onSuccess }: AuthFormProps) {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <button
               type="button"
-              onClick={() => setStep("details")}
+              onClick={() => {
+                setStep("details");
+                setResendSeconds(0);
+                setResendMessage(null);
+                setError(null);
+              }}
               className="rounded-full border border-slate-700 px-5 py-2 text-sm font-semibold text-slate-200 transition hover:border-teal-300/40"
             >
               Change email

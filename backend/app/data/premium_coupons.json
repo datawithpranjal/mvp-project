@@ -1,0 +1,12 @@
+[
+  {
+    "code": "ILOVEDATAWITHPRANJAL",
+    "description": "Data with Pranjal community offer",
+    "discount_type": "percent",
+    "discount_value": 50,
+    "active": true,
+    "applies_to": ["monthly", "yearly"],
+    "starts_at": null,
+    "expires_at": null
+  }
+]

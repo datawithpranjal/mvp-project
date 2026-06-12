@@ -17,7 +17,8 @@ class Settings(BaseSettings):
     admin_api_token: str | None = None
     auth_session_ttl_days: int = 30
     auth_otp_ttl_minutes: int = 10
-    auth_show_debug_otp: bool = True
+    auth_show_debug_otp: bool = False
+    auth_allow_demo_otp: bool = False
     resend_api_key: str | None = None
     otp_email_from: str = "Data Engineering Scenario Playground <onboarding@resend.dev>"
     frontend_base_url: str = "http://localhost:3000"
@@ -31,6 +32,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         case_sensitive=False,
         env_prefix="",
+        env_file=("../.env", ".env"),
         extra="ignore",
     )
 

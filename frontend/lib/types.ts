@@ -73,9 +73,21 @@ export interface PremiumManualUnlockRequest {
   billing_interval: "monthly" | "yearly";
   amount_inr: number;
   payment_reference: string;
+  coupon_code?: string;
 }
 
-export interface PremiumManualUnlockResponse {
+export interface PremiumCouponQuote {
+  plan_label: string;
+  billing_interval: "monthly" | "yearly";
+  original_amount_inr: number;
+  discount_amount_inr: number;
+  final_amount_inr: number;
+  coupon_code: string | null;
+  coupon_description: string | null;
+  discount_label: string | null;
+}
+
+export interface PremiumManualUnlockResponse extends PremiumCouponQuote {
   submitted: boolean;
   pending_review: boolean;
   unlocked_premium: boolean;
@@ -114,6 +126,7 @@ export interface AuthRequestOtpResponse {
   otp_required: boolean;
   delivery_channel: string;
   expires_in_seconds: number;
+  resend_after_seconds: number;
   debug_otp?: string | null;
 }
 

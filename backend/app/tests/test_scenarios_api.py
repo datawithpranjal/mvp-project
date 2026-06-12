@@ -1,5 +1,8 @@
+from datetime import timedelta
+
 from fastapi.testclient import TestClient
 
+from app.api.routes.auth import auth_service
 from app.main import app
 
 client = TestClient(app)
@@ -146,6 +149,90 @@ def test_manual_payment_submission_does_not_directly_unlock_premium() -> None:
     assert premium_detail_response.json()["is_locked"] is True
 
 
+def test_coupon_validation_and_discounted_payment_submission() -> None:
+    email = "coupon.student@example.com"
+    otp_response = client.post(
+        "/api/v1/auth/request-otp",
+        json={
+            "mode": "signup",
+            "email": email,
+            "full_name": "Coupon Student",
+        },
+    )
+    token_response = client.post(
+        "/api/v1/auth/verify-otp",
+        json={"email": email, "otp_code": otp_response.json()["debug_otp"]},
+    )
+    token = token_response.json()["token"]
+
+    coupon_response = client.post(
+        "/api/v1/premium/coupons/validate",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "billing_interval": "yearly",
+            "coupon_code": "Ilovedatawithpranjal",
+        },
+    )
+
+    assert coupon_response.status_code == 200
+    quote = coupon_response.json()
+    assert quote["original_amount_inr"] == 500
+    assert quote["discount_amount_inr"] == 250
+    assert quote["final_amount_inr"] == 250
+    assert quote["coupon_code"] == "ILOVEDATAWITHPRANJAL"
+
+    payment_response = client.post(
+        "/api/v1/premium/manual-unlock",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "plan_label": "Premium Annual",
+            "billing_interval": "yearly",
+            "amount_inr": 250,
+            "payment_reference": "UPI-COUPON-001",
+            "coupon_code": "Ilovedatawithpranjal",
+        },
+    )
+
+    assert payment_response.status_code == 200
+    payload = payment_response.json()
+    assert payload["submitted"] is True
+    assert payload["unlocked_premium"] is False
+    assert payload["final_amount_inr"] == 250
+    assert payload["coupon_code"] == "ILOVEDATAWITHPRANJAL"
+
+
+def test_payment_submission_rejects_client_side_price_tampering() -> None:
+    email = "coupon.tamper.student@example.com"
+    otp_response = client.post(
+        "/api/v1/auth/request-otp",
+        json={
+            "mode": "signup",
+            "email": email,
+            "full_name": "Coupon Tamper Student",
+        },
+    )
+    token_response = client.post(
+        "/api/v1/auth/verify-otp",
+        json={"email": email, "otp_code": otp_response.json()["debug_otp"]},
+    )
+    token = token_response.json()["token"]
+
+    response = client.post(
+        "/api/v1/premium/manual-unlock",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "plan_label": "Premium Annual",
+            "billing_interval": "yearly",
+            "amount_inr": 1,
+            "payment_reference": "UPI-TAMPER-001",
+            "coupon_code": "ILOVEDATAWITHPRANJAL",
+        },
+    )
+
+    assert response.status_code == 400
+    assert "payable amount changed" in response.json()["detail"].lower()
+
+
 def test_email_capture_endpoint_captures_without_unlocking_premium() -> None:
     response = client.post(
         "/api/v1/email-captures",
@@ -249,6 +336,9 @@ def test_otp_request_rate_limit_returns_429() -> None:
             },
         )
         assert response.status_code == 200
+        for otp in auth_service._memory_otps:
+            if otp["email"] == email:
+                otp["created_at"] -= timedelta(seconds=61)
 
     limited_response = client.post(
         "/api/v1/auth/request-otp",
@@ -261,3 +351,65 @@ def test_otp_request_rate_limit_returns_429() -> None:
 
     assert limited_response.status_code == 429
     assert "Too many OTP requests" in limited_response.json()["detail"]
+
+
+def test_otp_resend_requires_60_second_wait_and_invalidates_old_code(
+    monkeypatch,
+) -> None:
+    otp_values = iter([111111, 222222])
+    monkeypatch.setattr(
+        "app.services.auth_service.secrets.randbelow",
+        lambda _: next(otp_values),
+    )
+    email = "otp.resend.student@example.com"
+    first_response = client.post(
+        "/api/v1/auth/request-otp",
+        json={
+            "mode": "signup",
+            "email": email,
+            "full_name": "OTP Resend Student",
+        },
+    )
+
+    assert first_response.status_code == 200
+    first_payload = first_response.json()
+    assert first_payload["resend_after_seconds"] == 60
+
+    early_response = client.post(
+        "/api/v1/auth/request-otp",
+        json={
+            "mode": "signup",
+            "email": email,
+            "full_name": "OTP Resend Student",
+        },
+    )
+    assert early_response.status_code == 429
+    assert "before requesting a new OTP" in early_response.json()["detail"]
+
+    for otp in auth_service._memory_otps:
+        if otp["email"] == email:
+            otp["created_at"] -= timedelta(seconds=61)
+
+    resend_response = client.post(
+        "/api/v1/auth/request-otp",
+        json={
+            "mode": "signup",
+            "email": email,
+            "full_name": "OTP Resend Student",
+        },
+    )
+    assert resend_response.status_code == 200
+    second_otp = resend_response.json()["debug_otp"]
+    assert second_otp != first_payload["debug_otp"]
+
+    old_otp_response = client.post(
+        "/api/v1/auth/verify-otp",
+        json={"email": email, "otp_code": first_payload["debug_otp"]},
+    )
+    assert old_otp_response.status_code == 401
+
+    new_otp_response = client.post(
+        "/api/v1/auth/verify-otp",
+        json={"email": email, "otp_code": second_otp},
+    )
+    assert new_otp_response.status_code == 200
