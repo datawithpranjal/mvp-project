@@ -17,6 +17,12 @@ import {
   type PythonTestCase,
   type SqlTestCase
 } from "../../lib/coding-labs";
+import {
+  getCodingLabDrafts,
+  getLastCodingLab,
+  saveCodingLabDraft,
+  saveLastCodingLab
+} from "../../lib/coding-lab-session";
 
 interface PythonTestResult {
   name: string;
@@ -253,6 +259,8 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
   const [expectedPreview, setExpectedPreview] = useState<BrowserSqlResultTable | null>(null);
   const [expectedPreviewError, setExpectedPreviewError] = useState("");
   const [workspaceMessage, setWorkspaceMessage] = useState("");
+  const [draftsLoaded, setDraftsLoaded] = useState(false);
+  const [saveStatus, setSaveStatus] = useState("Saved locally");
 
   const topics = useMemo(() => {
     const all = new Set<string>();
@@ -295,8 +303,44 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
     const requestedSlug = new URLSearchParams(window.location.search).get("lab");
     if (requestedSlug && labs.some((lab) => lab.slug === requestedSlug)) {
       setSelectedSlug(requestedSlug);
+    } else {
+      const lastSlug = getLastCodingLab(track);
+      if (lastSlug && labs.some((lab) => lab.slug === lastSlug)) {
+        setSelectedSlug(lastSlug);
+      }
     }
-  }, [labs]);
+    const savedDrafts = getCodingLabDrafts();
+    setAnswers(
+      Object.fromEntries(
+        Object.entries(savedDrafts).map(([slug, draft]) => [slug, draft.code])
+      )
+    );
+    setDraftsLoaded(true);
+  }, [labs, track]);
+
+  useEffect(() => {
+    if (!draftsLoaded || !selectedLab) return;
+    saveLastCodingLab(track, selectedLab.slug);
+  }, [draftsLoaded, selectedLab, track]);
+
+  useEffect(() => {
+    if (!draftsLoaded || !selectedLab) return;
+    const currentAnswer = answers[selectedLab.slug];
+    if (typeof currentAnswer !== "string") return;
+
+    setSaveStatus("Saving...");
+    const timer = window.setTimeout(() => {
+      const draft = saveCodingLabDraft(selectedLab.slug, currentAnswer);
+      setSaveStatus(
+        `Saved locally at ${new Intl.DateTimeFormat(undefined, {
+          hour: "numeric",
+          minute: "2-digit"
+        }).format(new Date(draft.savedAt))}`
+      );
+    }, 500);
+
+    return () => window.clearTimeout(timer);
+  }, [answers, draftsLoaded, selectedLab]);
 
   if (!selectedLab) {
     return (
@@ -638,13 +682,19 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
             {workspaceMessage ? (
               <p className="mt-3 text-sm font-semibold text-teal-100">{workspaceMessage}</p>
             ) : null}
+            <p className="mt-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+              {saveStatus}
+            </p>
             <textarea
               value={answer}
               onChange={(event) =>
-                setAnswers((current) => ({
-                  ...current,
-                  [selectedLab.slug]: event.target.value
-                }))
+                setAnswers((current) => {
+                  setSaveStatus("Saving...");
+                  return {
+                    ...current,
+                    [selectedLab.slug]: event.target.value
+                  };
+                })
               }
               spellCheck={false}
               className="mt-5 min-h-[360px] w-full resize-y rounded-3xl border border-slate-700 bg-slate-950/80 p-5 font-mono text-sm leading-7 text-teal-50 outline-none transition focus:border-teal-300/70"

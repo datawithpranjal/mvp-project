@@ -23,6 +23,7 @@ export interface ScenarioProgressEntry {
   hintsRevealed: number;
   attempts: AttemptHistoryEntry[];
   draftAnswer: string;
+  draftInterviewAnswer: string;
   draftSavedAt: string | null;
   selfRating: ScenarioSelfRating | null;
   aiScore: number | null;
@@ -150,6 +151,8 @@ function normalizeEntry(slug: string, value?: Partial<ScenarioProgressEntry>): S
         : 0,
     attempts,
     draftAnswer: typeof value?.draftAnswer === "string" ? value.draftAnswer : "",
+    draftInterviewAnswer:
+      typeof value?.draftInterviewAnswer === "string" ? value.draftInterviewAnswer : "",
     draftSavedAt:
       typeof value?.draftSavedAt === "string" && value.draftSavedAt ? value.draftSavedAt : null,
     selfRating: normalizeSelfRating(value?.selfRating),
@@ -233,12 +236,20 @@ export function recordScenarioAttempt(
   return nextEntry;
 }
 
-export function saveScenarioDraft(slug: string, draftAnswer: string): ScenarioProgressEntry {
+export function saveScenarioDraft(
+  slug: string,
+  draftAnswer: string,
+  draftInterviewAnswer?: string
+): ScenarioProgressEntry {
   const store = readStore();
   const existing = normalizeEntry(slug, store[slug]);
   const nextEntry: ScenarioProgressEntry = {
     ...existing,
     draftAnswer,
+    draftInterviewAnswer:
+      typeof draftInterviewAnswer === "string"
+        ? draftInterviewAnswer
+        : existing.draftInterviewAnswer,
     draftSavedAt: new Date().toISOString()
   };
 

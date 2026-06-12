@@ -61,8 +61,11 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [showRevealConfirmation, setShowRevealConfirmation] = useState(false);
+  const [hydratedScenarioSlug, setHydratedScenarioSlug] = useState<string | null>(null);
+  const [autoSaveStatus, setAutoSaveStatus] = useState("Saved locally");
 
   useEffect(() => {
+    setHydratedScenarioSlug(null);
     const savedProgress = getScenarioProgress(scenario.slug);
     const savedAnswer = savedProgress.draftAnswer;
     if (scenario.scenarioType === "mcq" && scenario.mcqOptions?.some((option) => option.id === savedAnswer)) {
@@ -70,13 +73,45 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
     } else {
       setAnswer(savedAnswer || scenario.brokenCode || "");
     }
+    setInterviewAnswer(savedProgress.draftInterviewAnswer);
     setHintsRevealed(Math.min(savedProgress.hintsRevealed, scenario.hints.length));
     setProgress(summarizeScenarioProgress(savedProgress, scenario.slug));
     setSqlExecution(null);
     setSqlPreview(null);
     setEvaluation(null);
     setModelSolutionVisible(false);
+    setHydratedScenarioSlug(scenario.slug);
   }, [scenario]);
+
+  useEffect(() => {
+    if (hydratedScenarioSlug !== scenario.slug) return;
+    const draft =
+      scenario.scenarioType === "mcq" ? selectedOptionId : answer;
+    setAutoSaveStatus("Saving...");
+    const timer = window.setTimeout(() => {
+      const nextProgress = saveScenarioDraft(
+        scenario.slug,
+        draft,
+        interviewAnswer
+      );
+      setProgress(summarizeScenarioProgress(nextProgress, scenario.slug));
+      setAutoSaveStatus(
+        `Saved locally at ${new Intl.DateTimeFormat(undefined, {
+          hour: "numeric",
+          minute: "2-digit"
+        }).format(new Date(nextProgress.draftSavedAt ?? Date.now()))}`
+      );
+    }, 500);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    answer,
+    hydratedScenarioSlug,
+    interviewAnswer,
+    scenario.scenarioType,
+    scenario.slug,
+    selectedOptionId
+  ]);
 
   useEffect(() => {
     function syncUser() {
@@ -131,7 +166,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
 
   function saveDraft() {
     const draft = scenario.scenarioType === "mcq" ? selectedOptionId : answer;
-    const nextProgress = saveScenarioDraft(scenario.slug, draft);
+    const nextProgress = saveScenarioDraft(scenario.slug, draft, interviewAnswer);
     setProgress(summarizeScenarioProgress(nextProgress, scenario.slug));
     setDraftMessage("Draft saved locally.");
   }
@@ -444,6 +479,9 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
               />
             )}
 
+            <p className="mt-4 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+              {autoSaveStatus}
+            </p>
             <div
               id="explanation"
               className="mt-5 scroll-mt-32 rounded-3xl border border-slate-800 bg-slate-950/35 p-5"
