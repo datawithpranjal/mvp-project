@@ -1,5 +1,9 @@
 import { getCodingLabs, type CodingLab } from "../frontend/lib/coding-labs";
 import { getScenarios, type Scenario } from "../frontend/lib/scenarios";
+import {
+  OPERATIONS_LABS,
+  type OperationsLab
+} from "../frontend/data/platform-operations-labs";
 
 interface ContentWarning {
   category: string;
@@ -123,14 +127,35 @@ function validateScenario(scenario: Scenario) {
   }
 }
 
+function validateOperationsLab(lab: OperationsLab) {
+  const id = `operations:${lab.slug}`;
+  if (!VALID_SLUG.test(lab.slug)) addWarning("invalid_slug", id, `Invalid route slug: ${lab.slug}`, true);
+  if (typeof lab.isFree !== "boolean") addWarning("missing_access", id, "isFree must be true or false.", true);
+  if (!lab.problemStatement.trim()) addWarning("missing_description", id, "Problem statement is empty.", true);
+  if (!lab.businessContext.trim()) addWarning("missing_context", id, "Business context is empty.");
+  if (!lab.evidence.trim()) addWarning("missing_sample_data", id, "No code, log, or architecture evidence is configured.", true);
+  if (lab.skills.length === 0) addWarning("missing_skills", id, "No skills configured.");
+  if (lab.expectedKeywords.length < 4) addWarning("missing_rubric", id, "Expected-answer rubric has fewer than four concepts.");
+  if (lab.hints.length === 0) addWarning("missing_hints", id, "No incident-specific hints configured.");
+  if (lab.options.filter((option) => option.isCorrect).length !== 1) {
+    addWarning("invalid_options", id, "Exactly one diagnosis option must be correct.", true);
+  }
+  if (Object.values(lab.modelAnswer).some((value) => !value.trim())) {
+    addWarning("missing_model_solution", id, "Model answer sections must all be populated.", true);
+  }
+}
+
 const codingLabs = getCodingLabs();
 const scenarios = getScenarios();
+const operationsLabs = OPERATIONS_LABS;
 
 codingLabs.forEach(validateCodingLab);
 scenarios.forEach(validateScenario);
+operationsLabs.forEach(validateOperationsLab);
 
 repeatedValues(codingLabs, (lab) => lab.title, (lab) => lab.slug, "duplicate_title");
 repeatedValues(scenarios, (scenario) => scenario.title, (scenario) => scenario.slug, "duplicate_title");
+repeatedValues(operationsLabs, (lab) => lab.title, (lab) => lab.slug, "duplicate_title");
 repeatedValues(
   codingLabs,
   (lab) => lab.problemStatement,
@@ -143,13 +168,21 @@ repeatedValues(
   (scenario) => scenario.slug,
   "repeated_description"
 );
+repeatedValues(
+  operationsLabs,
+  (lab) => lab.problemStatement,
+  (lab) => lab.slug,
+  "repeated_description"
+);
 
 const grouped = new Map<string, ContentWarning[]>();
 for (const warning of warnings) {
   grouped.set(warning.category, [...(grouped.get(warning.category) ?? []), warning]);
 }
 
-console.log(`\nContent validation: ${codingLabs.length} coding labs, ${scenarios.length} scenarios`);
+console.log(
+  `\nContent validation: ${codingLabs.length} coding labs, ${scenarios.length} scenarios, ${operationsLabs.length} operations labs`
+);
 if (warnings.length === 0) {
   console.log("No content warnings found.\n");
 } else {

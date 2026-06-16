@@ -1,0 +1,841 @@
+{
+  "source": "Data_with_Pranjal_Scenario_Based_Data_Engineering_Interview_Handbook_Volume_2_120_More_Questions.pdf",
+  "previousGeneratedCount": 120,
+  "parsedCount": 120,
+  "addedCount": 108,
+  "skippedCount": 12,
+  "finalGeneratedCount": 228,
+  "visibleScenarioCount": 240,
+  "skipped": [
+    {
+      "number": 122,
+      "title": "The API Pagination Gap",
+      "existingSlug": "the-pagination-retry-loop",
+      "reason": "Stable pagination, retries, checkpoints, and changing API slices are already practiced."
+    },
+    {
+      "number": 137,
+      "title": "The Local-Time Filename Bug",
+      "existingSlug": "the-timezone-boundary-bug",
+      "reason": "UTC versus local-time ingestion boundaries are already covered."
+    },
+    {
+      "number": 148,
+      "title": "The Soft Delete That Returned",
+      "existingSlug": "the-delete-semantics-problem",
+      "reason": "Delete precedence, tombstones, and event ordering are already covered."
+    },
+    {
+      "number": 151,
+      "title": "The Decimal Drift from Oracle",
+      "existingSlug": "the-decimal-precision-shock",
+      "reason": "Cross-system decimal precision and downstream numeric drift are already covered."
+    },
+    {
+      "number": 153,
+      "title": "The Isolation-Level Surprise",
+      "existingSlug": "the-snapshot-consistency-debate",
+      "reason": "Consistent extraction from mutable transactional sources is already covered."
+    },
+    {
+      "number": 154,
+      "title": "The Backdated Source Update",
+      "existingSlug": "the-incremental-load-gone-wrong",
+      "reason": "Technical watermarks missing backdated business updates are already covered."
+    },
+    {
+      "number": 175,
+      "title": "The Grain Nobody Defined",
+      "existingSlug": "wrong-group-by-grain-customer-revenue",
+      "reason": "Undefined fact grain and downstream double counting are already covered."
+    },
+    {
+      "number": 180,
+      "title": "The Unknown Member Policy",
+      "existingSlug": "the-late-dimension-problem",
+      "reason": "Unknown members and late-arriving dimension handling are already covered."
+    },
+    {
+      "number": 188,
+      "title": "The Late Fact in a Closed Snapshot",
+      "existingSlug": "the-restatement-vs-close-debate",
+      "reason": "Late facts changing closed reporting periods are already covered."
+    },
+    {
+      "number": 200,
+      "title": "The Backfill Without Reconciliation",
+      "existingSlug": "the-backfill-hell",
+      "reason": "Backfill validation, idempotency, and reconciliation are already covered."
+    },
+    {
+      "number": 205,
+      "title": "The Schema Test That Blocks Additive Change",
+      "existingSlug": "the-schema-evolution-shock",
+      "reason": "Compatible additive schema evolution and downstream contract behavior are already covered."
+    },
+    {
+      "number": 238,
+      "title": "The RPO-RTO Reality Check",
+      "existingSlug": "the-platform-disaster-recovery-plan",
+      "reason": "RPO, RTO, recovery scope, and disaster-recovery validation are already covered."
+    }
+  ],
+  "added": [
+    {
+      "number": 121,
+      "title": "The Memory-Hungry CSV Parser",
+      "slug": "the-memory-hungry-csv-parser",
+      "domain": "mixed",
+      "scenarioType": "mixed_lab"
+    },
+    {
+      "number": 123,
+      "title": "The Expired Token Stampede",
+      "slug": "the-expired-token-stampede",
+      "domain": "mixed",
+      "scenarioType": "mixed_lab"
+    },
+    {
+      "number": 124,
+      "title": "The Rate-Limit Spiral",
+      "slug": "the-rate-limit-spiral",
+      "domain": "mixed",
+      "scenarioType": "mixed_lab"
+    },
+    {
+      "number": 125,
+      "title": "The Silent Encoding Corruption",
+      "slug": "the-silent-encoding-corruption",
+      "domain": "mixed",
+      "scenarioType": "mixed_lab"
+    },
+    {
+      "number": 126,
+      "title": "The Non-Deterministic Dictionary",
+      "slug": "the-non-deterministic-dictionary",
+      "domain": "mixed",
+      "scenarioType": "mixed_lab"
+    },
+    {
+      "number": 127,
+      "title": "The GIL Throughput Illusion",
+      "slug": "the-gil-throughput-illusion",
+      "domain": "mixed",
+      "scenarioType": "mixed_lab"
+    },
+    {
+      "number": 128,
+      "title": "The Multiprocessing Memory Explosion",
+      "slug": "the-multiprocessing-memory-explosion",
+      "domain": "mixed",
+      "scenarioType": "mixed_lab"
+    },
+    {
+      "number": 129,
+      "title": "The Connection Pool Leak",
+      "slug": "the-connection-pool-leak",
+      "domain": "mixed",
+      "scenarioType": "mixed_lab"
+    },
+    {
+      "number": 130,
+      "title": "The Partial File Publish",
+      "slug": "the-partial-file-publish",
+      "domain": "mixed",
+      "scenarioType": "mixed_lab"
+    },
+    {
+      "number": 131,
+      "title": "The Duplicate Webhook",
+      "slug": "the-duplicate-webhook",
+      "domain": "mixed",
+      "scenarioType": "mixed_lab"
+    },
+    {
+      "number": 132,
+      "title": "The Recursive JSON Bomb",
+      "slug": "the-recursive-json-bomb",
+      "domain": "mixed",
+      "scenarioType": "mixed_lab"
+    },
+    {
+      "number": 133,
+      "title": "The Poisoned Compression File",
+      "slug": "the-poisoned-compression-file",
+      "domain": "mixed",
+      "scenarioType": "mixed_lab"
+    },
+    {
+      "number": 134,
+      "title": "The Mutable API Response",
+      "slug": "the-mutable-api-response",
+      "domain": "mixed",
+      "scenarioType": "mixed_lab"
+    },
+    {
+      "number": 135,
+      "title": "The SDK Version Surprise",
+      "slug": "the-sdk-version-surprise",
+      "domain": "mixed",
+      "scenarioType": "mixed_lab"
+    },
+    {
+      "number": 136,
+      "title": "The Timeouts That Never End",
+      "slug": "the-timeouts-that-never-end",
+      "domain": "mixed",
+      "scenarioType": "mixed_lab"
+    },
+    {
+      "number": 138,
+      "title": "The SFTP Re-Upload Ambiguity",
+      "slug": "the-sftp-re-upload-ambiguity",
+      "domain": "mixed",
+      "scenarioType": "mixed_lab"
+    },
+    {
+      "number": 139,
+      "title": "The Missing WAL Window",
+      "slug": "the-missing-wal-window",
+      "domain": "data_modeling",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 140,
+      "title": "The Snapshot Lock Incident",
+      "slug": "the-snapshot-lock-incident",
+      "domain": "data_modeling",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 141,
+      "title": "The Transaction Boundary Split",
+      "slug": "the-transaction-boundary-split",
+      "domain": "data_modeling",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 142,
+      "title": "The Primary-Key Update",
+      "slug": "the-primary-key-update",
+      "domain": "data_modeling",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 143,
+      "title": "The DDL During Snapshot",
+      "slug": "the-ddl-during-snapshot",
+      "domain": "data_modeling",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 144,
+      "title": "The Replica Lag Extract",
+      "slug": "the-replica-lag-extract",
+      "domain": "data_modeling",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 145,
+      "title": "The Read-Your-Writes Failure",
+      "slug": "the-read-your-writes-failure",
+      "domain": "data_modeling",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 146,
+      "title": "The Long Transaction Backlog",
+      "slug": "the-long-transaction-backlog",
+      "domain": "data_modeling",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 147,
+      "title": "The Sequence Reset Collision",
+      "slug": "the-sequence-reset-collision",
+      "domain": "data_modeling",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 149,
+      "title": "The Trigger-Based CDC Bottleneck",
+      "slug": "the-trigger-based-cdc-bottleneck",
+      "domain": "data_modeling",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 150,
+      "title": "The No-Primary-Key Table",
+      "slug": "the-no-primary-key-table",
+      "domain": "data_modeling",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 152,
+      "title": "The Empty String Becomes NULL",
+      "slug": "the-empty-string-becomes-null",
+      "domain": "data_modeling",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 155,
+      "title": "The CDC Loop",
+      "slug": "the-cdc-loop",
+      "domain": "data_modeling",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 156,
+      "title": "The Shared Connector Blast Radius",
+      "slug": "the-shared-connector-blast-radius",
+      "domain": "data_modeling",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 157,
+      "title": "The Cross-Region Egress Bill",
+      "slug": "the-cross-region-egress-bill",
+      "domain": "aws",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 158,
+      "title": "The Spot Instance Data Loss",
+      "slug": "the-spot-instance-data-loss",
+      "domain": "aws",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 159,
+      "title": "The Autoscaling Oscillation",
+      "slug": "the-autoscaling-oscillation",
+      "domain": "aws",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 160,
+      "title": "The Serverless Cold-Start SLA",
+      "slug": "the-serverless-cold-start-sla",
+      "domain": "aws",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 161,
+      "title": "The IAM Wildcard Shortcut",
+      "slug": "the-iam-wildcard-shortcut",
+      "domain": "aws",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 162,
+      "title": "The KMS Throttle",
+      "slug": "the-kms-throttle",
+      "domain": "aws",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 163,
+      "title": "The Terraform State Collision",
+      "slug": "the-terraform-state-collision",
+      "domain": "aws",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 164,
+      "title": "The Manual Console Drift",
+      "slug": "the-manual-console-drift",
+      "domain": "aws",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 165,
+      "title": "The Private Endpoint Failure",
+      "slug": "the-private-endpoint-failure",
+      "domain": "aws",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 166,
+      "title": "The NAT Gateway Surprise",
+      "slug": "the-nat-gateway-surprise",
+      "domain": "aws",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 167,
+      "title": "The Object Store Consistency Assumption",
+      "slug": "the-object-store-consistency-assumption",
+      "domain": "aws",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 168,
+      "title": "The Multi-Account Data Share",
+      "slug": "the-multi-account-data-share",
+      "domain": "aws",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 169,
+      "title": "The Quota Wall",
+      "slug": "the-quota-wall",
+      "domain": "aws",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 170,
+      "title": "The Managed Service Lock-In",
+      "slug": "the-managed-service-lock-in",
+      "domain": "aws",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 171,
+      "title": "The Tagging Gap",
+      "slug": "the-tagging-gap",
+      "domain": "aws",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 172,
+      "title": "The Secrets in User Data",
+      "slug": "the-secrets-in-user-data",
+      "domain": "aws",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 173,
+      "title": "The Disaster-Recovery Region Is Empty",
+      "slug": "the-disaster-recovery-region-is-empty",
+      "domain": "aws",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 174,
+      "title": "The Control-Plane Outage",
+      "slug": "the-control-plane-outage",
+      "domain": "aws",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 176,
+      "title": "The Additive Revenue Mistake",
+      "slug": "the-additive-revenue-mistake",
+      "domain": "data_modeling",
+      "scenarioType": "mixed_lab"
+    },
+    {
+      "number": 177,
+      "title": "The Many-to-Many Dimension",
+      "slug": "the-many-to-many-dimension",
+      "domain": "data_modeling",
+      "scenarioType": "mixed_lab"
+    },
+    {
+      "number": 178,
+      "title": "The Role-Playing Date Confusion",
+      "slug": "the-role-playing-date-confusion",
+      "domain": "data_modeling",
+      "scenarioType": "mixed_lab"
+    },
+    {
+      "number": 179,
+      "title": "The Degenerate Dimension Debate",
+      "slug": "the-degenerate-dimension-debate",
+      "domain": "data_modeling",
+      "scenarioType": "mixed_lab"
+    },
+    {
+      "number": 181,
+      "title": "The Metric Filter Mismatch",
+      "slug": "the-metric-filter-mismatch",
+      "domain": "data_modeling",
+      "scenarioType": "mixed_lab"
+    },
+    {
+      "number": 182,
+      "title": "The Slowly Changing Hierarchy",
+      "slug": "the-slowly-changing-hierarchy",
+      "domain": "data_modeling",
+      "scenarioType": "mixed_lab"
+    },
+    {
+      "number": 183,
+      "title": "The Conformed Dimension Split",
+      "slug": "the-conformed-dimension-split",
+      "domain": "data_modeling",
+      "scenarioType": "mixed_lab"
+    },
+    {
+      "number": 184,
+      "title": "The Junk Dimension Overgrowth",
+      "slug": "the-junk-dimension-overgrowth",
+      "domain": "data_modeling",
+      "scenarioType": "mixed_lab"
+    },
+    {
+      "number": 185,
+      "title": "The Accumulating Snapshot Reset",
+      "slug": "the-accumulating-snapshot-reset",
+      "domain": "data_modeling",
+      "scenarioType": "mixed_lab"
+    },
+    {
+      "number": 186,
+      "title": "The Cohort Definition Drift",
+      "slug": "the-cohort-definition-drift",
+      "domain": "data_modeling",
+      "scenarioType": "mixed_lab"
+    },
+    {
+      "number": 187,
+      "title": "The Event-to-Entity Attribution",
+      "slug": "the-event-to-entity-attribution",
+      "domain": "data_modeling",
+      "scenarioType": "mixed_lab"
+    },
+    {
+      "number": 189,
+      "title": "The Semantic Layer Bypass",
+      "slug": "the-semantic-layer-bypass",
+      "domain": "data_modeling",
+      "scenarioType": "mixed_lab"
+    },
+    {
+      "number": 190,
+      "title": "The Natural Key Reuse",
+      "slug": "the-natural-key-reuse",
+      "domain": "data_modeling",
+      "scenarioType": "mixed_lab"
+    },
+    {
+      "number": 191,
+      "title": "The Fiscal Calendar Exception",
+      "slug": "the-fiscal-calendar-exception",
+      "domain": "data_modeling",
+      "scenarioType": "mixed_lab"
+    },
+    {
+      "number": 192,
+      "title": "The Hierarchical Allocation",
+      "slug": "the-hierarchical-allocation",
+      "domain": "data_modeling",
+      "scenarioType": "mixed_lab"
+    },
+    {
+      "number": 193,
+      "title": "The Unit Tests That All Pass",
+      "slug": "the-unit-tests-that-all-pass",
+      "domain": "data_quality",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 194,
+      "title": "The Flaky Data Test",
+      "slug": "the-flaky-data-test",
+      "domain": "data_quality",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 195,
+      "title": "The Fresh but Incomplete Dataset",
+      "slug": "the-fresh-but-incomplete-dataset",
+      "domain": "data_quality",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 196,
+      "title": "The Row Count False Alarm",
+      "slug": "the-row-count-false-alarm",
+      "domain": "data_quality",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 197,
+      "title": "The Null Check That Missed the Incident",
+      "slug": "the-null-check-that-missed-the-incident",
+      "domain": "data_quality",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 198,
+      "title": "The Contract Test in the Wrong Place",
+      "slug": "the-contract-test-in-the-wrong-place",
+      "domain": "data_quality",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 199,
+      "title": "The Canary Dataset",
+      "slug": "the-canary-dataset",
+      "domain": "data_quality",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 201,
+      "title": "The Alert Flood",
+      "slug": "the-alert-flood",
+      "domain": "data_quality",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 202,
+      "title": "The Missing Lineage Edge",
+      "slug": "the-missing-lineage-edge",
+      "domain": "data_quality",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 203,
+      "title": "The Data Quality Ownership Ping-Pong",
+      "slug": "the-data-quality-ownership-ping-pong",
+      "domain": "data_quality",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 204,
+      "title": "The SLO with No Error Budget",
+      "slug": "the-slo-with-no-error-budget",
+      "domain": "data_quality",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 206,
+      "title": "The Golden Dataset Became Stale",
+      "slug": "the-golden-dataset-became-stale",
+      "domain": "data_quality",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 207,
+      "title": "The Observability Cardinality Explosion",
+      "slug": "the-observability-cardinality-explosion",
+      "domain": "data_quality",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 208,
+      "title": "The Incident with No Runbook",
+      "slug": "the-incident-with-no-runbook",
+      "domain": "data_quality",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 209,
+      "title": "The Retry That Violates the SLO",
+      "slug": "the-retry-that-violates-the-slo",
+      "domain": "data_quality",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 210,
+      "title": "The Silent Historical Mutation",
+      "slug": "the-silent-historical-mutation",
+      "domain": "data_quality",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 211,
+      "title": "The Column Masking Bypass",
+      "slug": "the-column-masking-bypass",
+      "domain": "system_design",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 212,
+      "title": "The Service Account Nobody Owns",
+      "slug": "the-service-account-nobody-owns",
+      "domain": "system_design",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 213,
+      "title": "The Right to Be Forgotten in Backups",
+      "slug": "the-right-to-be-forgotten-in-backups",
+      "domain": "system_design",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 214,
+      "title": "The Re-Identification Risk",
+      "slug": "the-re-identification-risk",
+      "domain": "system_design",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 215,
+      "title": "The Tokenization Join Problem",
+      "slug": "the-tokenization-join-problem",
+      "domain": "system_design",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 216,
+      "title": "The Cross-Border Support Access",
+      "slug": "the-cross-border-support-access",
+      "domain": "system_design",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 217,
+      "title": "The Audit Log Gap",
+      "slug": "the-audit-log-gap",
+      "domain": "system_design",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 218,
+      "title": "The Classification That Never Propagated",
+      "slug": "the-classification-that-never-propagated",
+      "domain": "system_design",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 219,
+      "title": "The Encryption Key Rotation",
+      "slug": "the-encryption-key-rotation",
+      "domain": "system_design",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 220,
+      "title": "The Break-Glass Account",
+      "slug": "the-break-glass-account",
+      "domain": "system_design",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 221,
+      "title": "The Consent Withdrawal Race",
+      "slug": "the-consent-withdrawal-race",
+      "domain": "system_design",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 222,
+      "title": "The Policy-as-Code Drift",
+      "slug": "the-policy-as-code-drift",
+      "domain": "system_design",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 223,
+      "title": "The Data Marketplace Overshare",
+      "slug": "the-data-marketplace-overshare",
+      "domain": "system_design",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 224,
+      "title": "The Vendor Data Exit",
+      "slug": "the-vendor-data-exit",
+      "domain": "system_design",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 225,
+      "title": "The Pseudonym That Changed",
+      "slug": "the-pseudonym-that-changed",
+      "domain": "system_design",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 226,
+      "title": "The Insider Exfiltration Signal",
+      "slug": "the-insider-exfiltration-signal",
+      "domain": "system_design",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 227,
+      "title": "The Shared Notebook Secret",
+      "slug": "the-shared-notebook-secret",
+      "domain": "system_design",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 228,
+      "title": "The Legal Hold Conflict",
+      "slug": "the-legal-hold-conflict",
+      "domain": "system_design",
+      "scenarioType": "log_analysis"
+    },
+    {
+      "number": 229,
+      "title": "The Dual-Write Migration",
+      "slug": "the-dual-write-migration",
+      "domain": "system_design",
+      "scenarioType": "interview_explanation"
+    },
+    {
+      "number": 230,
+      "title": "The Strangler Pipeline",
+      "slug": "the-strangler-pipeline",
+      "domain": "system_design",
+      "scenarioType": "interview_explanation"
+    },
+    {
+      "number": 231,
+      "title": "The Contract-First Domain Launch",
+      "slug": "the-contract-first-domain-launch",
+      "domain": "system_design",
+      "scenarioType": "interview_explanation"
+    },
+    {
+      "number": 232,
+      "title": "The Batch-to-Streaming Justification",
+      "slug": "the-batch-to-streaming-justification",
+      "domain": "system_design",
+      "scenarioType": "interview_explanation"
+    },
+    {
+      "number": 233,
+      "title": "The Central Platform Bottleneck",
+      "slug": "the-central-platform-bottleneck",
+      "domain": "system_design",
+      "scenarioType": "interview_explanation"
+    },
+    {
+      "number": 234,
+      "title": "The Golden Path Rebellion",
+      "slug": "the-golden-path-rebellion",
+      "domain": "system_design",
+      "scenarioType": "interview_explanation"
+    },
+    {
+      "number": 235,
+      "title": "The Build-Once Reuse Myth",
+      "slug": "the-build-once-reuse-myth",
+      "domain": "system_design",
+      "scenarioType": "interview_explanation"
+    },
+    {
+      "number": 236,
+      "title": "The Ownership after Reorg",
+      "slug": "the-ownership-after-reorg",
+      "domain": "system_design",
+      "scenarioType": "interview_explanation"
+    },
+    {
+      "number": 237,
+      "title": "The Migration Reconciliation Window",
+      "slug": "the-migration-reconciliation-window",
+      "domain": "system_design",
+      "scenarioType": "interview_explanation"
+    },
+    {
+      "number": 239,
+      "title": "The Event-Driven Dependency Maze",
+      "slug": "the-event-driven-dependency-maze",
+      "domain": "system_design",
+      "scenarioType": "interview_explanation"
+    },
+    {
+      "number": 240,
+      "title": "The Data Product with No Consumer",
+      "slug": "the-data-product-with-no-consumer",
+      "domain": "system_design",
+      "scenarioType": "interview_explanation"
+    }
+  ]
+}

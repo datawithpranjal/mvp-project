@@ -145,10 +145,22 @@ export default function PricingPage() {
             </article>
           ))}
         </div>
-        <p className="mt-5 text-sm text-slate-400">
-          Need activation help? Contact the Data with Pranjal support channel with your
-          registered email and UPI reference.
-        </p>
+        <div className="mt-6 rounded-3xl border border-teal-300/20 bg-teal-300/10 p-5">
+          <p className="text-sm font-semibold text-teal-100">
+            Need payment or activation help?
+          </p>
+          <p className="mt-2 text-sm leading-6 text-slate-300">
+            Email{" "}
+            <a
+              href="mailto:datawithpranjal@gmail.com?subject=The%20Data%20Foundry%20Payment%20Support"
+              className="font-semibold text-teal-100 underline decoration-teal-300/40 underline-offset-4"
+            >
+              datawithpranjal@gmail.com
+            </a>{" "}
+            with your registered email and UPI reference. You can also use this address
+            for general queries or complaints.
+          </p>
+        </div>
       </section>
     </main>
   );

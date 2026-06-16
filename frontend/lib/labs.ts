@@ -46,23 +46,23 @@ export const LAB_TRACKS: LabTrack[] = [
   {
     slug: "airflow",
     title: "Airflow Lab",
-    status: "coming-soon",
+    status: "active",
     description:
       "Practice DAG dependency debugging, retries, sensors, backfills, and production incident triage.",
     skills: ["DAGs", "Retries", "Sensors", "Backfills", "Alerts"],
-    href: "/labs",
+    href: "/labs/airflow",
     groups: ["DAG Dependencies", "Retries and Backfills", "Sensors", "Incident Triage"],
-    badges: ["Coming Soon"]
+    badges: ["Production Incidents", "Interview Favorite"]
   },
   {
     slug: "aws-data-platform",
     title: "AWS/Data Platform Lab",
-    status: "coming-soon",
+    status: "active",
     description:
       "Practice storage layout, partitioning, lakehouse design, data quality, and platform trade-offs.",
     skills: ["S3", "Glue", "Athena", "Lakehouse", "DQ checks"],
-    href: "/labs",
+    href: "/labs/aws",
     groups: ["Storage Layout", "Lakehouse Tables", "Data Quality", "Platform Trade-offs"],
-    badges: ["Coming Soon"]
+    badges: ["Architecture Decisions", "Production Scenario"]
   }
 ];

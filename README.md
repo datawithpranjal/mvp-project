@@ -36,6 +36,14 @@ This release includes the new Broken Pipeline Lab with curated production-debugg
 - Signup email capture happens immediately when a learner creates an account
 - PDF import flow for `docs/120-data-engineering-scenarios.pdf`, including generated PySpark fix labs with broken code samples
 - Browser-native SQL and Python Labs generated from the coding practice PDFs
+- PySpark code-review labs that teach production fixes without requiring a Spark cluster
+- Airflow Incident Lab with 10 handbook-derived cases covering scheduling, retries, sensors, backfills, concurrency, and observability
+- AWS Data Platform Lab with 17 handbook-derived cases covering S3, IAM/KMS, VPC, Glue, EMR, Athena, Redshift, DMS, streaming, governance, and service selection
+- One practical eight-stage platform roadmap instead of separate 7/30/60/90-day question plans
+
+The Airflow and AWS labs are intentionally browser-first. They evaluate diagnosis,
+production reasoning, trade-offs, and monitoring without provisioning Airflow or AWS
+infrastructure for each learner.
 
 ## Project Structure
 
@@ -396,6 +404,30 @@ frontend/data/scenarios.generated.json
 ```
 
 The frontend copy is automatically merged into `/scenarios` by `frontend/lib/scenarios.ts`. PDF extraction still needs human review. Use `docs/scenario-import-guide.md` and `data/scenarios.manual.template.json` to clean up domain, difficulty, practice type, broken code, hints, and model answers before publishing broadly.
+
+### Import Scenario Handbook Volume 2
+
+Volume 2 is merged into the existing generated library instead of replacing it. The importer:
+
+- parses scenarios 121-240
+- preserves the existing refined Volume 1 content
+- skips known conceptual overlaps
+- generates domain-specific code, config, logs, or modeling evidence
+- writes a review report to `data/scenarios-volume-2-import-report.json`
+
+Run from the project root:
+
+```bash
+cd frontend
+npm run import:scenarios:v2 -- "/path/to/Data_with_Pranjal_Scenario_Based_Data_Engineering_Interview_Handbook_Volume_2_120_More_Questions.pdf"
+```
+
+The imported scenarios are written to both:
+
+```text
+data/scenarios.generated.json
+frontend/data/scenarios.generated.json
+```
 
 ## How To Add A Legacy Backend Scenario
 

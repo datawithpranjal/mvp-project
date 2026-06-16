@@ -5,6 +5,7 @@ export interface RoadmapProgress {
 }
 
 const STORAGE_KEY = "the-data-foundry-roadmap-progress-v1";
+const PLATFORM_ROADMAP_SLUG = "data-foundry-practice-roadmap";
 
 function canUseStorage(): boolean {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
@@ -19,15 +20,22 @@ export function getRoadmapProgress(): RoadmapProgress {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return { activePathSlug: null, completedDays: {}, updatedAt: null };
     const parsed = JSON.parse(raw) as Partial<RoadmapProgress>;
-    return {
+    const completedStages =
+      parsed.completedDays &&
+      typeof parsed.completedDays === "object" &&
+      Array.isArray(parsed.completedDays[PLATFORM_ROADMAP_SLUG])
+        ? parsed.completedDays[PLATFORM_ROADMAP_SLUG]
+        : [];
+    const migratedProgress = {
       activePathSlug:
-        typeof parsed.activePathSlug === "string" ? parsed.activePathSlug : null,
-      completedDays:
-        parsed.completedDays && typeof parsed.completedDays === "object"
-          ? parsed.completedDays
-          : {},
+        typeof parsed.activePathSlug === "string" ? PLATFORM_ROADMAP_SLUG : null,
+      completedDays: {
+        [PLATFORM_ROADMAP_SLUG]: completedStages
+      },
       updatedAt: typeof parsed.updatedAt === "string" ? parsed.updatedAt : null
     };
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(migratedProgress));
+    return migratedProgress;
   } catch {
     return { activePathSlug: null, completedDays: {}, updatedAt: null };
   }

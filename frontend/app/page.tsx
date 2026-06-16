@@ -235,16 +235,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      <footer className="mt-10 flex flex-col justify-between gap-4 border-t border-slate-800 py-8 text-sm text-slate-400 sm:flex-row">
-        <p>{BRAND.name}. {BRAND.trustLine}.</p>
-        <div className="flex flex-wrap gap-4">
-          <Link href="/dashboard">Dashboard</Link>
-          <Link href="/labs">Labs</Link>
-          <Link href="/system-design">System Design</Link>
-          <Link href="/roadmap">Roadmap</Link>
-          <Link href="/pricing">Pricing</Link>
-        </div>
-      </footer>
     </main>
   );
 }

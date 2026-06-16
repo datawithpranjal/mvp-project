@@ -64,7 +64,7 @@ export default function DashboardPage() {
   );
   const recommendedPath = LEARNING_PATHS.find(
     (path) => path.slug === onboarding?.recommendedPathSlug
-  ) ?? LEARNING_PATHS[1];
+  ) ?? LEARNING_PATHS[0];
   const completedScenarios = scenarios.filter((scenario) => progressMap[scenario.slug]?.completed);
   const hasNoProgress = Object.keys(progressMap).length === 0;
   const hasGuestActivity = Boolean(onboarding) || !hasNoProgress;
@@ -220,7 +220,7 @@ export default function DashboardPage() {
               </h1>
               <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300">
                 Your dashboard will become useful as soon as you attempt a scenario. Begin
-                with a free SQL debugging case, then follow the 7-day practice path.
+                with a free SQL debugging case, then follow the platform practice roadmap.
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
                 <Link
@@ -233,7 +233,7 @@ export default function DashboardPage() {
                   href="/roadmap"
                   className="rounded-full border border-slate-700 px-5 py-3 text-sm font-semibold text-slate-200 transition hover:border-teal-300/40"
                 >
-                  View 7-day path
+                  View practice roadmap
                 </Link>
               </div>
             </div>
@@ -315,14 +315,14 @@ export default function DashboardPage() {
 
       <section className="mt-6 grid gap-6 lg:grid-cols-3">
         <div className="panel rounded-3xl p-6">
-          <h2 className="text-xl font-semibold text-slate-50">Current Learning Path</h2>
+          <h2 className="text-xl font-semibold text-slate-50">Platform Roadmap</h2>
           <p className="mt-3 text-sm font-semibold text-teal-100">{recommendedPath.name}</p>
           <p className="mt-3 text-sm leading-6 text-slate-300">{recommendedPath.description}</p>
           <Link
             href="/roadmap"
             className="mt-5 inline-flex rounded-full border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-teal-300/40"
           >
-            View path
+            View roadmap
           </Link>
         </div>
 
@@ -361,7 +361,7 @@ export default function DashboardPage() {
             roadmapProgress.activePathSlug
               ? `Active: ${LEARNING_PATHS.find((path) => path.slug === roadmapProgress.activePathSlug)?.name ?? roadmapProgress.activePathSlug}`
               : recommendedPath.name,
-            `${(roadmapProgress.completedDays[roadmapProgress.activePathSlug ?? recommendedPath.slug] ?? []).length} roadmap steps completed`
+            `${(roadmapProgress.completedDays[roadmapProgress.activePathSlug ?? recommendedPath.slug] ?? []).length} roadmap stages completed`
           ]}
         />
         <DashboardList

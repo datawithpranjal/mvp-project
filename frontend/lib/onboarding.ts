@@ -34,25 +34,16 @@ export interface OnboardingRecommendation {
 }
 
 const STORAGE_KEY = "the-data-foundry-onboarding-v1";
+const PLATFORM_ROADMAP_SLUG = "data-foundry-practice-roadmap";
 
 function canUseStorage(): boolean {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
 }
 
 export function getRecommendedPathSlug(timeline: Timeline, currentStage: CurrentStage): string {
-  if (timeline === "7 days") {
-    return "7-day-interview-crash-plan";
-  }
-
-  if (timeline === "60 days" || currentStage === "Career switcher") {
-    return "60-day-career-switcher-plan";
-  }
-
-  if (timeline === "90 days" || currentStage === "Recently joined as Data Engineer") {
-    return "90-day-job-ready-data-engineer-plan";
-  }
-
-  return "30-day-data-engineering-interview-plan";
+  void timeline;
+  void currentStage;
+  return PLATFORM_ROADMAP_SLUG;
 }
 
 export function getOnboardingProfile(): OnboardingProfile | null {
@@ -68,7 +59,16 @@ export function getOnboardingProfile(): OnboardingProfile | null {
 
     const parsed = JSON.parse(value) as OnboardingProfile;
     const hasPath = LEARNING_PATHS.some((path) => path.slug === parsed.recommendedPathSlug);
-    return hasPath ? parsed : null;
+    if (hasPath) {
+      return parsed;
+    }
+
+    const migratedProfile = {
+      ...parsed,
+      recommendedPathSlug: PLATFORM_ROADMAP_SLUG
+    };
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(migratedProfile));
+    return migratedProfile;
   } catch {
     return null;
   }

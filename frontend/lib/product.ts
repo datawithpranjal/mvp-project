@@ -33,15 +33,15 @@ export const CORE_LABS = [
   },
   {
     title: "Airflow Lab",
-    description: "Diagnose retries, sensors, DAG dependencies, green-but-wrong runs, and alerting gaps.",
-    href: "/labs",
-    status: "coming-soon"
+    description: "Diagnose retries, sensors, DAG dependencies, scheduler delays, backfills, and operational failures.",
+    href: "/labs/airflow",
+    status: "available"
   },
   {
     title: "AWS/Data Platform Lab",
-    description: "Reason through storage formats, lakehouse layers, batch jobs, and operational trade-offs.",
-    href: "/labs",
-    status: "coming-soon"
+    description: "Choose AWS services through storage, security, compute, streaming, governance, and cost incidents.",
+    href: "/labs/aws",
+    status: "available"
   },
   {
     title: "System Design Studio",
@@ -170,16 +170,27 @@ export const AUDIENCE_SEGMENTS = [
 ];
 
 export interface LearningPathStep {
-  day: number;
+  stage: number;
   title: string;
-  taskType: "scenario" | "sql" | "project" | "interview" | "revision";
+  taskType:
+    | "sql"
+    | "python"
+    | "pyspark"
+    | "airflow"
+    | "aws"
+    | "scenario"
+    | "system-design"
+    | "revision";
   description: string;
+  href: string;
+  practiceTarget: string;
+  checkpoints: string[];
 }
 
 export interface LearningPathTemplate {
   slug: string;
   name: string;
-  durationDays: number;
+  stageCount: number;
   targetUser: string;
   description: string;
   steps: LearningPathStep[];
@@ -187,170 +198,132 @@ export interface LearningPathTemplate {
 
 export const LEARNING_PATHS: LearningPathTemplate[] = [
   {
-    slug: "7-day-interview-crash-plan",
-    name: "7-Day Interview Crash Plan",
-    durationDays: 7,
-    targetUser: "Preparing for interviews",
-    description: "A tight revision sprint focused on SQL bugs, production incidents, and answer framing.",
+    slug: "data-foundry-practice-roadmap",
+    name: "The Data Foundry Practice Roadmap",
+    stageCount: 8,
+    targetUser: "Every Data Engineering learner",
+    description:
+      "A practical route through the platform. Move forward when you can demonstrate the skill, not because a calendar day has passed.",
     steps: [
       {
-        day: 1,
-        title: "SQL correctness drill",
+        stage: 1,
+        title: "Build SQL foundations",
         taskType: "sql",
-        description: "Solve one output-matching SQL scenario and write the grain assumption explicitly."
+        description:
+          "Start with browser-based SQL practice so joins, aggregations, NULL handling, windows, and output grain become reliable.",
+        href: "/labs/sql?lab=sql-coding-01-second-highest-salary",
+        practiceTarget: "Complete 8-10 SQL labs before moving forward.",
+        checkpoints: [
+          "Filter and aggregate data at the correct grain",
+          "Use joins without duplicating or silently dropping rows",
+          "Handle NULL values, rankings, and deduplication",
+          "Explain why your output matches the business requirement"
+        ]
       },
       {
-        day: 2,
-        title: "Watermark debugging",
+        stage: 2,
+        title: "Practice Python for data work",
+        taskType: "python",
+        description:
+          "Use Python to transform records, handle files and nested data, and write clear logic that survives realistic edge cases.",
+        href: "/labs/python?lab=python-coding-01-reverse-a-string",
+        practiceTarget: "Complete 5-8 Python labs with all sample cases passing.",
+        checkpoints: [
+          "Work confidently with lists, dictionaries, strings, and records",
+          "Process JSON, CSV, and file-like data safely",
+          "Test empty, duplicate, malformed, and missing-value cases",
+          "Write readable functions instead of one-off scripts"
+        ]
+      },
+      {
+        stage: 3,
+        title: "Debug PySpark pipelines",
+        taskType: "pyspark",
+        description:
+          "Move from syntax to production reasoning by fixing DataFrame logic, skew, rerun duplication, partitions, and small-file problems.",
+        href: "/labs/pyspark?lab=pyspark-append-rerun-duplicates",
+        practiceTarget: "Complete at least 5 PySpark production labs.",
+        checkpoints: [
+          "Use built-in DataFrame functions before Python UDFs",
+          "Reason about joins, shuffle, skew, and partition counts",
+          "Make reruns idempotent and safe",
+          "Explain the operational trade-off behind your fix"
+        ]
+      },
+      {
+        stage: 4,
+        title: "Operate Airflow workflows",
+        taskType: "airflow",
+        description:
+          "Learn to classify scheduling delays, retries, sensor pressure, backfill failures, and orchestration anti-patterns from real evidence.",
+        href: "/labs/airflow?lab=airflow-dag-starts-hours-late",
+        practiceTarget: "Complete 5 Airflow incident labs across different failure classes.",
+        checkpoints: [
+          "Separate scheduler, executor, worker, and downstream failures",
+          "Design retries, sensors, pools, and backfills safely",
+          "Keep heavy compute and large payloads outside Airflow",
+          "Explain idempotency, observability, and operational trade-offs"
+        ]
+      },
+      {
+        stage: 5,
+        title: "Make AWS platform decisions",
+        taskType: "aws",
+        description:
+          "Choose storage, compute, streaming, security, governance, and serving services from workload evidence rather than memorized definitions.",
+        href: "/labs/aws?lab=aws-athena-cost-spike",
+        practiceTarget: "Complete 6 AWS incidents covering at least 4 service areas.",
+        checkpoints: [
+          "Start with workload, scale, latency, and operating constraints",
+          "Compare the chosen service with its nearest alternative",
+          "Include IAM, networking, encryption, cost, and failure handling",
+          "Name monitoring signals that prove the design works"
+        ]
+      },
+      {
+        stage: 6,
+        title: "Enter the Broken Pipeline Lab",
         taskType: "scenario",
-        description: "Practice incremental-load failure modes and reconciliation checks."
+        description:
+          "Apply SQL, PySpark, orchestration, and data-quality skills to incidents that look like a data engineer's daily production work.",
+        href: "/scenarios/wrong-group-by-grain-customer-revenue",
+        practiceTarget: "Solve 6 production scenarios across at least 3 topics.",
+        checkpoints: [
+          "Attempt the diagnosis before opening hints",
+          "Run the corrected query or logic when execution is available",
+          "State the root cause and business impact clearly",
+          "Add monitoring, reconciliation, or prevention steps"
+        ]
       },
       {
-        day: 3,
-        title: "Spark performance triage",
-        taskType: "scenario",
-        description: "Explain one Spark bottleneck and propose a production-safe fix."
+        stage: 7,
+        title: "Develop system design judgment",
+        taskType: "system-design",
+        description:
+          "Practice turning requirements into a dependable data platform and defending architecture choices instead of memorizing diagrams.",
+        href: "/system-design",
+        practiceTarget: "Complete 3 system design cases and explain each aloud.",
+        checkpoints: [
+          "Clarify scale, latency, consumers, and data contracts",
+          "Choose batch, streaming, storage, and serving layers deliberately",
+          "Discuss cost, reliability, consistency, and complexity trade-offs",
+          "Include observability, replay, security, and failure recovery"
+        ]
       },
       {
-        day: 4,
-        title: "Airflow incident framing",
-        taskType: "interview",
-        description: "Answer a green-DAG-but-wrong-data prompt with monitoring and rollback steps."
-      },
-      {
-        day: 5,
-        title: "Data quality review",
+        stage: 8,
+        title: "Use feedback to close weak areas",
         taskType: "revision",
-        description: "Review weak areas and create three validation checks for a pipeline."
-      },
-      {
-        day: 6,
-        title: "Pipeline decision scenario",
-        taskType: "project",
-        description: "Complete one architecture or pipeline decision scenario and capture the lesson."
-      },
-      {
-        day: 7,
-        title: "Interview explanation review",
-        taskType: "interview",
-        description: "Explain three completed scenarios and refine your answer framing."
-      }
-    ]
-  },
-  {
-    slug: "30-day-data-engineering-interview-plan",
-    name: "30-Day Data Engineering Interview Plan",
-    durationDays: 30,
-    targetUser: "Interview candidates",
-    description: "A balanced plan for SQL, Spark, orchestration, data quality, and speaking practice.",
-    steps: [
-      {
-        day: 1,
-        title: "Baseline assessment",
-        taskType: "scenario",
-        description: "Attempt one free scenario without hints and record your confidence."
-      },
-      {
-        day: 7,
-        title: "SQL debugging block",
-        taskType: "sql",
-        description: "Complete three SQL output-match labs and summarize the recurring trap."
-      },
-      {
-        day: 14,
-        title: "Production incident block",
-        taskType: "scenario",
-        description: "Practice Airflow, Kafka, and data quality incidents with root-cause notes."
-      },
-      {
-        day: 21,
-        title: "Pipeline design checkpoint",
-        taskType: "project",
-        description: "Complete four production scenarios and explain the design trade-offs."
-      },
-      {
-        day: 30,
-        title: "Readiness review",
-        taskType: "interview",
-        description: "Review scenario explanations and compare readiness score movement."
-      }
-    ]
-  },
-  {
-    slug: "60-day-career-switcher-plan",
-    name: "60-Day Career Switcher Plan",
-    durationDays: 60,
-    targetUser: "Career switchers",
-    description: "A slower path that builds fundamentals, project thinking, and interview vocabulary.",
-    steps: [
-      {
-        day: 1,
-        title: "Foundations map",
-        taskType: "revision",
-        description: "Identify your gaps across SQL, Spark, orchestration, modeling, and cloud."
-      },
-      {
-        day: 14,
-        title: "SQL confidence block",
-        taskType: "sql",
-        description: "Practice NULL, ranking, deduplication, and CDC scenarios."
-      },
-      {
-        day: 30,
-        title: "Pipeline scenario block",
-        taskType: "project",
-        description: "Complete storage, dedup, late-arrival, and revenue-mart scenarios."
-      },
-      {
-        day: 45,
-        title: "Production debugging block",
-        taskType: "scenario",
-        description: "Practice Spark, Airflow, Kafka, and monitoring incidents."
-      },
-      {
-        day: 60,
-        title: "Interview story block",
-        taskType: "interview",
-        description: "Turn your scenario decisions into interview-ready project stories."
-      }
-    ]
-  },
-  {
-    slug: "90-day-job-ready-data-engineer-plan",
-    name: "90-Day Job-Ready Data Engineer Plan",
-    durationDays: 90,
-    targetUser: "Recently joined or job-ready aspirants",
-    description: "A deep practice plan for becoming comfortable with real pipeline ownership.",
-    steps: [
-      {
-        day: 1,
-        title: "Baseline and onboarding",
-        taskType: "revision",
-        description: "Set goals, timeline, and weak-area baseline."
-      },
-      {
-        day: 21,
-        title: "Data correctness sprint",
-        taskType: "sql",
-        description: "Complete SQL and data quality labs until weak areas are visible."
-      },
-      {
-        day: 45,
-        title: "Platform debugging sprint",
-        taskType: "scenario",
-        description: "Practice Spark, Airflow, Kafka, and lakehouse operational failures."
-      },
-      {
-        day: 70,
-        title: "Project ownership sprint",
-        taskType: "project",
-        description: "Finish a production scenario track and document monitoring choices."
-      },
-      {
-        day: 90,
-        title: "Job-ready review",
-        taskType: "interview",
-        description: "Review mixed scenario explanations and readiness score by dimension."
+        description:
+          "Return to the dashboard, review weak skills and incomplete attempts, then repeat the platform loop with harder material.",
+        href: "/dashboard",
+        practiceTarget: "Review your dashboard after every 5 completed practices.",
+        checkpoints: [
+          "Re-attempt scenarios marked Weak or Okay",
+          "Compare scores and identify recurring gaps",
+          "Explain completed fixes in interview-ready language",
+          "Choose the next lab from evidence, not random browsing"
+        ]
       }
     ]
   }

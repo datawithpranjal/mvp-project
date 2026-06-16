@@ -3,6 +3,10 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
+import {
+  OPERATIONS_LABS,
+  type OperationsLab
+} from "../data/platform-operations-labs";
 import { getCodingLabs, type CodingLab, type CodingLabTrack } from "../lib/coding-labs";
 import { getPremiumAccess, type PremiumAccessRecord } from "../lib/premium-access";
 import { getScenarioProgressMap, type ScenarioProgressSummary } from "../lib/progress";
@@ -25,6 +29,7 @@ type SortOption =
 
 type PracticeItem =
   | { kind: "coding"; lab: CodingLab }
+  | { kind: "operations"; lab: OperationsLab }
   | { kind: "scenario"; scenario: Scenario };
 
 interface PracticeMetadata {
@@ -66,6 +71,7 @@ export function PracticeHub() {
   const allItems = useMemo<PracticeItem[]>(
     () => [
       ...codingLabs.map((lab) => ({ kind: "coding" as const, lab })),
+      ...OPERATIONS_LABS.map((lab) => ({ kind: "operations" as const, lab })),
       ...scenarios.map((scenario) => ({ kind: "scenario" as const, scenario }))
     ],
     [codingLabs, scenarios]
@@ -145,7 +151,7 @@ export function PracticeHub() {
           <div className="grid gap-3 sm:grid-cols-3">
             <Stat label="Practice items" value={allItems.length} />
             <Stat label="Free starters" value={allItems.filter((item) => getPracticeMetadata(item).isFree).length} />
-            <Stat label="Modes" value="5" />
+            <Stat label="Modes" value="7" />
           </div>
         </div>
       </section>
@@ -442,11 +448,14 @@ function Stat({ label, value }: { label: string; value: string | number }) {
 }
 
 function practiceKey(item: PracticeItem): string {
-  return item.kind === "coding" ? `coding-${item.lab.slug}` : `scenario-${item.scenario.slug}`;
+  if (item.kind === "scenario") return `scenario-${item.scenario.slug}`;
+  return `${item.kind}-${item.lab.slug}`;
 }
 
 function getPracticeMetadata(item: PracticeItem): PracticeMetadata {
-  return item.kind === "coding" ? codingMetadata(item.lab) : scenarioMetadata(item.scenario);
+  if (item.kind === "coding") return codingMetadata(item.lab);
+  if (item.kind === "operations") return operationsMetadata(item.lab);
+  return scenarioMetadata(item.scenario);
 }
 
 function codingMetadata(lab: CodingLab): PracticeMetadata {
@@ -474,6 +483,20 @@ function scenarioMetadata(scenario: Scenario): PracticeMetadata {
     isFree: scenario.isFree,
     skills: scenario.tags,
     href: `/scenarios/${scenario.slug}`
+  };
+}
+
+function operationsMetadata(lab: OperationsLab): PracticeMetadata {
+  return {
+    title: lab.title,
+    outcome: lab.studentTask,
+    domain: lab.track === "airflow" ? "Airflow" : "AWS",
+    type: lab.section,
+    difficulty: lab.difficulty,
+    estimatedMinutes: lab.estimatedMinutes,
+    isFree: lab.isFree,
+    skills: lab.skills,
+    href: `/labs/${lab.track}?lab=${encodeURIComponent(lab.slug)}`
   };
 }
 

@@ -86,7 +86,7 @@ export default function OnboardingPage() {
       LEARNING_PATHS.find(
         (learningPath) =>
           learningPath.slug === recommendationProfile.recommendedPathSlug
-      ) ?? LEARNING_PATHS[1];
+      ) ?? LEARNING_PATHS[0];
     const recommendation = getOnboardingRecommendation(recommendationProfile);
 
     return (
@@ -126,7 +126,11 @@ export default function OnboardingPage() {
               <h2 className="mt-3 text-xl font-semibold text-slate-50">{path.name}</h2>
               <p className="mt-3 text-sm leading-6 text-slate-300">{path.description}</p>
               <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-amber-100">
-                {dailyTime} per day · {path.durationDays} days
+                Recommended pace: {dailyTime} per practice session
+              </p>
+              <p className="mt-3 text-sm leading-6 text-slate-400">
+                Follow the stages at your own pace and move forward after reaching each
+                practice target.
               </p>
             </div>
           </div>
@@ -149,7 +153,7 @@ export default function OnboardingPage() {
               href="/roadmap"
               className="rounded-full border border-slate-700 px-6 py-3 text-sm font-semibold text-slate-200 transition hover:border-teal-300/40"
             >
-              View suggested path
+              View platform roadmap
             </Link>
             <button
               type="button"
@@ -174,8 +178,9 @@ export default function OnboardingPage() {
           Build your practice path.
         </h1>
         <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300">
-          Answer four questions and The Data Foundry will recommend a focused plan.
-          This v1 stores your path locally and keeps the product lightweight.
+          Answer four questions and The Data Foundry will recommend your first practice
+          based on your current goal. Everyone follows the same practical platform roadmap
+          at a pace that fits them.
         </p>
       </section>
 

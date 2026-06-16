@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
+import { InteractiveLearningFlow } from "../interactive-learning-flow";
+import { buildArchitectureFlow } from "../../lib/learning-flow";
 import { getPremiumAccess, type PremiumAccessRecord } from "../../lib/premium-access";
 import {
   SYSTEM_DESIGN_CASES,
@@ -348,29 +350,11 @@ function CaseBrief({ item }: { item: SystemDesignCase }) {
         <InfoList title="Non-functional requirements" items={item.nonFunctionalRequirements} />
       </section>
 
-      <section className="panel rounded-[2rem] p-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-teal-200">
-          Architecture workspace
-        </p>
-        <div className="mt-5 grid gap-3 md:grid-cols-4 xl:grid-cols-7">
-          {item.architectureStages.map((stage, index) => (
-            <div
-              key={stage}
-              className="relative rounded-2xl border border-slate-800 bg-slate-950/40 p-4"
-            >
-              <p className="text-sm font-semibold text-slate-100">{stage}</p>
-              <p className="mt-2 text-[10px] uppercase tracking-[0.18em] text-slate-500">
-                Step {index + 1}
-              </p>
-              {index < item.architectureStages.length - 1 ? (
-                <span className="absolute -right-3 top-1/2 hidden -translate-y-1/2 text-slate-500 xl:block">
-                  -&gt;
-                </span>
-              ) : null}
-            </div>
-          ))}
-        </div>
-      </section>
+      <InteractiveLearningFlow
+        title="Explore the proposed architecture"
+        stages={buildArchitectureFlow(item.architectureStages)}
+        caption="Select any stage to inspect its responsibility. Animated edges show the direction of data movement through the platform."
+      />
 
       <section className="panel rounded-[2rem] border border-rose-300/20 p-6">
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-rose-200">
