@@ -41,17 +41,18 @@ const PRICING_PLANS: PricingPlan[] = [
   {
     id: "yearly",
     label: "Premium Annual",
-    amountInr: 500,
+    amountInr: 999,
     cadenceLabel: "per year",
-    compareAtInr: 1999,
+    compareAtInr: 2499,
     badge: "Best value",
     summary: "Unlock the full scenario library for a full year at the strongest effective price."
   },
   {
     id: "monthly",
     label: "Premium Monthly",
-    amountInr: 219,
+    amountInr: 199,
     cadenceLabel: "per month",
+    compareAtInr: 499,
     summary: "A lighter entry point if you want short-term interview prep access."
   }
 ];

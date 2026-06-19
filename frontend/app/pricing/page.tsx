@@ -12,9 +12,9 @@ const FREE_FEATURES = [
 
 const FAQ_ITEMS = [
   {
-    question: "How does UPI activation work?",
+    question: "How does Razorpay checkout work?",
     answer:
-      "Choose a plan, scan the UPI QR, and submit the payment reference. Access is activated after the payment is verified."
+      "Choose a plan and pay securely through Razorpay using UPI, cards, wallets, or net banking. Premium access unlocks after payment verification."
   },
   {
     question: "How long does access last?",
@@ -24,12 +24,12 @@ const FAQ_ITEMS = [
   {
     question: "When will my access be activated?",
     answer:
-      "Most payments are reviewed within 24 hours. Keep the UPI reference so support can locate the payment quickly."
+      "Razorpay payments usually unlock instantly after signature and amount verification. If anything looks stuck, contact support with your registered email."
   },
   {
     question: "How do coupon codes work?",
     answer:
-      "Choose your plan, enter the coupon in the UPI checkout, and select Apply coupon. Pay only the discounted amount shown after the coupon is verified."
+      "Choose your plan, enter the coupon, and select Apply coupon before checkout. Razorpay will charge only the discounted amount shown."
   },
   {
     question: "What is the refund policy?",
@@ -73,10 +73,10 @@ export default function PricingPage() {
             </p>
           </div>
           <div className="rounded-3xl border border-amber-300/20 bg-amber-300/10 p-5">
-            <p className="text-sm font-semibold text-amber-100">Simple UPI activation</p>
+            <p className="text-sm font-semibold text-amber-100">Secure Razorpay activation</p>
             <p className="mt-2 text-sm leading-6 text-slate-300">
-              Pay via UPI and access will be activated after verification. Your payment
-              reference is recorded securely for support and activation.
+              Pay through Razorpay using UPI, cards, wallets, or net banking. Premium
+              access unlocks after verified payment confirmation.
             </p>
           </div>
         </div>
@@ -102,8 +102,8 @@ export default function PricingPage() {
         />
         <PlanCard
           title="Premium"
-          price="Rs 500/year"
-          compareAt="Rs 1999"
+          price="Rs 999/year"
+          compareAt="Rs 2499"
           description="Best for serious interview prep and production-style depth."
           features={premiumFeatures}
           tone="premium"
@@ -123,7 +123,7 @@ export default function PricingPage() {
       <div id="unlock-premium" className="mt-8 scroll-mt-28">
         <PremiumUpgradePanel
           title="The Data Foundry Premium"
-          description="Annual access is Rs 500/year, marked down from Rs 1999. Monthly access is Rs 219/month. Pay through UPI and submit the payment reference for activation."
+          description="Annual access is Rs 999/year, marked down from Rs 2499. Monthly access is Rs 199/month, marked down from Rs 499. Pay securely through Razorpay and unlock premium after verification."
         />
       </div>
 
@@ -157,7 +157,7 @@ export default function PricingPage() {
             >
               datawithpranjal@gmail.com
             </a>{" "}
-            with your registered email and UPI reference. You can also use this address
+            with your registered email and Razorpay payment reference. You can also use this address
             for general queries or complaints.
           </p>
         </div>

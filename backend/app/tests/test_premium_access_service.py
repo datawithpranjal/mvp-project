@@ -11,7 +11,7 @@ def test_yearly_premium_grant_expires_after_one_year() -> None:
         email=email,
         plan_label="Premium Annual",
         billing_interval="yearly",
-        amount_inr=500,
+        amount_inr=999,
         payment_reference="pay_test_yearly",
     )
 
@@ -27,7 +27,7 @@ def test_monthly_premium_grant_expires_after_thirty_days() -> None:
         email=email,
         plan_label="Premium Monthly",
         billing_interval="monthly",
-        amount_inr=219,
+        amount_inr=199,
         payment_reference="pay_test_monthly",
     )
 
@@ -42,7 +42,7 @@ def test_expired_premium_grant_is_not_accepted() -> None:
         email=email,
         plan_label="Premium Monthly",
         billing_interval="monthly",
-        amount_inr=219,
+        amount_inr=199,
         payment_reference="pay_test_expired",
     )
     service._memory_grants[email]["expires_at"] = datetime.now(timezone.utc) - timedelta(

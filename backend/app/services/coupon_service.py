@@ -12,11 +12,11 @@ from typing import Any
 PLAN_CATALOG = {
     "monthly": {
         "plan_label": "Premium Monthly",
-        "amount_inr": 219,
+        "amount_inr": 199,
     },
     "yearly": {
         "plan_label": "Premium Annual",
-        "amount_inr": 500,
+        "amount_inr": 999,
     },
 }
 

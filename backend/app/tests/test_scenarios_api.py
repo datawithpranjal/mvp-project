@@ -132,7 +132,7 @@ def test_manual_payment_submission_does_not_directly_unlock_premium() -> None:
         json={
             "plan_label": "Premium Annual",
             "billing_interval": "yearly",
-            "amount_inr": 500,
+            "amount_inr": 999,
             "payment_reference": "UPI-TEST-001",
         },
     )
@@ -170,7 +170,7 @@ def test_premium_status_returns_active_grant_validity() -> None:
         email=email,
         plan_label="Premium Annual",
         billing_interval="yearly",
-        amount_inr=500,
+        amount_inr=999,
         payment_reference="pay_status_test",
     )
 
@@ -215,9 +215,9 @@ def test_coupon_validation_and_discounted_payment_submission() -> None:
 
     assert coupon_response.status_code == 200
     quote = coupon_response.json()
-    assert quote["original_amount_inr"] == 500
-    assert quote["discount_amount_inr"] == 250
-    assert quote["final_amount_inr"] == 250
+    assert quote["original_amount_inr"] == 999
+    assert quote["discount_amount_inr"] == 499
+    assert quote["final_amount_inr"] == 500
     assert quote["coupon_code"] == "ILOVEDATAWITHPRANJAL"
 
     payment_response = client.post(
@@ -226,7 +226,7 @@ def test_coupon_validation_and_discounted_payment_submission() -> None:
         json={
             "plan_label": "Premium Annual",
             "billing_interval": "yearly",
-            "amount_inr": 250,
+            "amount_inr": 500,
             "payment_reference": "UPI-COUPON-001",
             "coupon_code": "Ilovedatawithpranjal",
         },
@@ -236,7 +236,7 @@ def test_coupon_validation_and_discounted_payment_submission() -> None:
     payload = payment_response.json()
     assert payload["submitted"] is True
     assert payload["unlocked_premium"] is False
-    assert payload["final_amount_inr"] == 250
+    assert payload["final_amount_inr"] == 500
     assert payload["coupon_code"] == "ILOVEDATAWITHPRANJAL"
 
 
