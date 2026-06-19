@@ -1,3 +1,4 @@
+import secrets
 from typing import Annotated
 
 from fastapi import APIRouter, Header, HTTPException, status
@@ -6,9 +7,11 @@ from app.api.routes.auth import auth_error_response, bearer_token
 from app.schemas.ai_evaluation import (
     AiEvaluationRequest,
     AiEvaluationResponse,
+    AiEvaluationStatusResponse,
     AiRubricWeights,
     AiScenarioContext,
 )
+from app.core.config import get_settings
 from app.services.ai_evaluation_service import (
     AiEvaluationConfigurationError,
     AiEvaluationError,
@@ -24,6 +27,37 @@ auth_service = AuthService()
 premium_access_service = PremiumAccessService()
 scenario_loader = ScenarioLoader()
 ai_evaluation_service = OpenAIEvaluationService()
+settings = get_settings()
+
+
+@router.get(
+    "/api/v1/admin/ai/status",
+    response_model=AiEvaluationStatusResponse,
+)
+@router.get(
+    "/v1/admin/ai/status",
+    response_model=AiEvaluationStatusResponse,
+)
+def ai_evaluation_status(
+    x_admin_token: Annotated[str | None, Header()] = None,
+) -> AiEvaluationStatusResponse:
+    if not settings.admin_api_token:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Admin AI diagnostics are not configured.",
+        )
+    if not x_admin_token or not secrets.compare_digest(
+        x_admin_token,
+        settings.admin_api_token,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid admin token.",
+        )
+    return AiEvaluationStatusResponse(
+        configured=bool(settings.openai_api_key),
+        model=settings.openai_model,
+    )
 
 
 @router.post(

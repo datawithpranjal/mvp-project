@@ -70,3 +70,8 @@ class AiEvaluationResponse(BaseModel):
     rubric_breakdown: AiRubricBreakdown
     mode: Literal["openai"] = "openai"
     model: str
+
+
+class AiEvaluationStatusResponse(BaseModel):
+    configured: bool
+    model: str

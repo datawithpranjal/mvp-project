@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
 
 import httpx
@@ -13,6 +14,8 @@ from app.schemas.ai_evaluation import (
     AiRubricBreakdown,
     AiScenarioContext,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class AiEvaluationError(RuntimeError):
@@ -52,9 +55,30 @@ class OpenAIEvaluationService:
             )
 
         response = self._post(self._request_payload(context, user_answer))
+        provider_code, provider_message = self._provider_error(response)
+        if response.status_code >= 400:
+            logger.warning(
+                "OpenAI evaluation failed status=%s model=%s code=%s message=%s",
+                response.status_code,
+                self.model,
+                provider_code or "unknown",
+                provider_message or "No provider message",
+            )
         if response.status_code == 401:
             raise AiEvaluationConfigurationError("OpenAI rejected the configured API key.")
+        if response.status_code == 403:
+            raise AiEvaluationConfigurationError(
+                "The OpenAI project does not allow this request. Check API key permissions and model access."
+            )
+        if response.status_code == 404:
+            raise AiEvaluationConfigurationError(
+                "The configured OpenAI model is unavailable. Check OPENAI_MODEL."
+            )
         if response.status_code == 429:
+            if provider_code == "insufficient_quota" or "quota" in provider_message.lower():
+                raise AiEvaluationConfigurationError(
+                    "OpenAI API quota is unavailable. Add API billing or credits and verify the project usage limit."
+                )
             raise AiEvaluationRateLimitError(
                 "AI evaluation is temporarily busy. Please try again shortly."
             )
@@ -92,9 +116,29 @@ class OpenAIEvaluationService:
                     json=payload,
                 )
         except httpx.TimeoutException as exc:
+            logger.warning("OpenAI evaluation timed out model=%s", self.model)
             raise AiEvaluationError("AI evaluation timed out. Please try again.") from exc
         except httpx.HTTPError as exc:
+            logger.warning(
+                "OpenAI evaluation network error model=%s error=%s",
+                self.model,
+                type(exc).__name__,
+            )
             raise AiEvaluationError("AI evaluation is temporarily unavailable.") from exc
+
+    def _provider_error(self, response: Any) -> tuple[str, str]:
+        if response.status_code < 400:
+            return "", ""
+        try:
+            payload = response.json()
+            error = payload.get("error", {}) if isinstance(payload, dict) else {}
+            if not isinstance(error, dict):
+                return "", ""
+            code = str(error.get("code") or error.get("type") or "")[:120]
+            message = str(error.get("message") or "")[:600]
+            return code, message
+        except (TypeError, ValueError):
+            return "", ""
 
     def _request_payload(
         self,

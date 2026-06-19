@@ -246,9 +246,11 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
             mode: "openai",
             model: aiResult.model
           };
-        } catch {
-          aiFallbackMessage =
-            "AI evaluation is temporarily unavailable, so local rubric feedback is shown.";
+        } catch (error) {
+          const reason =
+            error instanceof Error ? error.message : "The AI service returned an unknown error.";
+          console.error("AI scenario evaluation failed:", reason);
+          aiFallbackMessage = `AI evaluation could not run: ${reason} Rubric feedback is shown instead.`;
         }
       }
 

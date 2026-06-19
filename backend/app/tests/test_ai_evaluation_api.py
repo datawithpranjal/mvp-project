@@ -20,6 +20,29 @@ def test_ai_evaluation_endpoint_requires_authentication() -> None:
     assert response.status_code == 401
 
 
+def test_ai_status_requires_admin_token(monkeypatch) -> None:
+    monkeypatch.setattr(ai_route.settings, "admin_api_token", "test-admin-token")
+
+    response = client.get("/api/v1/admin/ai/status")
+
+    assert response.status_code == 401
+
+
+def test_ai_status_reports_configuration_without_exposing_key(monkeypatch) -> None:
+    monkeypatch.setattr(ai_route.settings, "admin_api_token", "test-admin-token")
+    monkeypatch.setattr(ai_route.settings, "openai_api_key", "secret-api-key")
+    monkeypatch.setattr(ai_route.settings, "openai_model", "gpt-test")
+
+    response = client.get(
+        "/api/v1/admin/ai/status",
+        headers={"X-Admin-Token": "test-admin-token"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"configured": True, "model": "gpt-test"}
+    assert "secret-api-key" not in response.text
+
+
 def test_ai_evaluation_endpoint_returns_structured_score(monkeypatch) -> None:
     email = "ai.evaluation.student@example.com"
     otp_response = client.post(

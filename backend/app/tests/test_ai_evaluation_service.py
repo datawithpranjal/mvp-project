@@ -41,6 +41,18 @@ class FakeClient:
         return self.response
 
 
+class ProviderErrorResponse:
+    status_code = 429
+
+    def json(self) -> dict[str, object]:
+        return {
+            "error": {
+                "code": "insufficient_quota",
+                "message": "The project has no remaining API quota.",
+            }
+        }
+
+
 def sample_context() -> AiScenarioContext:
     return AiScenarioContext(
         title="Duplicate Orders After Retry",
@@ -101,4 +113,15 @@ def test_openai_evaluation_requires_backend_key() -> None:
     service = OpenAIEvaluationService(api_key="", model="gpt-test")
 
     with pytest.raises(AiEvaluationConfigurationError, match="not configured"):
+        service.evaluate(sample_context(), "A reasonable answer")
+
+
+def test_openai_evaluation_reports_missing_api_quota() -> None:
+    service = OpenAIEvaluationService(
+        api_key="test-key",
+        model="gpt-test",
+        client=FakeClient(ProviderErrorResponse()),
+    )
+
+    with pytest.raises(AiEvaluationConfigurationError, match="billing or credits"):
         service.evaluate(sample_context(), "A reasonable answer")
