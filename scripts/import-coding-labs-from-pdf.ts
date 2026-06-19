@@ -580,7 +580,7 @@ function enrichSqlLab(lab: CodingLab, sourceTitle: string): CodingLab {
       `${lab.problemStatement} Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.`,
     expectedOutcome: sqlExpectedOutcome(kind),
     studentTask:
-      `${lab.studentTask} After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.`,
+      `${lab.studentTask} After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.`,
     hints: sqlHints(kind),
     sqlTestCases: sqlEdgeCases(kind, lab.expectedSql)
   };
@@ -609,7 +609,7 @@ function buildSqlLab(title: string, index: number): CodingLab {
     businessContext:
       "You are validating a warehouse query before it is promoted into a production analytics mart.",
     problemStatement: `Solve this SQL interview task using the seeded tables: ${title}.`,
-    studentTask: "Return exactly the requested result set. The browser will compare your output with the model query."
+    studentTask: "Return exactly the requested result set. Your output will be compared with the expected result."
   };
 
   if (lower.includes("second highest")) {
@@ -738,7 +738,7 @@ function buildPythonLab(title: string, index: number): CodingLab {
     businessContext:
       "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     problemStatement: `Implement the function for this coding task: ${title}.`,
-    studentTask: `Define a function named ${functionName}. The browser will run sample tests using Pyodide.`,
+    studentTask: `Define a function named ${functionName}. Your solution will be checked against the sample tests.`,
     starterCode: pythonStarter(functionName),
     hints: [
       "Start with the simplest correct version.",

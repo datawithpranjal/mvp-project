@@ -165,8 +165,8 @@ export default function DashboardPage() {
                 Guest dashboard
               </p>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
-                Your onboarding and practice progress are saved on this device. Sign up
-                when you want the account-ready experience and future cross-device sync.
+                Continue your recommended path and recent practice below. Create an account
+                when you are ready to build your learner profile and unlock premium access.
               </p>
             </div>
             <button

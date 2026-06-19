@@ -21,7 +21,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: Second Highest Salary. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "employees",
@@ -181,7 +181,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Return the third highest distinct salary from employees. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "employees",
@@ -341,7 +341,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: Top 3 Salaries per Department. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "employees",
@@ -501,7 +501,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: Latest Order per Customer. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "customers",
@@ -724,7 +724,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: First and Last Order per Customer. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "customers",
@@ -947,7 +947,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: Running Total by Date. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "daily_sales",
@@ -1100,7 +1100,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: 3-Day Moving Average. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "daily_sales",
@@ -1253,7 +1253,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: Month-over-Month Growth. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "daily_sales",
@@ -1406,7 +1406,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: Rank Cities by Sales with Ties. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "daily_sales",
@@ -1559,7 +1559,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: Top 10 Percent of Customers by Spend. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "customers",
@@ -1783,7 +1783,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: Customers with No Orders. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "customers",
@@ -2006,7 +2006,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: Employees Earning Above Department Average. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "employees",
@@ -2166,7 +2166,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: Orders with Missing Customer Records. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "customers",
@@ -2389,7 +2389,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: Intersection of Active Users Across Two Months. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "events",
@@ -2527,7 +2527,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: Customers Who Bought Every Product in a Category. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "customers",
@@ -2750,7 +2750,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: Compare Two Tables and Find Added Rows. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "customers",
@@ -2973,7 +2973,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: Same-Day Repeat Orders. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "customers",
@@ -3196,7 +3196,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: Orders and Their Immediate Previous Order. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "customers",
@@ -3419,7 +3419,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: Find Duplicate Business Keys. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "customers",
@@ -3642,7 +3642,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: Customers with Orders in Consecutive Months. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "customers",
@@ -3865,7 +3865,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: Recursive Employee Hierarchy. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "employees",
@@ -4025,7 +4025,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: Hierarchy Path from CEO to Employee. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "employees",
@@ -4185,7 +4185,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: Sessionization with a 30-Minute Gap. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "customers",
@@ -4408,7 +4408,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: Rolling 7-Day Active Users. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "daily_sales",
@@ -4562,7 +4562,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: Customers Who Churned (No Orders in Last 90 Days). Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "customers",
@@ -4785,7 +4785,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: Repeat Purchase Within 7 Days. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "customers",
@@ -5008,7 +5008,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: Consecutive Login Streaks. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "customers",
@@ -5231,7 +5231,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: Gap Greater Than 30 Days Between Orders. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "customers",
@@ -5454,7 +5454,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: Median Salary. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "employees",
@@ -5614,7 +5614,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: Pareto 80 Percent Customers. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "customers",
@@ -5837,7 +5837,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: Deduplicate and Keep the Latest Record per Business Key. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "customers",
@@ -6060,7 +6060,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: SCD Type 2 - Find Changed Customer Rows. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "customer_dim",
@@ -6227,7 +6227,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: SCD Type 2 - Close Old Row and Insert New Row. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "customer_dim",
@@ -6394,7 +6394,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: Incremental Load Using Watermark. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "customer_dim",
@@ -6561,7 +6561,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: Merge Staging into Target by Business Key. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "customer_dim",
@@ -6728,7 +6728,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: Snapshot Table - Latest Balance per Account. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "customer_dim",
@@ -6895,7 +6895,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: Late-Arriving Facts That Missed the Correct Date Partition. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "customers",
@@ -7118,7 +7118,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: Find Changed Rows Between Two Snapshots by Key. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "customer_dim",
@@ -7285,7 +7285,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: Fact Table Missing Dimension Keys by Load Date. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "customers",
@@ -7508,7 +7508,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: Current Active SCD Row per Customer. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "customer_dim",
@@ -7675,7 +7675,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: Rewrite a Correlated Subquery to a Join. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "customers",
@@ -7899,7 +7899,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: Replace NOT IN with NOT EXISTS Safely. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "customers",
@@ -8122,7 +8122,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: Latest Row - Self Join versus Window Function. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "customers",
@@ -8345,7 +8345,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: Filter Early Before Join. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "customers",
@@ -8568,7 +8568,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: Partition-Pruning Friendly Date Filter. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "customers",
@@ -8791,7 +8791,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: Conditional Aggregation for Status Counts. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "daily_sales",
@@ -8944,7 +8944,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: Pivot Revenue by Region Using CASE. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "daily_sales",
@@ -9097,7 +9097,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: GROUPING SETS / ROLLUP Style Subtotals. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "customers",
@@ -9320,7 +9320,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: Null-Safe Comparison in Change Detection. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "customers",
@@ -9543,7 +9543,7 @@
     ],
     "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
     "problemStatement": "Solve this SQL interview task using the seeded tables: Delete Duplicates and Keep the Smallest ID. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. The browser will compare your output with the model query. After you submit, the browser runs your SQL against the visible sample plus an additional edge-case dataset.",
+    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
         "name": "customers",
@@ -9758,7 +9758,7 @@
     "estimatedMinutes": 12,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Reverse a string.",
-    "studentTask": "Define a function named reverse_a_string. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named reverse_a_string. Your solution will be checked against the sample tests.",
     "starterCode": "def reverse_a_string(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -9793,7 +9793,7 @@
     "estimatedMinutes": 12,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Check whether a string is a palindrome.",
-    "studentTask": "Define a function named check_whether_a_string_is_a_palindrome. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named check_whether_a_string_is_a_palindrome. Your solution will be checked against the sample tests.",
     "starterCode": "def check_whether_a_string_is_a_palindrome(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -9828,7 +9828,7 @@
     "estimatedMinutes": 12,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Find the first non-repeating character.",
-    "studentTask": "Define a function named find_the_first_non_repeating_character. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named find_the_first_non_repeating_character. Your solution will be checked against the sample tests.",
     "starterCode": "def find_the_first_non_repeating_character(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -9863,7 +9863,7 @@
     "estimatedMinutes": 12,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Check whether two strings are anagrams.",
-    "studentTask": "Define a function named check_whether_two_strings_are_anagrams. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named check_whether_two_strings_are_anagrams. Your solution will be checked against the sample tests.",
     "starterCode": "def check_whether_two_strings_are_anagrams(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -9899,7 +9899,7 @@
     "estimatedMinutes": 12,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Find the most frequent character.",
-    "studentTask": "Define a function named find_the_most_frequent_character. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named find_the_most_frequent_character. Your solution will be checked against the sample tests.",
     "starterCode": "def find_the_most_frequent_character(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -9934,7 +9934,7 @@
     "estimatedMinutes": 12,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Longest common prefix.",
-    "studentTask": "Define a function named longest_common_prefix. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named longest_common_prefix. Your solution will be checked against the sample tests.",
     "starterCode": "def longest_common_prefix(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -9973,7 +9973,7 @@
     "estimatedMinutes": 12,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Compress a string with counts.",
-    "studentTask": "Define a function named compress_a_string_with_counts. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named compress_a_string_with_counts. Your solution will be checked against the sample tests.",
     "starterCode": "def compress_a_string_with_counts(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -10008,7 +10008,7 @@
     "estimatedMinutes": 12,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Validate parentheses.",
-    "studentTask": "Define a function named validate_parentheses. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named validate_parentheses. Your solution will be checked against the sample tests.",
     "starterCode": "def validate_parentheses(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -10043,7 +10043,7 @@
     "estimatedMinutes": 12,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Count vowels and consonants.",
-    "studentTask": "Define a function named count_vowels_and_consonants. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named count_vowels_and_consonants. Your solution will be checked against the sample tests.",
     "starterCode": "def count_vowels_and_consonants(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -10081,7 +10081,7 @@
     "estimatedMinutes": 12,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Word frequency from a sentence.",
-    "studentTask": "Define a function named word_frequency_from_a_sentence. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named word_frequency_from_a_sentence. Your solution will be checked against the sample tests.",
     "starterCode": "def word_frequency_from_a_sentence(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -10119,7 +10119,7 @@
     "estimatedMinutes": 12,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Remove duplicates while preserving order.",
-    "studentTask": "Define a function named remove_duplicates_while_preserving_order. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named remove_duplicates_while_preserving_order. Your solution will be checked against the sample tests.",
     "starterCode": "def remove_duplicates_while_preserving_order(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -10164,7 +10164,7 @@
     "estimatedMinutes": 12,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Find the missing number from 1 to n.",
-    "studentTask": "Define a function named find_the_missing_number_from_1_to_n. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named find_the_missing_number_from_1_to_n. Your solution will be checked against the sample tests.",
     "starterCode": "def find_the_missing_number_from_1_to_n(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -10205,7 +10205,7 @@
     "estimatedMinutes": 12,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Two Sum.",
-    "studentTask": "Define a function named two_sum. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named two_sum. Your solution will be checked against the sample tests.",
     "starterCode": "def two_sum(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -10249,7 +10249,7 @@
     "estimatedMinutes": 12,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Rotate a list by k steps.",
-    "studentTask": "Define a function named rotate_a_list_by_k_steps. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named rotate_a_list_by_k_steps. Your solution will be checked against the sample tests.",
     "starterCode": "def rotate_a_list_by_k_steps(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -10297,7 +10297,7 @@
     "estimatedMinutes": 12,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Move all zeros to the end.",
-    "studentTask": "Define a function named move_all_zeros_to_the_end. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named move_all_zeros_to_the_end. Your solution will be checked against the sample tests.",
     "starterCode": "def move_all_zeros_to_the_end(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -10344,7 +10344,7 @@
     "estimatedMinutes": 12,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Merge two sorted lists.",
-    "studentTask": "Define a function named merge_two_sorted_lists. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named merge_two_sorted_lists. Your solution will be checked against the sample tests.",
     "starterCode": "def merge_two_sorted_lists(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -10393,7 +10393,7 @@
     "estimatedMinutes": 12,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Find the intersection of two lists.",
-    "studentTask": "Define a function named find_the_intersection_of_two_lists. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named find_the_intersection_of_two_lists. Your solution will be checked against the sample tests.",
     "starterCode": "def find_the_intersection_of_two_lists(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -10441,7 +10441,7 @@
     "estimatedMinutes": 12,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Top K frequent elements.",
-    "studentTask": "Define a function named top_k_frequent_elements. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named top_k_frequent_elements. Your solution will be checked against the sample tests.",
     "starterCode": "def top_k_frequent_elements(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -10487,7 +10487,7 @@
     "estimatedMinutes": 12,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Group records by key.",
-    "studentTask": "Define a function named group_records_by_key. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named group_records_by_key. Your solution will be checked against the sample tests.",
     "starterCode": "def group_records_by_key(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -10543,7 +10543,7 @@
     "estimatedMinutes": 12,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Flatten a nested list.",
-    "studentTask": "Define a function named flatten_a_nested_list. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named flatten_a_nested_list. Your solution will be checked against the sample tests.",
     "starterCode": "def flatten_a_nested_list(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -10594,7 +10594,7 @@
     "estimatedMinutes": 18,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Count occurrences using a dictionary.",
-    "studentTask": "Define a function named count_occurrences_using_a_dictionary. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named count_occurrences_using_a_dictionary. Your solution will be checked against the sample tests.",
     "starterCode": "def count_occurrences_using_a_dictionary(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -10636,7 +10636,7 @@
     "estimatedMinutes": 18,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Invert a dictionary with duplicate values.",
-    "studentTask": "Define a function named invert_a_dictionary_with_duplicate_values. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named invert_a_dictionary_with_duplicate_values. Your solution will be checked against the sample tests.",
     "starterCode": "def invert_a_dictionary_with_duplicate_values(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -10683,7 +10683,7 @@
     "estimatedMinutes": 18,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Merge a list of dictionaries by id.",
-    "studentTask": "Define a function named merge_a_list_of_dictionaries_by_id. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named merge_a_list_of_dictionaries_by_id. Your solution will be checked against the sample tests.",
     "starterCode": "def merge_a_list_of_dictionaries_by_id(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -10741,7 +10741,7 @@
     "estimatedMinutes": 18,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Detect duplicates in a list.",
-    "studentTask": "Define a function named detect_duplicates_in_a_list. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named detect_duplicates_in_a_list. Your solution will be checked against the sample tests.",
     "starterCode": "def detect_duplicates_in_a_list(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -10786,7 +10786,7 @@
     "estimatedMinutes": 18,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Sort a dictionary by value.",
-    "studentTask": "Define a function named sort_a_dictionary_by_value. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named sort_a_dictionary_by_value. Your solution will be checked against the sample tests.",
     "starterCode": "def sort_a_dictionary_by_value(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -10829,7 +10829,7 @@
     "estimatedMinutes": 18,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Count pairs with a given sum.",
-    "studentTask": "Define a function named count_pairs_with_a_given_sum. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named count_pairs_with_a_given_sum. Your solution will be checked against the sample tests.",
     "starterCode": "def count_pairs_with_a_given_sum(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -10871,7 +10871,7 @@
     "estimatedMinutes": 18,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Find symmetric pairs.",
-    "studentTask": "Define a function named find_symmetric_pairs. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named find_symmetric_pairs. Your solution will be checked against the sample tests.",
     "starterCode": "def find_symmetric_pairs(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -10928,7 +10928,7 @@
     "estimatedMinutes": 18,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Build running balance from transactions.",
-    "studentTask": "Define a function named build_running_balance_from_transactions. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named build_running_balance_from_transactions. Your solution will be checked against the sample tests.",
     "starterCode": "def build_running_balance_from_transactions(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -10983,7 +10983,7 @@
     "estimatedMinutes": 18,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Factorial.",
-    "studentTask": "Define a function named factorial. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named factorial. Your solution will be checked against the sample tests.",
     "starterCode": "def factorial(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -11018,7 +11018,7 @@
     "estimatedMinutes": 18,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Fibonacci number.",
-    "studentTask": "Define a function named fibonacci_number. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named fibonacci_number. Your solution will be checked against the sample tests.",
     "starterCode": "def fibonacci_number(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -11053,7 +11053,7 @@
     "estimatedMinutes": 18,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Prime number check.",
-    "studentTask": "Define a function named prime_number_check. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named prime_number_check. Your solution will be checked against the sample tests.",
     "starterCode": "def prime_number_check(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -11088,7 +11088,7 @@
     "estimatedMinutes": 18,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Generate all primes up to n.",
-    "studentTask": "Define a function named generate_all_primes_up_to_n. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named generate_all_primes_up_to_n. Your solution will be checked against the sample tests.",
     "starterCode": "def generate_all_primes_up_to_n(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -11128,7 +11128,7 @@
     "estimatedMinutes": 18,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Binary search in a sorted array.",
-    "studentTask": "Define a function named binary_search_in_a_sorted_array. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named binary_search_in_a_sorted_array. Your solution will be checked against the sample tests.",
     "starterCode": "def binary_search_in_a_sorted_array(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -11169,7 +11169,7 @@
     "estimatedMinutes": 18,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Longest substring without repeating characters.",
-    "studentTask": "Define a function named longest_substring_without_repeating_characters. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named longest_substring_without_repeating_characters. Your solution will be checked against the sample tests.",
     "starterCode": "def longest_substring_without_repeating_characters(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -11204,7 +11204,7 @@
     "estimatedMinutes": 18,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Merge overlapping intervals.",
-    "studentTask": "Define a function named merge_overlapping_intervals. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named merge_overlapping_intervals. Your solution will be checked against the sample tests.",
     "starterCode": "def merge_overlapping_intervals(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -11261,7 +11261,7 @@
     "estimatedMinutes": 18,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Maximum subarray sum.",
-    "studentTask": "Define a function named maximum_subarray_sum. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named maximum_subarray_sum. Your solution will be checked against the sample tests.",
     "starterCode": "def maximum_subarray_sum(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -11304,7 +11304,7 @@
     "estimatedMinutes": 18,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Read a large log file and count ERROR lines.",
-    "studentTask": "Define a function named read_a_large_log_file_and_count_error_lines. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named read_a_large_log_file_and_count_error_lines. Your solution will be checked against the sample tests.",
     "starterCode": "def read_a_large_log_file_and_count_error_lines(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -11343,7 +11343,7 @@
     "estimatedMinutes": 18,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Parse CSV and aggregate a numeric column.",
-    "studentTask": "Define a function named parse_csv_and_aggregate_a_numeric_column. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named parse_csv_and_aggregate_a_numeric_column. Your solution will be checked against the sample tests.",
     "starterCode": "def parse_csv_and_aggregate_a_numeric_column(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -11383,7 +11383,7 @@
     "estimatedMinutes": 18,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Parse nested JSON and extract selected fields.",
-    "studentTask": "Define a function named parse_nested_json_and_extract_selected_fields. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named parse_nested_json_and_extract_selected_fields. Your solution will be checked against the sample tests.",
     "starterCode": "def parse_nested_json_and_extract_selected_fields(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -11432,7 +11432,7 @@
     "estimatedMinutes": 18,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Compare two files line by line.",
-    "studentTask": "Define a function named compare_two_files_line_by_line. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named compare_two_files_line_by_line. Your solution will be checked against the sample tests.",
     "starterCode": "def compare_two_files_line_by_line(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -11480,7 +11480,7 @@
     "estimatedMinutes": 18,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Find duplicate records in a CSV by key.",
-    "studentTask": "Define a function named find_duplicate_records_in_a_csv_by_key. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named find_duplicate_records_in_a_csv_by_key. Your solution will be checked against the sample tests.",
     "starterCode": "def find_duplicate_records_in_a_csv_by_key(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -11530,7 +11530,7 @@
     "estimatedMinutes": 18,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Compute a rolling 7-day average.",
-    "studentTask": "Define a function named compute_a_rolling_7_day_average. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named compute_a_rolling_7_day_average. Your solution will be checked against the sample tests.",
     "starterCode": "def compute_a_rolling_7_day_average(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -11575,7 +11575,7 @@
     "estimatedMinutes": 18,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Convert a list of tuples into a nested dictionary.",
-    "studentTask": "Define a function named convert_a_list_of_tuples_into_a_nested_dictionary. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named convert_a_list_of_tuples_into_a_nested_dictionary. Your solution will be checked against the sample tests.",
     "starterCode": "def convert_a_list_of_tuples_into_a_nested_dictionary(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -11626,7 +11626,7 @@
     "estimatedMinutes": 18,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Implement a simple log parser.",
-    "studentTask": "Define a function named implement_a_simple_log_parser. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named implement_a_simple_log_parser. Your solution will be checked against the sample tests.",
     "starterCode": "def implement_a_simple_log_parser(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -11673,7 +11673,7 @@
     "estimatedMinutes": 18,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Write a decorator that measures execution time.",
-    "studentTask": "Define a function named write_a_decorator_that_measures_execution_time. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named write_a_decorator_that_measures_execution_time. Your solution will be checked against the sample tests.",
     "starterCode": "def write_a_decorator_that_measures_execution_time(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -11708,7 +11708,7 @@
     "estimatedMinutes": 18,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Create a generator that yields chunks from an iterable.",
-    "studentTask": "Define a function named create_a_generator_that_yields_chunks_from_an_iterable. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named create_a_generator_that_yields_chunks_from_an_iterable. Your solution will be checked against the sample tests.",
     "starterCode": "def create_a_generator_that_yields_chunks_from_an_iterable(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -11762,7 +11762,7 @@
     "estimatedMinutes": 18,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Implement a simple LRU cache.",
-    "studentTask": "Define a function named implement_a_simple_lru_cache. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named implement_a_simple_lru_cache. Your solution will be checked against the sample tests.",
     "starterCode": "def implement_a_simple_lru_cache(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -11828,7 +11828,7 @@
     "estimatedMinutes": 18,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Find common elements across multiple lists.",
-    "studentTask": "Define a function named find_common_elements_across_multiple_lists. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named find_common_elements_across_multiple_lists. Your solution will be checked against the sample tests.",
     "starterCode": "def find_common_elements_across_multiple_lists(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -11880,7 +11880,7 @@
     "estimatedMinutes": 18,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Normalize an email list.",
-    "studentTask": "Define a function named normalize_an_email_list. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named normalize_an_email_list. Your solution will be checked against the sample tests.",
     "starterCode": "def normalize_an_email_list(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",
@@ -11922,7 +11922,7 @@
     "estimatedMinutes": 18,
     "businessContext": "You are writing a small data engineering utility where correctness and edge cases matter more than clever tricks.",
     "problemStatement": "Implement the function for this coding task: Find the top customer by revenue from transactions.",
-    "studentTask": "Define a function named find_the_top_customer_by_revenue_from_transactions. The browser will run sample tests using Pyodide.",
+    "studentTask": "Define a function named find_the_top_customer_by_revenue_from_transactions. Your solution will be checked against the sample tests.",
     "starterCode": "def find_the_top_customer_by_revenue_from_transactions(*args):\n    # Write your solution here\n    raise NotImplementedError",
     "hints": [
       "Start with the simplest correct version.",

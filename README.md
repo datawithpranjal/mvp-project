@@ -216,7 +216,7 @@ NEXT_PUBLIC_API_BASE_URL=https://api.yourdomain.com
 
 ### Current production notes
 
-- The app does **not** depend on Postgres for core scenario usage, so the deployed MVP still works without provisioning a production database first.
+- Core scenario practice remains available independently of Postgres, while account and access features use the configured production database.
 - Email capture writes to Supabase/Postgres when `POSTGRES_URL` is set to a real external database URL. If the default local Docker URL is used, it falls back to local file storage for development.
 - Login, signup, profile, OTPs, and sessions are backed by Postgres in production.
 - Premium checkout uses Razorpay Standard Checkout with backend order creation and payment verification.

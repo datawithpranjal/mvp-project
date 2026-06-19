@@ -6,7 +6,7 @@ import { getScenarios } from "../../lib/scenarios";
 const FREE_FEATURES = [
   "Selected free SQL, PySpark, and scenario labs",
   "Basic hints and feedback on starter labs",
-  "Progress tracking on this device",
+  "Practice progress tracking",
   "Starter roadmap and interview practice"
 ];
 
@@ -34,7 +34,7 @@ const FAQ_ITEMS = [
   {
     question: "What is the refund policy?",
     answer:
-      "If activation cannot be completed, contact support with your payment reference. Refund and access requests are reviewed individually during this early-access period."
+      "If activation cannot be completed, contact support with your payment reference. Refund and access requests are reviewed individually under our access and activation policy."
   }
 ];
 

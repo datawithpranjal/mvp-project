@@ -7,7 +7,7 @@ The Data Foundry is a practice-first platform for Data Engineering interviews, p
 - Production-style SQL/debug/design/code-review scenarios.
 - Free and premium cards visible in the public library.
 - Hints, attempt history, draft saving, model answer reveal, self-rating, and completion tracking.
-- Local progress in MVP; backend persistence later.
+- Guest progress is supported today; account-backed progress persistence is planned.
 
 ## Phase 2: AI Evaluator
 
@@ -38,4 +38,3 @@ The Data Foundry is a practice-first platform for Data Engineering interviews, p
 
 - Expand the platform model into Data Analytics, Data Science, Machine Learning, and AI engineering tracks.
 - Keep The Data Foundry as the scalable product brand.
-

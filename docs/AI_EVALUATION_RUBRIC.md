@@ -1,6 +1,6 @@
 # AI Evaluation Rubric
 
-The AI evaluator is intentionally provider-agnostic. The frontend currently uses a deterministic mock fallback in `frontend/services/ai/evaluateScenarioAnswer.ts` so the UI works without an API key.
+The AI evaluator is intentionally provider-agnostic. A deterministic rubric fallback in `frontend/services/ai/evaluateScenarioAnswer.ts` keeps evaluation available when the AI provider cannot be reached.
 
 ## Input
 
@@ -36,4 +36,3 @@ AI feedback should guide the learner without exposing locked model answers. If a
 ## Future Provider Integration
 
 Add a backend API endpoint for provider-based evaluation so secrets stay server-side. Keep the current TypeScript interface stable and swap the implementation behind it.
-

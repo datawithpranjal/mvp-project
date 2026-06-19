@@ -15,16 +15,13 @@ export function EvaluationPanel({ result, commonMistakes, followUps }: Evaluatio
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-sm font-semibold text-teal-100">Score</p>
             <span className="rounded-full border border-teal-200/25 bg-slate-950/25 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-teal-100">
-              {result.mode === "openai" ? "OpenAI evaluation" : "Local evaluation"}
+              {result.mode === "openai" ? "AI evaluation" : "Rubric evaluation"}
             </span>
           </div>
           <p className="mt-3 text-6xl font-semibold text-slate-50">{result.score}</p>
           <p className="mt-2 text-xs uppercase tracking-[0.2em] text-slate-400">
             {result.verdict}
           </p>
-          {result.mode === "openai" && result.model ? (
-            <p className="mt-2 text-xs text-slate-400">Model: {result.model}</p>
-          ) : null}
         </div>
         <div className="space-y-4">
           <FeedbackList title="What you did well" items={result.strengths} tone="teal" />

@@ -62,7 +62,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [showRevealConfirmation, setShowRevealConfirmation] = useState(false);
   const [hydratedScenarioSlug, setHydratedScenarioSlug] = useState<string | null>(null);
-  const [autoSaveStatus, setAutoSaveStatus] = useState("Saved locally");
+  const [autoSaveStatus, setAutoSaveStatus] = useState("Saved");
 
   useEffect(() => {
     setHydratedScenarioSlug(null);
@@ -95,7 +95,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
       );
       setProgress(summarizeScenarioProgress(nextProgress, scenario.slug));
       setAutoSaveStatus(
-        `Saved locally at ${new Intl.DateTimeFormat(undefined, {
+        `Saved at ${new Intl.DateTimeFormat(undefined, {
           hour: "numeric",
           minute: "2-digit"
         }).format(new Date(nextProgress.draftSavedAt ?? Date.now()))}`
@@ -167,7 +167,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
     const draft = scenario.scenarioType === "mcq" ? selectedOptionId : answer;
     const nextProgress = saveScenarioDraft(scenario.slug, draft, interviewAnswer);
     setProgress(summarizeScenarioProgress(nextProgress, scenario.slug));
-    setDraftMessage("Draft saved locally.");
+    setDraftMessage("Draft saved.");
   }
 
   async function checkAnswer() {
@@ -284,7 +284,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
         evaluation_mode: nextEvaluation.mode
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "The browser checker could not run this answer.";
+      const message = error instanceof Error ? error.message : "The query checker could not run this answer.";
       const nextProgress = recordScenarioAttempt(scenario.slug, {
         passed: false,
         answer: submittedAnswer,
@@ -445,7 +445,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
               </p>
               <p className="mt-3 text-sm leading-6 text-slate-400">
                 Use these small tables to reason about the bug before writing the fix.
-                The browser checker seeds this data when you click Check Answer.
+                This data is used to validate your result when you click Check Answer.
               </p>
               <div className="mt-5 grid min-w-0 gap-5">
                 {scenario.sampleTables.map((table) => (
@@ -475,7 +475,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
                 <h2 className="mt-3 text-2xl font-semibold text-slate-50">{promptLabel}</h2>
                 <p className="mt-2 text-sm leading-6 text-slate-400">
                   {canRunSql
-                    ? "Write the corrected query. The browser will run it against the sample tables and compare the result with the expected output."
+                    ? "Write the corrected query, run it against the sample tables, and compare the result with the expected output."
                     : "Think before revealing the answer. A partial but honest attempt is better practice than reading the model solution first."}
                 </p>
               </div>
@@ -728,8 +728,8 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
                       Save this practice journey
                     </p>
                     <p className="mt-2 text-sm leading-6 text-slate-300">
-                      Your progress is saved on this device now. Create an account to prepare
-                      for future cross-device progress and account-backed practice history.
+                      Your progress is saved. Create an account to build your learner profile
+                      and unlock the complete practice journey.
                     </p>
                     <button
                       type="button"

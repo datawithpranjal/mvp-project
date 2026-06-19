@@ -408,7 +408,7 @@ export function OperationsDecisionLab({ track }: { track: OperationsLabTrack }) 
                   className="mt-3 w-full resize-y rounded-3xl border border-slate-700 bg-slate-950/60 p-5 text-sm leading-7 text-slate-100 outline-none focus:border-teal-300/50"
                 />
                 <p className="mt-2 text-xs text-slate-500">
-                  Drafts are saved locally on this device.
+                  Your draft is saved automatically.
                 </p>
 
                 {hintCount > 0 ? (

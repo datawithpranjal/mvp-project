@@ -217,7 +217,7 @@ export function PracticeHub() {
             <SectionHeading
               eyebrow="Recommended for you"
               title="Start with a focused practice track."
-              detail="Open a browser lab, production scenario, or architecture exercise."
+              detail="Open a coding lab, production scenario, or architecture exercise."
             />
             <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
               {LAB_TRACKS.filter((track) => track.status === "active").map((track) => (

@@ -54,8 +54,8 @@ export function CoreLabGrid() {
             </h3>
             <p className="mt-4 text-sm leading-7 text-slate-300">
               This lab is on the roadmap and will be released with practical, production-style
-              exercises. For now, start with SQL, PySpark, Scenario Playground, System Design,
-              or the guided Roadmap.
+              exercises. Start with SQL, PySpark, Scenario Playground, System Design, or the
+              guided Roadmap.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <Link

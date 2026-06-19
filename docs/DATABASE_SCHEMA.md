@@ -1,6 +1,6 @@
 # Database Schema Notes
 
-The MVP currently uses file-backed scenarios, browser localStorage for practice progress, and the existing FastAPI/Postgres auth and email-capture path where configured.
+The current architecture uses file-backed scenario content, guest progress storage, and FastAPI/Postgres for authentication, access, and account data where configured.
 
 When progress moves server-side, use these tables as the starting point.
 
@@ -96,4 +96,3 @@ When progress moves server-side, use these tables as the starting point.
 - `readiness_score`
 - `weak_areas_json`
 - `updated_at`
-

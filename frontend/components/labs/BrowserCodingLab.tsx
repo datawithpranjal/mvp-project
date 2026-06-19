@@ -118,7 +118,7 @@ async function runSqlLab(lab: CodingLab, answer: string): Promise<LabRunResult> 
   if (!lab.expectedSql) {
     return {
       passed: null,
-      message: "This SQL lab is missing an expected query. Reveal the model answer for now."
+      message: "This lab cannot be validated yet. Please choose another question or contact support."
     };
   }
 
@@ -197,7 +197,7 @@ async function runPythonLab(lab: CodingLab, answer: string): Promise<LabRunResul
   if (!lab.functionName || !lab.testCases?.length) {
     return {
       passed: null,
-      message: "This Python lab is missing tests. Reveal the model answer for now."
+      message: "This lab cannot be validated yet. Please choose another question or contact support."
     };
   }
 
@@ -210,7 +210,7 @@ async function runPythonLab(lab: CodingLab, answer: string): Promise<LabRunResul
   return {
     passed,
     message: passed
-      ? "Correct. Your Python function passed all browser-side tests."
+      ? "Correct. Your Python function passed all validation checks."
       : "Some tests failed. Look at the failing input/output and tighten your edge-case handling.",
     pythonResults
   };
@@ -260,7 +260,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
   const [expectedPreviewError, setExpectedPreviewError] = useState("");
   const [workspaceMessage, setWorkspaceMessage] = useState("");
   const [draftsLoaded, setDraftsLoaded] = useState(false);
-  const [saveStatus, setSaveStatus] = useState("Saved locally");
+  const [saveStatus, setSaveStatus] = useState("Saved");
 
   const topics = useMemo(() => {
     const all = new Set<string>();
@@ -332,7 +332,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
     const timer = window.setTimeout(() => {
       const draft = saveCodingLabDraft(selectedLab.slug, currentAnswer);
       setSaveStatus(
-        `Saved locally at ${new Intl.DateTimeFormat(undefined, {
+        `Saved at ${new Intl.DateTimeFormat(undefined, {
           hour: "numeric",
           minute: "2-digit"
         }).format(new Date(draft.savedAt))}`
@@ -383,7 +383,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
     } catch (error) {
       setResult({
         passed: false,
-        message: error instanceof Error ? error.message : "Execution failed in the browser."
+        message: error instanceof Error ? error.message : "Code execution failed."
       });
     } finally {
       setIsRunning(false);
@@ -455,7 +455,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
       await navigator.clipboard.writeText(schema);
       setWorkspaceMessage("Schema copied.");
     } catch {
-      setWorkspaceMessage("Copy was blocked by the browser. Select the schema text manually.");
+      setWorkspaceMessage("Copy was blocked. Select the schema text manually.");
     }
   }
 
@@ -482,20 +482,20 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
         <div className="mt-4 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <h1 className="text-4xl font-semibold tracking-tight text-slate-50">
-              Browser-based data engineering practice.
+              Hands-on data engineering practice.
             </h1>
             <p className="mt-4 max-w-4xl text-sm leading-7 text-slate-300">
               {track === "pyspark"
-                ? "Practice Spark production fixes without paying for a cluster: inspect the data, repair the code, run a concept check, then compare with the model answer."
-                : "Run code directly in your browser. No backend judge, no hidden server state: inspect the data, write the fix, run checks, then explain the production lesson."}
+                ? "Practice Spark production fixes: inspect the data, repair the code, run a concept check, then compare with the model answer."
+                : "Inspect the data, write the solution, run validation checks, and explain the production lesson."}
             </p>
           </div>
           <div className="grid grid-cols-3 gap-3 text-center">
             <Stat label="Labs" value={labs.length} />
             <Stat label="Free" value={labs.filter((lab) => lab.isFree).length} />
             <Stat
-              label="Runtime"
-              value={track === "sql" ? "SQLite" : track === "python" ? "Pyodide" : "Code review"}
+              label="Practice"
+              value={track === "sql" ? "SQL query" : track === "python" ? "Python function" : "Code review"}
             />
           </div>
         </div>
@@ -643,7 +643,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
                     ? "Write a read-only query that returns the expected result."
                     : track === "python"
                       ? `Define the function ${selectedLab.functionName ?? ""} and pass the browser tests.`
-                      : "Fix the PySpark code or write the production-safe approach. The browser checks the concepts, APIs, and trade-offs."}
+                      : "Fix the PySpark code or write the production-safe approach. Your answer is checked for concepts, APIs, and trade-offs."}
                 </p>
               </div>
               <div className="flex flex-wrap gap-3">
@@ -733,17 +733,17 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
         <aside className="space-y-6 md:col-start-2 2xl:col-start-auto">
           <div className="panel rounded-[2rem] p-6">
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
-              Browser runtime
+              Practice workflow
             </p>
             <h3 className="mt-3 text-xl font-semibold text-slate-50">
-              No backend execution
+              Attempt, validate, improve
             </h3>
             <p className="mt-3 text-sm leading-6 text-slate-300">
               {track === "sql"
-                ? "The table seed and validation run inside your browser using SQLite/WebAssembly."
+                ? "Inspect the seeded tables, write your query, run it, and submit it for complete validation."
                 : track === "python"
-                  ? "Python loads through Pyodide in your browser, then runs your function against sample tests."
-                  : "PySpark is taught as production code review here: no cluster required, but your fix is checked against the expected APIs and reasoning."}
+                  ? "Use the sample inputs and outputs, implement the function, and run the validation checks."
+                  : "Review the PySpark issue, propose a production-safe fix, and check it against the expected APIs and reasoning."}
             </p>
           </div>
 

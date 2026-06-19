@@ -99,8 +99,8 @@ export default function OnboardingPage() {
             Start with {recommendation.title}.
           </h1>
           <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300">
-            You do not need an account yet. Your guest path is saved on this device, and
-            you can complete your first lab before deciding whether to sign up.
+            You can complete your first lab before deciding whether to create an account.
+            Start with the recommendation below and build momentum immediately.
           </p>
 
           <div className="mt-7 grid gap-5 lg:grid-cols-[1fr_0.9fr]">

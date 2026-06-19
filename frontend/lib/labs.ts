@@ -15,7 +15,7 @@ export const LAB_TRACKS: LabTrack[] = [
     title: "SQL Lab",
     status: "active",
     description:
-      "Practice SQL interview problems with seeded tables and browser-side SQL execution. No backend judge required.",
+      "Practice SQL interview problems with realistic tables, executable queries, and instant result validation.",
     skills: ["Ranking", "Joins", "Windows", "Anti-joins", "Metrics"],
     href: "/labs/sql",
     groups: ["SQL Interview Essentials", "Data Engineering SQL", "Production Debugging", "Advanced SQL"],
@@ -26,7 +26,7 @@ export const LAB_TRACKS: LabTrack[] = [
     title: "Python Lab",
     status: "active",
     description:
-      "Practice Python coding questions in a browser Pyodide runtime with sample tests and model explanations.",
+      "Practice Python coding questions with sample inputs, validation checks, and model explanations.",
     skills: ["Lists", "Dicts", "Files", "APIs", "ETL logic"],
     href: "/labs/python",
     groups: ["Data Engineering Python", "File / JSON / CSV Processing", "Interview Basics", "Advanced Logic"],

@@ -116,7 +116,7 @@ export async function runReadOnlySql(
   sql: string
 ): Promise<BrowserSqlResultTable> {
   if (!isReadOnlySql(sql)) {
-    throw new Error("Only read-only SELECT or WITH queries can be run in the browser scenario checker.");
+    throw new Error("Submit a read-only query that starts with SELECT or WITH.");
   }
 
   const SQL = await getSqlJs();

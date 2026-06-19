@@ -105,7 +105,7 @@ let razorpayScriptPromise: Promise<void> | null = null;
 
 function loadRazorpayCheckout(): Promise<void> {
   if (typeof window === "undefined") {
-    return Promise.reject(new Error("Razorpay checkout can only run in the browser."));
+    return Promise.reject(new Error("Checkout is unavailable in this session. Please refresh and try again."));
   }
 
   if (window.Razorpay) {
@@ -310,7 +310,7 @@ export function PremiumUpgradePanel({
               };
               savePremiumAccess(premiumRecord);
               setPremiumAccessState(premiumRecord);
-              setCheckoutSuccess("Payment verified. Premium access is active on this device.");
+              setCheckoutSuccess("Payment verified. Premium access is now active on your account.");
               onUnlocked?.();
               resolve();
             } catch (error) {

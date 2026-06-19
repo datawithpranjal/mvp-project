@@ -78,7 +78,7 @@ export const HOMEPAGE_STATS = [
   {
     value: "SQL + PySpark",
     label: "Hands-on labs",
-    detail: "Browser-first practice without backend-heavy infra"
+    detail: "Interactive exercises with immediate feedback"
   },
   {
     value: "Production",
@@ -122,14 +122,14 @@ export const TRUST_SIGNALS = [
     detail: "Creator of Data with Pranjal, focused on practical Data Engineering preparation."
   },
   {
-    label: "YouTube proof",
-    value: "Content-led learning",
-    detail: "Placeholder for channel stats, walkthroughs, and public learner proof."
+    label: "Practical guidance",
+    value: "Creator-led learning",
+    detail: "Clear walkthroughs shaped by real Data Engineering interview and production problems."
   },
   {
-    label: "Learners",
-    value: "Community proof",
-    detail: "Placeholder for student wins, testimonials, and cohort outcomes."
+    label: "Built for learners",
+    value: "Practice-led progress",
+    detail: "Designed for freshers, career switchers, and engineers preparing for their next role."
   }
 ];
 
@@ -210,7 +210,7 @@ export const LEARNING_PATHS: LearningPathTemplate[] = [
         title: "Build SQL foundations",
         taskType: "sql",
         description:
-          "Start with browser-based SQL practice so joins, aggregations, NULL handling, windows, and output grain become reliable.",
+          "Start with hands-on SQL practice so joins, aggregations, NULL handling, windows, and output grain become reliable.",
         href: "/labs/sql?lab=sql-coding-01-second-highest-salary",
         practiceTarget: "Complete 8-10 SQL labs before moving forward.",
         checkpoints: [
