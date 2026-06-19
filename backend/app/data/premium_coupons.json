@@ -8,5 +8,15 @@
     "applies_to": ["monthly", "yearly"],
     "starts_at": null,
     "expires_at": null
+  },
+  {
+    "code": "IAMHAPPYTOLEARN",
+    "description": "Full scholarship access for motivated learners",
+    "discount_type": "percent",
+    "discount_value": 99,
+    "active": true,
+    "applies_to": ["monthly", "yearly"],
+    "starts_at": null,
+    "expires_at": null
   }
 ]

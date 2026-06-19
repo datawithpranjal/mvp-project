@@ -9,7 +9,7 @@ export interface PremiumAccessRecord {
   amount_inr: number;
   payment_reference: string;
   plan_label: string;
-  payment_method: "upi_manual" | "upi_dummy" | "razorpay";
+  payment_method: "upi_manual" | "upi_dummy" | "razorpay" | "coupon";
 }
 
 const STORAGE_KEY = "data-engineering-scenario-playground-premium-access-v1";
@@ -60,9 +60,11 @@ export function getPremiumAccess(): PremiumAccessRecord | null {
       payment_method:
         parsed.payment_method === "razorpay"
           ? "razorpay"
-          : parsed.payment_method === "upi_dummy"
-            ? "upi_dummy"
-            : "upi_manual"
+          : parsed.payment_method === "coupon"
+            ? "coupon"
+            : parsed.payment_method === "upi_dummy"
+              ? "upi_dummy"
+              : "upi_manual"
     };
   } catch {
     return null;

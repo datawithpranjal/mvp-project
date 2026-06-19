@@ -304,6 +304,22 @@ def submit_manual_premium_payment_request(
             raise CouponValidationError(
                 "The payable amount changed. Apply the coupon again before submitting."
             )
+        if quote.final_amount_inr == 0:
+            premium_access_service.grant_manual_access(
+                email=profile.email,
+                plan_label=quote.plan_label,
+                billing_interval=payload.billing_interval,
+                amount_inr=quote.final_amount_inr,
+                payment_reference=payload.payment_reference,
+            )
+            return {
+                "submitted": True,
+                "pending_review": False,
+                "unlocked_premium": True,
+                "email": profile.email,
+                **quote.as_dict(),
+            }
+
         premium_access_service.submit_manual_payment_request(
             email=profile.email,
             plan_label=quote.plan_label,

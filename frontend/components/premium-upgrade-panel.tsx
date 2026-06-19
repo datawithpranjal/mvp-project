@@ -6,6 +6,7 @@ import { AUTH_UPDATED_EVENT, getAuthToken, getCurrentUser, type AuthUser } from 
 import {
   captureEmail,
   createRazorpayOrder,
+  submitManualPremiumPayment,
   validatePremiumCoupon,
   verifyRazorpayPayment
 } from "../lib/api";
@@ -339,6 +340,63 @@ export function PremiumUpgradePanel({
     }
   }
 
+  async function handleFreeCouponUnlock() {
+    if (!currentUser) {
+      return;
+    }
+
+    const token = getAuthToken();
+    if (!token) {
+      setCheckoutError("Please sign in again before unlocking premium access.");
+      return;
+    }
+
+    if (!couponQuote || couponQuote.final_amount_inr !== 0) {
+      setCheckoutError("Apply a valid 100% coupon before unlocking premium access.");
+      return;
+    }
+
+    try {
+      setIsRazorpayLoading(true);
+      setCheckoutError(null);
+      setCheckoutSuccess(null);
+
+      const response = await submitManualPremiumPayment(token, {
+        plan_label: couponQuote.plan_label,
+        billing_interval: activePlan.id,
+        amount_inr: 0,
+        payment_reference: `COUPON-${couponQuote.coupon_code}-${Date.now()}`,
+        coupon_code: couponQuote.coupon_code ?? undefined
+      });
+
+      if (!response.unlocked_premium) {
+        throw new Error("Coupon unlock is pending review. Please contact support.");
+      }
+
+      const premiumRecord: PremiumAccessRecord = {
+        email: response.email,
+        unlockedAt: new Date().toISOString(),
+        billing_interval: response.billing_interval,
+        amount_inr: response.final_amount_inr,
+        payment_reference: response.coupon_code ?? "COUPON",
+        plan_label: response.plan_label,
+        payment_method: "coupon"
+      };
+      savePremiumAccess(premiumRecord);
+      setPremiumAccessState(premiumRecord);
+      setCheckoutSuccess("Coupon applied. Premium access is active.");
+      onUnlocked?.();
+    } catch (error) {
+      setCheckoutError(
+        error instanceof Error
+          ? error.message
+          : "Unable to unlock premium with this coupon. Please try again."
+      );
+    } finally {
+      setIsRazorpayLoading(false);
+    }
+  }
+
   if (!currentUser) {
     return (
       <AuthForm
@@ -539,11 +597,17 @@ export function PremiumUpgradePanel({
 
           <button
             type="button"
-            onClick={handleRazorpayCheckout}
+            onClick={payableAmount === 0 ? handleFreeCouponUnlock : handleRazorpayCheckout}
             disabled={isRazorpayLoading}
             className="mt-5 w-full rounded-full bg-teal-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-teal-200 disabled:cursor-not-allowed disabled:bg-teal-100"
           >
-            {isRazorpayLoading ? "Opening Razorpay..." : `Pay Rs ${payableAmount} securely`}
+            {isRazorpayLoading
+              ? payableAmount === 0
+                ? "Unlocking access..."
+                : "Opening Razorpay..."
+              : payableAmount === 0
+                ? "Unlock premium with coupon"
+                : `Pay Rs ${payableAmount} securely`}
           </button>
 
           <p className="mt-3 text-center text-xs leading-5 text-slate-500">
