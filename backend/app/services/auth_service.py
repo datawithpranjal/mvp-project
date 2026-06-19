@@ -89,8 +89,6 @@ class AuthService:
         expires_at = now + self.otp_ttl
 
         if payload.mode == "signup":
-            if not payload.full_name:
-                raise AuthValidationError("Full name is required to create an account.")
             self._upsert_user(payload, now)
             self._capture_signup_email(payload.email)
         else:

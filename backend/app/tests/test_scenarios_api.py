@@ -323,6 +323,33 @@ def test_signup_otp_login_profile_and_logout_flow() -> None:
     assert me_response.status_code == 401
 
 
+def test_signup_otp_allows_email_only() -> None:
+    email = "otp.email.only@example.com"
+
+    otp_response = client.post(
+        "/api/v1/auth/request-otp",
+        json={
+            "mode": "signup",
+            "email": email,
+        },
+    )
+
+    assert otp_response.status_code == 200
+    otp_payload = otp_response.json()
+
+    session_response = client.post(
+        "/api/v1/auth/verify-otp",
+        json={"email": email, "otp_code": otp_payload["debug_otp"]},
+    )
+
+    assert session_response.status_code == 200
+    session_payload = session_response.json()
+    assert session_payload["user"]["email"] == email
+    assert session_payload["user"]["full_name"] == email
+    assert session_payload["user"]["role"] == "Student"
+    assert session_payload["user"]["experience_level"] == "Beginner"
+
+
 def test_otp_request_rate_limit_returns_429() -> None:
     email = "otp.rate.limit@example.com"
 

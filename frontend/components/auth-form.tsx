@@ -11,18 +11,9 @@ interface AuthFormProps {
   onSuccess?: (user: AuthUser) => void;
 }
 
-const EXPERIENCE_LEVELS = ["Beginner", "Intermediate", "Advanced"];
-
 export function AuthForm({ title, description, onSuccess }: AuthFormProps) {
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [step, setStep] = useState<"details" | "otp">("details");
   const [email, setEmail] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [role, setRole] = useState("");
-  const [experienceLevel, setExperienceLevel] = useState("Beginner");
-  const [targetRole, setTargetRole] = useState("");
-  const [country, setCountry] = useState("India");
-  const [preparationGoal, setPreparationGoal] = useState("");
   const [otpCode, setOtpCode] = useState("");
   const [demoOtp, setDemoOtp] = useState<string | null>(null);
   const [resendSeconds, setResendSeconds] = useState(0);
@@ -43,26 +34,10 @@ export function AuthForm({ title, description, onSuccess }: AuthFormProps) {
     return () => window.clearTimeout(timer);
   }, [resendSeconds, step]);
 
-  function switchMode(nextMode: "signin" | "signup") {
-    setMode(nextMode);
-    setStep("details");
-    setOtpCode("");
-    setDemoOtp(null);
-    setResendSeconds(0);
-    setResendMessage(null);
-    setError(null);
-  }
-
   function otpRequestPayload() {
     return {
-      mode,
-      email,
-      full_name: mode === "signup" ? fullName : undefined,
-      role: mode === "signup" ? role : undefined,
-      experience_level: mode === "signup" ? experienceLevel : undefined,
-      target_role: mode === "signup" ? targetRole : undefined,
-      country: mode === "signup" ? country : undefined,
-      preparation_goal: mode === "signup" ? preparationGoal : undefined
+      mode: "signup" as const,
+      email
     } as const;
   }
 
@@ -165,26 +140,6 @@ export function AuthForm({ title, description, onSuccess }: AuthFormProps) {
         </span>
       </div>
 
-      <div className="mt-5 flex gap-2">
-        {[
-          ["signin", "Sign in"],
-          ["signup", "Sign up"]
-        ].map(([value, label]) => (
-          <button
-            key={value}
-            type="button"
-            onClick={() => switchMode(value as "signin" | "signup")}
-            className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-              mode === value
-                ? "bg-teal-300 text-slate-950"
-                : "border border-slate-700 bg-slate-950/30 text-slate-200 hover:border-teal-300/40"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
       <button
         type="button"
         onClick={handleGoogleLogin}
@@ -197,25 +152,14 @@ export function AuthForm({ title, description, onSuccess }: AuthFormProps) {
         Continue with Google
       </button>
 
+      <div className="mt-4 flex items-center gap-3 text-xs uppercase tracking-[0.18em] text-slate-500">
+        <span className="h-px flex-1 bg-slate-800" />
+        or use email OTP
+        <span className="h-px flex-1 bg-slate-800" />
+      </div>
+
       {step === "details" ? (
         <form onSubmit={handleRequestOtp} className="mt-5 space-y-4">
-          {mode === "signup" ? (
-            <div>
-              <label htmlFor="auth-full-name" className="mb-2 block text-sm text-slate-300">
-                Full name
-              </label>
-              <input
-                id="auth-full-name"
-                type="text"
-                required
-                value={fullName}
-                onChange={(event) => setFullName(event.target.value)}
-                placeholder="Pranjal Patidar"
-                className="w-full rounded-2xl border border-slate-700 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-teal-300/50"
-              />
-            </div>
-          ) : null}
-
           <div>
             <label htmlFor="auth-email" className="mb-2 block text-sm text-slate-300">
               Email
@@ -229,91 +173,11 @@ export function AuthForm({ title, description, onSuccess }: AuthFormProps) {
               placeholder="you@example.com"
               className="w-full rounded-2xl border border-slate-700 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-teal-300/50"
             />
+            <p className="mt-2 text-xs leading-5 text-slate-500">
+              No password and no long form. We will create your account automatically if this
+              email is new.
+            </p>
           </div>
-
-          {mode === "signup" ? (
-            <>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label htmlFor="auth-role" className="mb-2 block text-sm text-slate-300">
-                    Current role
-                  </label>
-                  <input
-                    id="auth-role"
-                    type="text"
-                    required
-                    value={role}
-                    onChange={(event) => setRole(event.target.value)}
-                    placeholder="Data analyst"
-                    className="w-full rounded-2xl border border-slate-700 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-teal-300/50"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="auth-experience" className="mb-2 block text-sm text-slate-300">
-                    Experience level
-                  </label>
-                  <select
-                    id="auth-experience"
-                    value={experienceLevel}
-                    onChange={(event) => setExperienceLevel(event.target.value)}
-                    className="w-full rounded-2xl border border-slate-700 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-teal-300/50"
-                  >
-                    {EXPERIENCE_LEVELS.map((level) => (
-                      <option key={level} value={level}>
-                        {level}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label htmlFor="auth-target-role" className="mb-2 block text-sm text-slate-300">
-                    Target role
-                  </label>
-                  <input
-                    id="auth-target-role"
-                    type="text"
-                    required
-                    value={targetRole}
-                    onChange={(event) => setTargetRole(event.target.value)}
-                    placeholder="Data Engineer"
-                    className="w-full rounded-2xl border border-slate-700 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-teal-300/50"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="auth-country" className="mb-2 block text-sm text-slate-300">
-                    Country
-                  </label>
-                  <input
-                    id="auth-country"
-                    type="text"
-                    required
-                    value={country}
-                    onChange={(event) => setCountry(event.target.value)}
-                    placeholder="India"
-                    className="w-full rounded-2xl border border-slate-700 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-teal-300/50"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label htmlFor="auth-goal" className="mb-2 block text-sm text-slate-300">
-                  Preparation goal
-                </label>
-                <textarea
-                  id="auth-goal"
-                  required
-                  value={preparationGoal}
-                  onChange={(event) => setPreparationGoal(event.target.value)}
-                  placeholder="Crack data engineering interviews in the next 90 days."
-                  rows={2}
-                  className="w-full rounded-2xl border border-slate-700 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-teal-300/50"
-                />
-              </div>
-            </>
-          ) : null}
 
           {error ? (
             <div className="rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">
@@ -326,7 +190,7 @@ export function AuthForm({ title, description, onSuccess }: AuthFormProps) {
             disabled={isSubmitting}
             className="w-full rounded-full bg-amber-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:bg-amber-100"
           >
-            {isSubmitting ? "Sending OTP..." : "Send OTP"}
+            {isSubmitting ? "Sending OTP..." : "Continue with email"}
           </button>
         </form>
       ) : (
