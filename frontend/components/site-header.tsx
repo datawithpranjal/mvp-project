@@ -32,9 +32,9 @@ export function SiteHeader() {
   const isPracticeRoute =
     pathname === "/labs" ||
     pathname.startsWith("/labs/") ||
-    pathname === "/scenarios" ||
-    pathname.startsWith("/scenarios/") ||
     pathname === "/system-design";
+  const isScenarioRoute =
+    pathname === "/scenarios" || pathname.startsWith("/scenarios/");
 
   useEffect(() => {
     function syncState(shouldRefreshPremium: boolean = false) {
@@ -89,16 +89,29 @@ export function SiteHeader() {
           </Link>
 
           <nav className="hidden items-center gap-4 text-sm font-semibold text-slate-300 lg:flex">
+            <Link
+              href="/scenarios"
+              aria-current={isScenarioRoute ? "page" : undefined}
+              className={`rounded-full px-4 py-2 transition ${
+                isScenarioRoute
+                  ? "bg-teal-300 text-slate-950"
+                  : "border border-teal-300/30 bg-teal-300/10 text-teal-100 hover:border-teal-300/60 hover:bg-teal-300/15"
+              }`}
+            >
+              Scenario Playground
+            </Link>
             <div className="group relative">
               <Link
                 href="/labs"
-                className="rounded-full px-3 py-2 transition hover:bg-slate-900/80 hover:text-teal-100"
+                aria-current={isPracticeRoute ? "page" : undefined}
+                className={`rounded-full px-3 py-2 transition hover:bg-slate-900/80 hover:text-teal-100 ${
+                  isPracticeRoute ? "text-teal-100" : ""
+                }`}
               >
                 Practice
               </Link>
               <div className="practice-menu invisible absolute left-0 top-full z-50 w-[340px] translate-y-2 rounded-3xl border p-3 opacity-0 transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
                 <PracticeLink href="/labs" title="All Practice" detail="Choose a guided lab or practice track" />
-                <PracticeLink href="/scenarios" title="Scenario Playground" detail="Broken pipelines, logs, and debugging cases" />
                 <PracticeLink href="/labs/sql" title="SQL Lab" detail="Interview SQL with real data and validation" />
                 <PracticeLink href="/labs/python" title="Python Lab" detail="Data engineering Python practice" />
                 <PracticeLink href="/labs/pyspark" title="PySpark Lab" detail="Spark code review and production fixes" />
@@ -193,6 +206,7 @@ export function SiteHeader() {
             className="mx-auto grid max-w-7xl grid-cols-2 gap-2 px-4 pb-4 text-sm font-semibold text-slate-300 sm:px-8 lg:hidden"
           >
             {[
+              ["Scenario Playground", "/scenarios"],
               ["Practice", "/labs"],
               ["Roadmap", "/roadmap"],
               ["Pricing", "/pricing"]
@@ -201,7 +215,11 @@ export function SiteHeader() {
                 key={href}
                 href={href}
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="rounded-2xl border border-slate-800 bg-slate-950/35 px-4 py-3"
+                className={`rounded-2xl border px-4 py-3 transition ${
+                  href === "/scenarios"
+                    ? "border-teal-300/35 bg-teal-300/10 text-teal-100"
+                    : "border-slate-800 bg-slate-950/35"
+                }`}
               >
                 {label}
               </Link>

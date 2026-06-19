@@ -27,6 +27,9 @@ export function SiteFooter() {
           </div>
 
           <nav aria-label="Footer navigation" className="flex flex-wrap gap-x-5 gap-y-3 text-sm">
+            <Link className="text-teal-100 transition hover:text-teal-200" href="/scenarios">
+              Scenario Playground
+            </Link>
             <Link className="text-slate-300 transition hover:text-teal-100" href="/labs">
               Practice
             </Link>
