@@ -49,26 +49,26 @@ export default function HomePage() {
   ];
 
   return (
-    <main className="mx-auto min-h-screen max-w-7xl px-6 py-10 sm:px-10">
-      <section className="panel relative overflow-hidden rounded-[2rem] p-7 sm:p-10 lg:p-12">
+    <main className="mx-auto min-h-screen w-full max-w-7xl min-w-0 overflow-x-clip px-4 py-6 sm:px-6 lg:px-8">
+      <section className="panel relative min-w-0 overflow-hidden rounded-[2rem] p-6 sm:p-8 lg:p-9">
         <div className="absolute inset-y-0 right-0 hidden w-1/2 bg-[radial-gradient(circle_at_center,rgba(94,234,212,0.18),transparent_55%)] lg:block" />
-        <div className="relative grid gap-10 lg:grid-cols-[1fr_420px] lg:items-center">
-          <div>
+        <div className="relative grid min-w-0 gap-7 lg:grid-cols-[minmax(0,1fr)_minmax(340px,400px)] lg:items-center">
+          <div className="min-w-0">
             <span className="badge rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.28em]">
               {BRAND.name}
             </span>
-            <h1 className="mt-6 text-4xl font-semibold tracking-tight text-slate-50 sm:text-6xl">
+            <h1 className="mt-5 max-w-3xl text-4xl font-semibold leading-[1.05] tracking-tight text-slate-50 sm:text-5xl lg:text-[3.25rem]">
               Practice Data Engineering like real work.
             </h1>
-            <p className="mt-6 max-w-3xl text-base leading-8 text-slate-300 sm:text-lg">
+            <p className="mt-4 max-w-3xl text-base leading-7 text-slate-300">
               Practice real data engineering scenarios, get feedback, and build
               interview-ready judgment across SQL, PySpark, Airflow, AWS, and production
               debugging.
             </p>
-            <p className="mt-4 text-sm font-semibold uppercase tracking-[0.22em] text-teal-200">
+            <p className="mt-3 text-sm font-semibold uppercase tracking-[0.22em] text-teal-200">
               {BRAND.trustLine}
             </p>
-            <div className="mt-8 flex flex-wrap gap-3">
+            <div className="mt-6 flex flex-wrap gap-3">
               <TrackedLink
                 href="/onboarding"
                 event="homepage_start_clicked"
@@ -223,7 +223,7 @@ export default function HomePage() {
 
 function ProductPreview() {
   return (
-    <div className="rounded-[2rem] border border-slate-800 bg-slate-950/60 p-5 shadow-2xl shadow-slate-950/40">
+    <div className="w-full min-w-0 rounded-[1.75rem] border border-slate-800 bg-slate-950/60 p-4 shadow-2xl shadow-slate-950/40">
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-teal-200">
           Product preview
@@ -232,22 +232,22 @@ function ProductPreview() {
           Practice loop
         </span>
       </div>
-      <div className="mt-5 space-y-3">
+      <div className="mt-4 space-y-2">
         {PRODUCT_PREVIEW_STEPS.map((step, index) => (
           <div
             key={step.label}
-            className="rounded-3xl border border-slate-800 bg-slate-950/50 p-4"
+            className="min-w-0 rounded-2xl border border-slate-800 bg-slate-950/50 p-3"
           >
             <div className="flex items-center gap-3">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-teal-300 text-sm font-bold text-slate-950">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-teal-300 text-xs font-bold text-slate-950">
                 {index + 1}
               </span>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
                   {step.label}
                 </p>
                 <p className="mt-1 text-sm font-semibold text-slate-100">{step.title}</p>
-                <p className="mt-1 text-xs leading-5 text-slate-400">{step.detail}</p>
+                <p className="mt-1 text-xs leading-4 text-slate-400">{step.detail}</p>
               </div>
             </div>
           </div>
