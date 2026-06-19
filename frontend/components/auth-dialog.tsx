@@ -22,7 +22,7 @@ export function AuthDialog({ isOpen, onClose }: AuthDialogProps) {
         onClick={(event) => event.stopPropagation()}
       >
         <AuthForm
-          title="Log in to your playground account"
+          title="Log in to The Data Foundry"
           description="Use an email OTP to access your profile, premium status, and interview prep workspace."
           onSuccess={onClose}
         />

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 
-import { getGoogleAuthStartUrl, requestAuthOtp, verifyAuthOtp } from "../lib/api";
+import { requestAuthOtp, verifyAuthOtp } from "../lib/api";
 import { saveAuthSession, type AuthUser } from "../lib/auth";
 
 interface AuthFormProps {
@@ -112,22 +112,6 @@ export function AuthForm({ title, description, onSuccess }: AuthFormProps) {
     }
   }
 
-  async function handleGoogleLogin() {
-    try {
-      setIsSubmitting(true);
-      setError(null);
-      const response = await getGoogleAuthStartUrl("/dashboard");
-      window.location.href = response.url;
-    } catch (googleError) {
-      const message =
-        googleError instanceof Error
-          ? googleError.message
-          : "Google login is not available right now.";
-      setError(message);
-      setIsSubmitting(false);
-    }
-  }
-
   return (
     <div className="panel w-full rounded-3xl p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -138,24 +122,6 @@ export function AuthForm({ title, description, onSuccess }: AuthFormProps) {
         <span className="rounded-full border border-sky-300/20 bg-sky-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-sky-100">
           OTP Login
         </span>
-      </div>
-
-      <button
-        type="button"
-        onClick={handleGoogleLogin}
-        disabled={isSubmitting}
-        className="mt-5 flex w-full items-center justify-center gap-3 rounded-full border border-slate-700 bg-slate-950/30 px-5 py-3 text-sm font-semibold text-slate-100 transition hover:border-teal-300/40 disabled:cursor-not-allowed disabled:opacity-70"
-      >
-        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-sm font-bold text-slate-950">
-          G
-        </span>
-        Continue with Google
-      </button>
-
-      <div className="mt-4 flex items-center gap-3 text-xs uppercase tracking-[0.18em] text-slate-500">
-        <span className="h-px flex-1 bg-slate-800" />
-        or use email OTP
-        <span className="h-px flex-1 bg-slate-800" />
       </div>
 
       {step === "details" ? (

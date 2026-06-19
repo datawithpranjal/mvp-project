@@ -20,6 +20,13 @@ export const TOPIC_FILTERS = [
 
 export const CORE_LABS = [
   {
+    title: "Scenario Playground",
+    description:
+      "Diagnose broken pipelines, inspect data and logs, fix the issue, and learn how to explain your decision in an interview.",
+    href: "/scenarios",
+    status: "available"
+  },
+  {
     title: "SQL Lab",
     description: "Debug query logic, grain issues, NULL traps, CDC, rankings, and warehouse outputs.",
     href: "/labs/sql",
@@ -50,12 +57,6 @@ export const CORE_LABS = [
     status: "available"
   },
   {
-    title: "Scenario Playground",
-    description: "Work through production-style incidents with broken logic, logs, data, hints, and feedback.",
-    href: "/scenarios",
-    status: "available"
-  },
-  {
     title: "Project Sandbox",
     description: "Practice end-to-end pipeline decisions and production consequences in a guided sandbox.",
     href: "/projects/ecommerce-pipeline",
@@ -69,67 +70,26 @@ export const CORE_LABS = [
   }
 ];
 
-export const HOMEPAGE_STATS = [
-  {
-    value: "132+",
-    label: "Practice scenarios",
-    detail: "SQL, pipelines, incidents, and interview cases"
-  },
-  {
-    value: "SQL + PySpark",
-    label: "Hands-on labs",
-    detail: "Interactive exercises with immediate feedback"
-  },
-  {
-    value: "Production",
-    label: "Debugging mindset",
-    detail: "Broken logic, logs, trade-offs, and monitoring"
-  },
-  {
-    value: "Free",
-    label: "Starter labs",
-    detail: "Begin with guided practice before upgrading"
-  }
-];
-
 export const PRODUCT_PREVIEW_STEPS = [
   {
-    label: "Broken problem",
-    title: "Pipeline rerun doubled revenue",
-    detail: "Inspect the business context, sample data, logs, and broken logic."
+    label: "Real scenario",
+    title: "Understand what went wrong",
+    detail: "Read a clear business problem and inspect the available evidence."
   },
   {
-    label: "User attempt",
-    title: "Write the fix",
-    detail: "Solve with SQL, PySpark reasoning, architecture trade-offs, or incident analysis."
+    label: "Your attempt",
+    title: "Diagnose and solve the problem",
+    detail: "Apply Data Engineering concepts to propose a practical solution."
   },
   {
-    label: "Feedback",
-    title: "Check the answer",
+    label: "Guided feedback",
+    title: "See what you got right and missed",
     detail: "Get validation, rubric scoring, hints, and missing production considerations."
   },
   {
-    label: "Model answer",
-    title: "Learn the interview framing",
-    detail: "Reveal root cause, fix, monitoring, trade-offs, and follow-up questions."
-  }
-];
-
-export const TRUST_SIGNALS = [
-  {
-    label: "Creator",
-    value: "Built by Pranjal",
-    detail: "Creator of Data with Pranjal, focused on practical Data Engineering preparation."
-  },
-  {
-    label: "Practical guidance",
-    value: "Creator-led learning",
-    detail: "Clear walkthroughs shaped by real Data Engineering interview and production problems."
-  },
-  {
-    label: "Built for learners",
-    value: "Practice-led progress",
-    detail: "Designed for freshers, career switchers, and engineers preparing for their next role."
+    label: "Production insight",
+    title: "Learn how engineers explain the solution",
+    detail: "Understand the root cause, safe fix, trade-offs, monitoring, and interview framing."
   }
 ];
 

@@ -13,26 +13,35 @@ export function CoreLabGrid() {
   return (
     <>
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-        {CORE_LABS.map((lab) =>
-          lab.status === "available" ? (
-            <Link
-              key={lab.title}
-              href={lab.href}
-              className="panel group flex min-h-[210px] flex-col justify-between rounded-3xl p-5 transition hover:-translate-y-1 hover:border-teal-300/35"
-            >
-              <CoreLabCardContent lab={lab} cta="Open lab" />
-            </Link>
-          ) : (
-            <button
-              key={lab.title}
-              type="button"
-              onClick={() => setComingSoonLab(lab)}
-              className="panel group flex min-h-[210px] flex-col justify-between rounded-3xl p-5 text-left transition hover:-translate-y-1 hover:border-amber-300/35"
-            >
-              <CoreLabCardContent lab={lab} cta="Coming soon" />
-            </button>
-          )
-        )}
+        {CORE_LABS.map((lab) => {
+          const isFeatured = lab.href === "/scenarios";
+
+          return lab.status === "available" ? (
+              <Link
+                key={lab.title}
+                href={lab.href}
+                className={`panel group flex flex-col justify-between overflow-hidden rounded-3xl p-5 transition hover:-translate-y-1 ${
+                  isFeatured
+                    ? "min-h-[240px] border-amber-300/40 bg-[radial-gradient(circle_at_top_right,rgba(251,191,36,0.18),transparent_48%)] shadow-xl shadow-amber-950/10 md:col-span-2 md:p-7 xl:col-span-3"
+                    : "min-h-[210px] hover:border-teal-300/35"
+                }`}
+              >
+                <CoreLabCardContent
+                  lab={lab}
+                  cta={isFeatured ? "Enter Scenario Playground" : "Open lab"}
+                />
+              </Link>
+            ) : (
+              <button
+                key={lab.title}
+                type="button"
+                onClick={() => setComingSoonLab(lab)}
+                className="panel group flex min-h-[210px] flex-col justify-between rounded-3xl p-5 text-left transition hover:-translate-y-1 hover:border-amber-300/35"
+              >
+                <CoreLabCardContent lab={lab} cta="Coming soon" />
+              </button>
+            );
+        })}
       </div>
 
       {comingSoonLab ? (
@@ -80,24 +89,36 @@ export function CoreLabGrid() {
 }
 
 function CoreLabCardContent({ lab, cta }: { lab: CoreLab; cta: string }) {
+  const isFeatured = lab.href === "/scenarios";
+
   return (
     <>
       <div>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <span
             className={`rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${
-              lab.status === "available"
+              isFeatured
+                ? "border-amber-300/35 bg-amber-300/10 text-amber-100"
+                : lab.status === "available"
                 ? "border-teal-300/25 bg-teal-300/10 text-teal-100"
                 : "border-amber-300/25 bg-amber-300/10 text-amber-100"
             }`}
           >
-            {lab.status === "available" ? "Available" : "Planned"}
+            {isFeatured ? "Flagship lab" : lab.status === "available" ? "Available" : "Planned"}
           </span>
         </div>
-        <h3 className="mt-5 text-lg font-semibold text-slate-50">{lab.title}</h3>
-        <p className="mt-3 text-sm leading-6 text-slate-300">{lab.description}</p>
+        <h3 className={`mt-5 font-semibold text-slate-50 ${isFeatured ? "text-3xl" : "text-lg"}`}>
+          {lab.title}
+        </h3>
+        <p className={`mt-3 leading-7 text-slate-300 ${isFeatured ? "max-w-4xl text-base" : "text-sm"}`}>
+          {lab.description}
+        </p>
       </div>
-      <div className="mt-6 flex items-center justify-between text-sm font-semibold text-teal-200">
+      <div
+        className={`mt-6 flex items-center justify-between text-sm font-semibold ${
+          isFeatured ? "text-amber-200" : "text-teal-200"
+        }`}
+      >
         <span>{cta}</span>
         <span className="transition group-hover:translate-x-1">-&gt;</span>
       </div>

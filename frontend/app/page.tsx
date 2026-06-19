@@ -2,15 +2,52 @@ import Link from "next/link";
 
 import { CoreLabGrid } from "../components/core-lab-grid";
 import { TrackedLink } from "../components/tracked-link";
+import { OPERATIONS_LABS } from "../data/platform-operations-labs";
+import { getCodingLabs } from "../lib/coding-labs";
 import {
   AUDIENCE_SEGMENTS,
   BRAND,
-  HOMEPAGE_STATS,
-  PRODUCT_PREVIEW_STEPS,
-  TRUST_SIGNALS
+  PRODUCT_PREVIEW_STEPS
 } from "../lib/product";
+import { getScenarios } from "../lib/scenarios";
+import { SYSTEM_DESIGN_CASES } from "../lib/system-design";
 
 export default function HomePage() {
+  const codingLabs = getCodingLabs();
+  const scenarios = getScenarios();
+  const totalQuestionCount =
+    codingLabs.length +
+    scenarios.length +
+    OPERATIONS_LABS.length +
+    SYSTEM_DESIGN_CASES.length;
+  const freeQuestionCount =
+    codingLabs.filter((lab) => lab.isFree).length +
+    scenarios.filter((scenario) => scenario.isFree).length +
+    OPERATIONS_LABS.filter((lab) => lab.isFree).length +
+    SYSTEM_DESIGN_CASES.filter((item) => item.isFree).length;
+  const homepageStats = [
+    {
+      value: totalQuestionCount.toLocaleString("en-IN"),
+      label: "Practice questions",
+      detail: "Coding labs, production scenarios, platform decisions, and system design cases"
+    },
+    {
+      value: "Data Engineering",
+      label: "Complete practice platform",
+      detail: "SQL, Python, PySpark, Airflow, AWS, system design, and production debugging"
+    },
+    {
+      value: "Production",
+      label: "Debugging mindset",
+      detail: "Broken logic, logs, trade-offs, data quality, and monitoring"
+    },
+    {
+      value: freeQuestionCount.toLocaleString("en-IN"),
+      label: "Free practice questions",
+      detail: "Start guided practice before choosing a premium plan"
+    }
+  ];
+
   return (
     <main className="mx-auto min-h-screen max-w-7xl px-6 py-10 sm:px-10">
       <section className="panel relative overflow-hidden rounded-[2rem] p-7 sm:p-10 lg:p-12">
@@ -54,7 +91,7 @@ export default function HomePage() {
       </section>
 
       <section className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {HOMEPAGE_STATS.map((stat) => (
+        {homepageStats.map((stat) => (
           <div key={stat.label} className="panel rounded-3xl p-5">
             <p className="text-3xl font-semibold text-slate-50">{stat.value}</p>
             <p className="mt-2 text-sm font-semibold text-teal-100">{stat.label}</p>
@@ -63,7 +100,7 @@ export default function HomePage() {
         ))}
       </section>
 
-      <section className="mt-10 grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+      <section className="mt-10">
         <div className="panel rounded-[2rem] p-6">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-200">
             Why normal courses are not enough
@@ -76,30 +113,6 @@ export default function HomePage() {
             schema drift, orchestration gaps, and dashboard mismatches. The Data Foundry
             turns those situations into daily practice instead of passive watching.
           </p>
-        </div>
-
-        <div className="panel rounded-[2rem] p-6">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-200">
-            How it works
-          </p>
-          <div className="mt-5 grid gap-3 sm:grid-cols-2">
-            {[
-              ["Pick your goal", "Tell us your stage, target, available time, and timeline."],
-              ["Solve a real scenario", "Start with a free lab using realistic data and broken logic."],
-              ["Get feedback", "Run checks and see what is correct, missing, or risky."],
-              ["Explain like an interview", "Practice root cause, fix, trade-offs, and monitoring."],
-              ["Track progress", "Use the dashboard to continue the next recommended lab."]
-            ].map(([label, detail], index) => (
-              <div
-                key={label}
-                className="rounded-2xl border border-slate-800 bg-slate-950/40 p-4"
-              >
-                <p className="text-xs font-semibold text-slate-500">Step {index + 1}</p>
-                <p className="mt-2 text-sm font-semibold text-slate-100">{label}</p>
-                <p className="mt-2 text-xs leading-5 text-slate-400">{detail}</p>
-              </div>
-            ))}
-          </div>
         </div>
       </section>
 
@@ -204,37 +217,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="mt-10 panel rounded-[2rem] p-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-200">
-          Creator trust
-        </p>
-        <div className="mt-4 grid gap-5 lg:grid-cols-[1fr_1.2fr]">
-          <div>
-            <h2 className="text-2xl font-semibold text-slate-50">
-              Built by Pranjal, creator of Data with Pranjal.
-            </h2>
-            <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300">
-              Practical Data Engineering content focused on real interviews, production
-              problems, and career-switcher friendly explanations.
-            </p>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-3">
-            {TRUST_SIGNALS.map((signal) => (
-              <div
-                key={signal.label}
-                className="rounded-3xl border border-slate-800 bg-slate-950/40 p-4"
-              >
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                  {signal.label}
-                </p>
-                <p className="mt-3 text-sm font-semibold text-slate-100">{signal.value}</p>
-                <p className="mt-2 text-xs leading-5 text-slate-400">{signal.detail}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
     </main>
   );
 }
@@ -265,6 +247,7 @@ function ProductPreview() {
                   {step.label}
                 </p>
                 <p className="mt-1 text-sm font-semibold text-slate-100">{step.title}</p>
+                <p className="mt-1 text-xs leading-5 text-slate-400">{step.detail}</p>
               </div>
             </div>
           </div>
