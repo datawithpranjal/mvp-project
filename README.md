@@ -21,7 +21,7 @@ This release includes the new Broken Pipeline Lab with curated production-debugg
 - Backend-backed OTP login, sign-up, logout, and editable user profile
 - Optional Google login using the same backend session/profile model
 - User-selectable light and dark mode
-- Manual premium checkout with annual and monthly pricing plus a Paytm UPI QR
+- Razorpay premium checkout with annual and monthly pricing plus a Paytm UPI fallback
 - Difficulty filters: `Beginner`, `Intermediate`, `Advanced`
 - Topic filters: `SQL`, `Spark`, `Airflow`, `Kafka`, `Lakehouse`, `Data Quality`
 - Scenario detail pages with business context, problem statement, student task, sample tables, broken code, logs, hints, and common mistakes
@@ -32,7 +32,7 @@ This release includes the new Broken Pipeline Lab with curated production-debugg
 - Onboarding, dashboard, readiness score, XP/streaks, weak-area tracking, and learning paths
 - E-commerce Orders Data Pipeline Simulator
 - Mock Interview Room with deterministic AI-evaluator fallback
-- Manual UPI premium payment submission with backend/admin premium access scaffolding
+- Razorpay payment signature verification plus manual UPI fallback/admin premium access scaffolding
 - Signup email capture happens immediately when a learner creates an account
 - PDF import flow for `docs/120-data-engineering-scenarios.pdf`, including generated PySpark fix labs with broken code samples
 - Browser-native SQL and Python Labs generated from the coding practice PDFs
@@ -85,7 +85,7 @@ uvicorn app.main:app --reload
 ```bash
 cd frontend
 npm install
-NEXT_PUBLIC_API_BASE_URL=http://localhost:8000 npm run dev
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000 NEXT_PUBLIC_RAZORPAY_KEY_ID=your-razorpay-key-id npm run dev
 ```
 
 ## Deploy To Vercel
@@ -130,6 +130,8 @@ GOOGLE_OAUTH_CLIENT_ID=
 GOOGLE_OAUTH_CLIENT_SECRET=
 GOOGLE_OAUTH_REDIRECT_URI=https://your-backend-project.vercel.app/api/v1/auth/google/callback
 GOOGLE_OAUTH_STATE_SECRET=choose-a-long-random-token
+RAZORPAY_KEY_ID=your-razorpay-key-id
+RAZORPAY_KEY_SECRET=your-razorpay-key-secret
 ```
 
 For production email capture, set `POSTGRES_URL` to your Supabase Postgres connection string instead of the local Docker value. Use the full URI with your database password, for example:
@@ -179,6 +181,7 @@ In Vercel:
 
 ```text
 NEXT_PUBLIC_API_BASE_URL=https://your-backend-project.vercel.app
+NEXT_PUBLIC_RAZORPAY_KEY_ID=your-razorpay-key-id
 ```
 
 Then deploy.
@@ -217,7 +220,7 @@ NEXT_PUBLIC_API_BASE_URL=https://api.yourdomain.com
 - The app does **not** depend on Postgres for core scenario usage, so the deployed MVP still works without provisioning a production database first.
 - Email capture writes to Supabase/Postgres when `POSTGRES_URL` is set to a real external database URL. If the default local Docker URL is used, it falls back to local file storage for development.
 - Login, signup, profile, OTPs, and sessions are backed by Postgres in production.
-- Premium checkout is still a manual MVP flow and the browser unlock is not a real payment-gateway verification.
+- Premium checkout uses Razorpay Standard Checkout signature verification. The UPI QR remains available as a manual fallback.
 
 ### Supabase security / RLS
 
@@ -488,7 +491,7 @@ The preferred path is one JSON file per scenario in `backend/app/scenarios/`.
 - The older folder-based format with `scenario.json`, `setup.sql`, and `expected.sql` is still supported for existing scenarios.
 - Authentication uses the FastAPI OTP/profile endpoints and stores sessions in Postgres when `POSTGRES_URL` points at Supabase.
 - Practice progress is currently localStorage-based and documented for future server-side persistence.
-- Premium checkout is a manual UPI flow for product prototyping, not a real payment-gateway integration.
+- Premium checkout uses Razorpay Standard Checkout. Manual UPI remains as a fallback for learners who cannot complete gateway checkout.
 
 ## Managing Premium Coupons
 

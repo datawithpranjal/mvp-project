@@ -12,6 +12,10 @@ import type {
   PremiumCouponQuote,
   PremiumManualUnlockRequest,
   PremiumManualUnlockResponse,
+  RazorpayCreateOrderRequest,
+  RazorpayCreateOrderResponse,
+  RazorpayVerifyPaymentRequest,
+  RazorpayVerifyPaymentResponse,
   ScenarioDetail,
   ScenarioSummary,
   ValidationRequest,
@@ -156,6 +160,28 @@ export function validatePremiumCoupon(
   }
 ): Promise<PremiumCouponQuote> {
   return apiFetch<PremiumCouponQuote>("/api/v1/premium/coupons/validate", {
+    method: "POST",
+    authToken: token,
+    body: JSON.stringify(payload)
+  });
+}
+
+export function createRazorpayOrder(
+  token: string,
+  payload: RazorpayCreateOrderRequest
+): Promise<RazorpayCreateOrderResponse> {
+  return apiFetch<RazorpayCreateOrderResponse>("/api/v1/premium/razorpay/create-order", {
+    method: "POST",
+    authToken: token,
+    body: JSON.stringify(payload)
+  });
+}
+
+export function verifyRazorpayPayment(
+  token: string,
+  payload: RazorpayVerifyPaymentRequest
+): Promise<RazorpayVerifyPaymentResponse> {
+  return apiFetch<RazorpayVerifyPaymentResponse>("/api/v1/premium/razorpay/verify-payment", {
     method: "POST",
     authToken: token,
     body: JSON.stringify(payload)

@@ -5,6 +5,7 @@ services:
       dockerfile: docker/frontend.Dockerfile
     environment:
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}
+      NEXT_PUBLIC_RAZORPAY_KEY_ID: ${NEXT_PUBLIC_RAZORPAY_KEY_ID:-}
     depends_on:
       - backend
     ports:
@@ -26,6 +27,8 @@ services:
       OTP_EMAIL_FROM: ${OTP_EMAIL_FROM:-The Data Foundry <login@auth.datawithpranjal.com>}
       AUTH_SHOW_DEBUG_OTP: ${AUTH_SHOW_DEBUG_OTP:-false}
       AUTH_ALLOW_DEMO_OTP: ${AUTH_ALLOW_DEMO_OTP:-false}
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
     depends_on:
       - postgres
     ports:

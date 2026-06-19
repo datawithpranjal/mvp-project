@@ -3,15 +3,19 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { AUTH_UPDATED_EVENT, getAuthToken, getCurrentUser, type AuthUser } from "../lib/auth";
+import { RAZORPAY_KEY_ID } from "../lib/config";
 import {
   captureEmail,
+  createRazorpayOrder,
   submitManualPremiumPayment,
-  validatePremiumCoupon
+  validatePremiumCoupon,
+  verifyRazorpayPayment
 } from "../lib/api";
 import type { PremiumCouponQuote } from "../lib/types";
 import {
   PREMIUM_ACCESS_UPDATED_EVENT,
   getPremiumAccess,
+  savePremiumAccess,
   type BillingInterval,
   type PremiumAccessRecord
 } from "../lib/premium-access";
@@ -54,6 +58,80 @@ const PRICING_PLANS: PricingPlan[] = [
   }
 ];
 
+interface RazorpaySuccessResponse {
+  razorpay_payment_id: string;
+  razorpay_order_id: string;
+  razorpay_signature: string;
+}
+
+interface RazorpayFailureResponse {
+  error?: {
+    description?: string;
+    reason?: string;
+  };
+}
+
+interface RazorpayCheckoutOptions {
+  key: string;
+  amount: number;
+  currency: string;
+  name: string;
+  description: string;
+  order_id: string;
+  prefill?: {
+    name?: string;
+    email?: string;
+  };
+  theme?: {
+    color?: string;
+  };
+  modal?: {
+    ondismiss?: () => void;
+  };
+  handler: (response: RazorpaySuccessResponse) => void;
+}
+
+interface RazorpayCheckoutInstance {
+  open: () => void;
+  on: (event: "payment.failed", handler: (response: RazorpayFailureResponse) => void) => void;
+}
+
+declare global {
+  interface Window {
+    Razorpay?: new (options: RazorpayCheckoutOptions) => RazorpayCheckoutInstance;
+  }
+}
+
+let razorpayScriptPromise: Promise<void> | null = null;
+
+function loadRazorpayCheckout(): Promise<void> {
+  if (typeof window === "undefined") {
+    return Promise.reject(new Error("Razorpay checkout can only run in the browser."));
+  }
+
+  if (window.Razorpay) {
+    return Promise.resolve();
+  }
+
+  if (razorpayScriptPromise) {
+    return razorpayScriptPromise;
+  }
+
+  razorpayScriptPromise = new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => {
+      razorpayScriptPromise = null;
+      reject(new Error("Unable to load Razorpay checkout. Please try again."));
+    };
+    document.body.appendChild(script);
+  });
+
+  return razorpayScriptPromise;
+}
+
 function formatTimestamp(value: string): string {
   return new Intl.DateTimeFormat(undefined, {
     dateStyle: "medium",
@@ -77,6 +155,7 @@ export function PremiumUpgradePanel({
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [checkoutSuccess, setCheckoutSuccess] = useState<string | null>(null);
   const [isCompletingPayment, setIsCompletingPayment] = useState(false);
+  const [isRazorpayLoading, setIsRazorpayLoading] = useState(false);
 
   useEffect(() => {
     function syncState() {
@@ -199,6 +278,124 @@ export function PremiumUpgradePanel({
     }
   }
 
+  async function handleRazorpayCheckout() {
+    if (!currentUser) {
+      return;
+    }
+
+    const token = getAuthToken();
+    if (!token) {
+      setCheckoutError("Please sign in again before unlocking premium access.");
+      return;
+    }
+
+    if (!RAZORPAY_KEY_ID) {
+      setCheckoutError("Razorpay checkout is not configured yet. Please use the UPI option for now.");
+      return;
+    }
+
+    if (couponCode.trim() && !couponQuote) {
+      setCheckoutError("Apply the coupon before starting checkout.");
+      return;
+    }
+
+    try {
+      setIsRazorpayLoading(true);
+      setCheckoutError(null);
+      setCheckoutSuccess(null);
+      await loadRazorpayCheckout();
+
+      trackEvent("payment_started", {
+        plan: activePlan.id,
+        amount_inr: payableAmount,
+        coupon_code: couponQuote?.coupon_code ?? undefined,
+        payment_method: "razorpay"
+      });
+
+      await captureEmail({
+        email: currentUser.email,
+        source: `premium-razorpay-${activePlan.id}`,
+      });
+
+      const order = await createRazorpayOrder(token, {
+        billing_interval: activePlan.id,
+        coupon_code: couponQuote?.coupon_code ?? undefined
+      });
+
+      await new Promise<void>((resolve, reject) => {
+        const checkout = new window.Razorpay!({
+          key: RAZORPAY_KEY_ID,
+          amount: order.amount,
+          currency: order.currency,
+          name: "The Data Foundry",
+          description: `${order.plan_label} access`,
+          order_id: order.order_id,
+          prefill: {
+            name: currentUser.full_name || currentUser.name,
+            email: currentUser.email
+          },
+          theme: {
+            color: "#0f766e"
+          },
+          modal: {
+            ondismiss: () => {
+              reject(new Error("Payment cancelled. No charge was completed."));
+            }
+          },
+          handler: async (response) => {
+            try {
+              const verification = await verifyRazorpayPayment(token, {
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_signature: response.razorpay_signature,
+                billing_interval: activePlan.id,
+                amount_inr: order.final_amount_inr,
+                coupon_code: order.coupon_code ?? undefined
+              });
+
+              const premiumRecord: PremiumAccessRecord = {
+                email: verification.email,
+                unlockedAt: new Date().toISOString(),
+                billing_interval: verification.billing_interval,
+                amount_inr: verification.final_amount_inr,
+                payment_reference: response.razorpay_payment_id,
+                plan_label: verification.plan_label,
+                payment_method: "razorpay"
+              };
+              savePremiumAccess(premiumRecord);
+              setPremiumAccessState(premiumRecord);
+              setCheckoutSuccess("Payment verified. Premium access is active on this device.");
+              onUnlocked?.();
+              resolve();
+            } catch (error) {
+              reject(error);
+            }
+          }
+        });
+
+        checkout.on("payment.failed", (response) => {
+          reject(
+            new Error(
+              response.error?.description ||
+                response.error?.reason ||
+                "Payment failed. Please try again or use UPI."
+            )
+          );
+        });
+
+        checkout.open();
+      });
+    } catch (error) {
+      setCheckoutError(
+        error instanceof Error
+          ? error.message
+          : "Unable to complete Razorpay checkout. Please try again."
+      );
+    } finally {
+      setIsRazorpayLoading(false);
+    }
+  }
+
   if (!currentUser) {
     return (
       <AuthForm
@@ -305,8 +502,8 @@ export function PremiumUpgradePanel({
             </p>
             <div className="mt-3 space-y-2 text-sm leading-6 text-slate-300">
               <p>1. Pick a plan.</p>
-              <p>2. Scan the Paytm UPI QR and complete the payment.</p>
-              <p>3. Enter a reference if you have one, then submit it for manual review.</p>
+              <p>2. Pay securely with Razorpay using UPI, cards, wallets, or net banking.</p>
+              <p>3. Premium access unlocks after payment signature verification.</p>
             </div>
           </div>
         </div>
@@ -315,12 +512,12 @@ export function PremiumUpgradePanel({
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">
-                UPI Checkout
+                Secure Checkout
               </p>
               <h4 className="mt-2 text-2xl font-semibold text-slate-50">{activePlan.label}</h4>
             </div>
             <span className="rounded-full border border-sky-300/20 bg-sky-300/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-100">
-              Verified activation
+              Razorpay + UPI
             </span>
           </div>
 
@@ -379,10 +576,6 @@ export function PremiumUpgradePanel({
             ) : null}
           </div>
 
-          <div className="mt-5 flex justify-center">
-            <PaymentQrCode />
-          </div>
-
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
             <div className="rounded-2xl border border-slate-700 bg-slate-950/50 px-4 py-4">
               <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Payable</p>
@@ -398,6 +591,29 @@ export function PremiumUpgradePanel({
             <div className="rounded-2xl border border-slate-700 bg-slate-950/50 px-4 py-4">
               <p className="text-xs uppercase tracking-[0.18em] text-slate-500">UPI ID</p>
               <p className="mt-2 text-sm font-semibold text-slate-50">8889990355@pthdfc</p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleRazorpayCheckout}
+            disabled={isRazorpayLoading || isCompletingPayment}
+            className="mt-5 w-full rounded-full bg-teal-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-teal-200 disabled:cursor-not-allowed disabled:bg-teal-100"
+          >
+            {isRazorpayLoading ? "Opening Razorpay..." : `Pay Rs ${payableAmount} securely`}
+          </button>
+
+          <p className="mt-3 text-center text-xs leading-5 text-slate-500">
+            Razorpay supports UPI, cards, wallets, and net banking. Use the QR fallback only if
+            checkout is unavailable.
+          </p>
+
+          <div className="mt-5 border-t border-slate-800 pt-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+              Manual UPI fallback
+            </p>
+            <div className="mt-4 flex justify-center">
+              <PaymentQrCode />
             </div>
           </div>
 

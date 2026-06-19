@@ -94,6 +94,33 @@ export interface PremiumManualUnlockResponse extends PremiumCouponQuote {
   email: string;
 }
 
+export interface RazorpayCreateOrderRequest {
+  billing_interval: "monthly" | "yearly";
+  coupon_code?: string;
+}
+
+export interface RazorpayCreateOrderResponse extends PremiumCouponQuote {
+  order_id: string;
+  amount: number;
+  currency: string;
+  receipt: string;
+}
+
+export interface RazorpayVerifyPaymentRequest {
+  razorpay_payment_id: string;
+  razorpay_order_id: string;
+  razorpay_signature: string;
+  billing_interval: "monthly" | "yearly";
+  amount_inr: number;
+  coupon_code?: string;
+}
+
+export interface RazorpayVerifyPaymentResponse extends PremiumCouponQuote {
+  verified: boolean;
+  unlocked_premium: boolean;
+  email: string;
+}
+
 export interface AuthProfileFields {
   full_name?: string | null;
   role?: string | null;

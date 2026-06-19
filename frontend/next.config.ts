@@ -11,15 +11,16 @@ const nextConfig: NextConfig = {
           // Next.js injects small inline bootstrap scripts during hydration.
           // A nonce-based CSP is the stronger long-term option, but this keeps
           // the deployed app functional while retaining the rest of the policy.
-          "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' https://cdn.jsdelivr.net",
+          "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://checkout.razorpay.com",
           "worker-src 'self' blob:",
           "style-src 'self' 'unsafe-inline'",
-          "img-src 'self' data: blob:",
+          "img-src 'self' data: blob: https://*.razorpay.com",
           "font-src 'self' data:",
           "connect-src 'self' https: http://localhost:*",
+          "frame-src 'self' https://api.razorpay.com https://checkout.razorpay.com",
           "frame-ancestors 'none'",
           "base-uri 'self'",
-          "form-action 'self'",
+          "form-action 'self' https://api.razorpay.com https://checkout.razorpay.com",
           "object-src 'none'"
         ].join("; ")
       },
@@ -28,7 +29,7 @@ const nextConfig: NextConfig = {
       { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
       {
         key: "Permissions-Policy",
-        value: "camera=(), microphone=(), geolocation=(), payment=()"
+        value: 'camera=(), microphone=(), geolocation=(), payment=(self "https://checkout.razorpay.com")'
       }
     ];
 

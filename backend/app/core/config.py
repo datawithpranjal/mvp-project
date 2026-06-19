@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     google_oauth_client_secret: str | None = None
     google_oauth_redirect_uri: str | None = None
     google_oauth_state_secret: str | None = None
+    razorpay_key_id: str | None = None
+    razorpay_key_secret: str | None = None
     postgres_url: str = DEFAULT_POSTGRES_URL
     email_capture_store_path: str = "/tmp/data-engineering-scenario-playground-email-captures.jsonl"
 
