@@ -55,6 +55,12 @@ export default function PricingPage() {
     "Advanced system design cases and complete progress dashboard",
     "Detailed model answers, follow-ups, and production explanations"
   ];
+  const monthlyFeatures = [
+    `${premiumCount}+ premium labs and production scenarios`,
+    "Full scenario library for focused short-term interview prep",
+    "Advanced labs, model answers, follow-ups, and interview framing",
+    "Month-to-month access with the same premium practice depth"
+  ];
 
   return (
     <main className="mx-auto min-h-screen max-w-6xl px-6 py-10 sm:px-10">
@@ -82,7 +88,7 @@ export default function PricingPage() {
         </div>
       </section>
 
-      <section className="mt-8 grid gap-6 lg:grid-cols-2">
+      <section className="mt-8 grid gap-6 lg:grid-cols-3 lg:items-stretch">
         <PlanCard
           title="Free"
           price="Rs 0"
@@ -101,12 +107,13 @@ export default function PricingPage() {
           }
         />
         <PlanCard
-          title="Premium"
+          title="Premium Yearly"
           price="Rs 999/year"
           compareAt="Rs 2499"
-          description="Best for serious interview prep and production-style depth."
+          description="Best for serious interview prep and production-style depth across the year."
           features={premiumFeatures}
-          tone="premium"
+          tone="yearly"
+          badge="Best value"
           action={
             <TrackedLink
               href="#unlock-premium"
@@ -115,6 +122,25 @@ export default function PricingPage() {
               className="mt-6 inline-flex w-full items-center justify-center rounded-full bg-amber-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-200"
             >
               Unlock premium
+            </TrackedLink>
+          }
+        />
+        <PlanCard
+          title="Premium Monthly"
+          price="Rs 199/month"
+          compareAt="Rs 499"
+          description="A flexible option for short-term interview prep or trying premium depth first."
+          features={monthlyFeatures}
+          tone="monthly"
+          badge="Flexible"
+          action={
+            <TrackedLink
+              href="#unlock-premium"
+              event="premium_unlock_clicked"
+              eventPayload={{ source: "pricing_monthly_plan" }}
+              className="mt-6 inline-flex w-full items-center justify-center rounded-full border border-amber-300/35 bg-amber-300/10 px-5 py-3 text-sm font-semibold text-amber-100 transition hover:bg-amber-300/20"
+            >
+              Choose monthly
             </TrackedLink>
           }
         />
@@ -173,6 +199,7 @@ function PlanCard({
   description,
   features,
   tone,
+  badge,
   action
 }: {
   title: string;
@@ -180,22 +207,25 @@ function PlanCard({
   compareAt?: string;
   description: string;
   features: string[];
-  tone: "free" | "premium";
+  tone: "free" | "yearly" | "monthly";
+  badge?: string;
   action: React.ReactNode;
 }) {
   return (
     <div
-      className={`rounded-[2rem] border p-6 ${
-        tone === "premium"
-          ? "border-amber-300/25 bg-amber-300/10"
-          : "border-teal-300/20 bg-teal-300/10"
+      className={`relative rounded-[2rem] border p-6 ${
+        tone === "yearly"
+          ? "border-amber-300/45 bg-amber-300/15 shadow-[0_0_50px_rgba(251,191,36,0.12)] lg:-mt-4 lg:pb-10 lg:pt-8"
+          : tone === "monthly"
+            ? "border-slate-700 bg-slate-950/35"
+            : "border-teal-300/20 bg-teal-300/10"
       }`}
     >
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p
             className={`text-xs font-semibold uppercase tracking-[0.24em] ${
-              tone === "premium" ? "text-amber-100" : "text-teal-100"
+              tone === "free" ? "text-teal-100" : "text-amber-100"
             }`}
           >
             {title}
@@ -209,9 +239,9 @@ function PlanCard({
             ) : null}
           </div>
         </div>
-        {tone === "premium" ? (
+        {badge ? (
           <span className="rounded-full border border-amber-300/30 bg-slate-950/30 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-amber-100">
-            Best value
+            {badge}
           </span>
         ) : null}
       </div>
