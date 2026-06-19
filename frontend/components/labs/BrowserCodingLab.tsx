@@ -395,12 +395,37 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
     try {
       setIsRunning(true);
       setResult(null);
-      const table = await runReadOnlySql(selectedLab.tables, answer);
+      if (!selectedLab.expectedSql) {
+        const table = await runReadOnlySql(selectedLab.tables, answer);
+        setResult({
+          passed: null,
+          message:
+            "Query ran successfully, but this lab does not yet have an expected result for comparison.",
+          table
+        });
+        return;
+      }
+
+      const validation = await validateSqlOutput(
+        selectedLab.tables,
+        answer,
+        selectedLab.expectedSql
+      );
       setResult({
-        passed: null,
-        message:
-          "Query ran successfully on the visible sample data. Submit the answer when you are ready for validation and edge-case checks.",
-        table
+        passed: validation.passed,
+        message: validation.passed
+          ? "Correct answer on the visible sample data. Submit your answer to run the hidden edge-case checks."
+          : "Wrong answer. The query ran successfully, but its output does not match the expected result on the visible sample data.",
+        sqlResults: [
+          {
+            name: "Visible sample data",
+            description:
+              "Run-query check against the sample tables and expected output shown in this lab.",
+            passed: validation.passed,
+            actual: validation.actual,
+            expected: validation.expected
+          }
+        ]
       });
     } catch (error) {
       setResult({
@@ -689,6 +714,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
               value={answer}
               onChange={(event) =>
                 setAnswers((current) => {
+                  setResult(null);
                   setSaveStatus("Saving...");
                   return {
                     ...current,
@@ -924,7 +950,11 @@ function ResultPanel({ result }: { result: LabRunResult }) {
   return (
     <div className={`rounded-[2rem] border p-6 ${tone}`}>
       <p className="text-xs font-semibold uppercase tracking-[0.22em]">
-        {result.passed === true ? "Passed" : result.passed === false ? "Needs work" : "Result"}
+        {result.passed === true
+          ? "Correct answer"
+          : result.passed === false
+            ? "Wrong answer"
+            : "Result"}
       </p>
       {typeof result.score === "number" ? (
         <p className="mt-3 text-3xl font-semibold tracking-tight">{result.score}/100</p>
@@ -976,12 +1006,12 @@ function ResultPanel({ result }: { result: LabRunResult }) {
                   {test.passed ? "pass" : "fail"}
                 </span>
               </div>
-              {!test.passed ? (
-                <div className="mt-4 grid gap-3 lg:grid-cols-2">
-                  <MiniResultTable title="Your output" table={test.actual} />
+              <div className={`mt-4 grid gap-3 ${test.passed ? "" : "lg:grid-cols-2"}`}>
+                <MiniResultTable title="Your output" table={test.actual} />
+                {!test.passed ? (
                   <MiniResultTable title="Expected output" table={test.expected} />
-                </div>
-              ) : null}
+                ) : null}
+              </div>
             </div>
           ))}
         </div>

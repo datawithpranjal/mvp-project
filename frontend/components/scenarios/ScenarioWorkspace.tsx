@@ -11,7 +11,6 @@ import {
   type AuthUser
 } from "../../lib/auth";
 import {
-  runReadOnlySql,
   validateSqlOutput,
   type BrowserSqlResultTable,
   type BrowserSqlValidationResult
@@ -56,7 +55,6 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
   const [activeFollowUpIndex, setActiveFollowUpIndex] = useState(0);
   const [draftMessage, setDraftMessage] = useState<string | null>(null);
   const [sqlExecution, setSqlExecution] = useState<BrowserSqlValidationResult | null>(null);
-  const [sqlPreview, setSqlPreview] = useState<BrowserSqlResultTable | null>(null);
   const [isChecking, setIsChecking] = useState(false);
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
@@ -77,7 +75,6 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
     setHintsRevealed(Math.min(savedProgress.hintsRevealed, scenario.hints.length));
     setProgress(summarizeScenarioProgress(savedProgress, scenario.slug));
     setSqlExecution(null);
-    setSqlPreview(null);
     setEvaluation(null);
     setModelSolutionVisible(false);
     setHydratedScenarioSlug(scenario.slug);
@@ -241,16 +238,30 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
   }
 
   async function runSqlPreview() {
-    if (!canRunSql || !scenario.sampleTables) return;
+    if (!canRunSql || !scenario.sampleTables || !scenario.expectedSql) return;
     setIsChecking(true);
     setSqlExecution(null);
     try {
-      const result = await runReadOnlySql(scenario.sampleTables, answer);
-      setSqlPreview(result);
-      setDraftMessage("Query ran against a fresh copy of the sample database.");
+      const result = await validateSqlOutput(
+        scenario.sampleTables,
+        answer,
+        scenario.expectedSql
+      );
+      setSqlExecution(result);
+      setDraftMessage(
+        result.passed
+          ? "Visible sample check passed. Submit for the complete evaluation."
+          : "Visible sample check found an output mismatch."
+      );
     } catch (error) {
-      setSqlPreview(null);
-      setDraftMessage(error instanceof Error ? error.message : "The query could not be run.");
+      const message = error instanceof Error ? error.message : "The query could not be run.";
+      setSqlExecution({
+        passed: false,
+        message,
+        actual: { columns: [], rows: [] },
+        expected: { columns: [], rows: [] }
+      });
+      setDraftMessage("Query execution failed.");
     } finally {
       setIsChecking(false);
     }
@@ -258,7 +269,6 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
 
   function resetSqlWorkspace() {
     setAnswer(scenario.brokenCode || "");
-    setSqlPreview(null);
     setSqlExecution(null);
     setEvaluation(null);
     setDraftMessage("Sample database and editor reset.");
@@ -458,7 +468,10 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
                   <button
                     key={option.id}
                     type="button"
-                    onClick={() => setSelectedOptionId(option.id)}
+                    onClick={() => {
+                      setSelectedOptionId(option.id);
+                      setEvaluation(null);
+                    }}
                     className={`rounded-2xl border p-4 text-left text-sm leading-6 transition ${
                       selectedOptionId === option.id
                         ? "border-teal-300/40 bg-teal-300/10 text-teal-100"
@@ -472,7 +485,12 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
             ) : (
               <textarea
                 value={answer}
-                onChange={(event) => setAnswer(event.target.value)}
+                onChange={(event) => {
+                  setAnswer(event.target.value);
+                  setSqlExecution(null);
+                  setEvaluation(null);
+                  setDraftMessage(null);
+                }}
                 rows={13}
                 className="mt-5 w-full rounded-3xl border border-slate-800 bg-slate-950/80 p-5 font-mono text-sm leading-7 text-slate-100 outline-none transition focus:border-teal-300/50"
                 placeholder="Write your fix, diagnosis, or production-safe approach here."
@@ -495,7 +513,10 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
               </p>
               <textarea
                 value={interviewAnswer}
-                onChange={(event) => setInterviewAnswer(event.target.value)}
+                onChange={(event) => {
+                  setInterviewAnswer(event.target.value);
+                  setEvaluation(null);
+                }}
                 rows={6}
                 className="mt-4 w-full rounded-2xl border border-slate-800 bg-slate-950/80 p-4 text-sm leading-6 text-slate-100 outline-none transition focus:border-amber-300/50"
                 placeholder="I would first confirm..., the root cause is..., the safe fix is..., and I would monitor..."
@@ -578,21 +599,6 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
               </div>
             ) : null}
           </section>
-
-          {sqlPreview ? (
-            <section className="panel rounded-[2rem] p-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-200">
-                Query preview
-              </p>
-              <p className="mt-2 text-sm leading-6 text-slate-400">
-                This is your current result. Submit when you are ready to compare it with the
-                expected output and edge-case rules.
-              </p>
-              <div className="mt-5">
-                <ResultTable title="Current output" table={sqlPreview} />
-              </div>
-            </section>
-          ) : null}
 
           {sqlExecution ? <ScenarioSqlResultPanel result={sqlExecution} /> : null}
 
@@ -840,7 +846,7 @@ function ScenarioSqlResultPanel({ result }: { result: BrowserSqlValidationResult
           result.passed ? "text-teal-100" : "text-rose-100"
         }`}
       >
-        {result.passed ? "Executable check passed" : "Executable check failed"}
+        {result.passed ? "Correct answer" : "Wrong answer"}
       </p>
       <p className="mt-3 text-sm leading-6 text-slate-200">{result.message}</p>
       <div className="mt-5 grid gap-5 xl:grid-cols-2">

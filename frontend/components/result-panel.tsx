@@ -124,8 +124,8 @@ function getStatus(validationType: ValidationType, passed: boolean | null): {
     }
 
     return {
-      title: "Not Yet",
-      badgeLabel: "Needs debugging",
+      title: "Wrong Answer",
+      badgeLabel: "Output mismatch",
       badgeClassName: "border border-rose-400/30 bg-rose-400/10 text-rose-200",
       containerClassName: "status-fail"
     };
