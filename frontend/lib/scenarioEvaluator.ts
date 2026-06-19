@@ -7,6 +7,8 @@ export interface ScenarioEvaluationResult {
   gaps: string[];
   improvedAnswer: string;
   rubricBreakdown: EvaluationRubric;
+  mode: "mock" | "openai";
+  model?: string;
 }
 
 const SIGNALS = {
@@ -118,7 +120,8 @@ export function evaluateScenarioAnswer(
         productionThinking: isCorrect ? scenario.evaluationRubric.productionThinking : 10,
         tradeoffs: isCorrect ? scenario.evaluationRubric.tradeoffs : 5,
         communication: isCorrect ? scenario.evaluationRubric.communication : 10
-      }
+      },
+      mode: "mock"
     };
   }
 
@@ -136,7 +139,8 @@ export function evaluateScenarioAnswer(
         productionThinking: 0,
         tradeoffs: 0,
         communication: 0
-      }
+      },
+      mode: "mock"
     };
   }
 
@@ -185,6 +189,7 @@ export function evaluateScenarioAnswer(
     gaps,
     improvedAnswer:
       "A stronger answer: first describe the business symptom, then identify the root cause, apply the practical fix, validate with row counts/reconciliation, and close with monitoring/prevention. Compare your answer with the model solution below.",
-    rubricBreakdown: breakdown
+    rubricBreakdown: breakdown,
+    mode: "mock"
   };
 }

@@ -4,6 +4,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
 from app.api.routes.auth import router as auth_router
+from app.api.routes.ai_evaluation import router as ai_evaluation_router
 from app.api.routes.email_capture import router as email_capture_router
 from app.api.routes.health import router as health_router
 from app.api.routes.premium import router as premium_router
@@ -45,6 +46,7 @@ app.add_middleware(
 )
 app.include_router(health_router)
 app.include_router(auth_router)
+app.include_router(ai_evaluation_router)
 app.include_router(email_capture_router)
 app.include_router(premium_router)
 app.include_router(scenarios_router)

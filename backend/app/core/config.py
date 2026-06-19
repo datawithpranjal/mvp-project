@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     google_oauth_state_secret: str | None = None
     razorpay_key_id: str | None = None
     razorpay_key_secret: str | None = None
+    openai_api_key: str | None = None
+    openai_model: str = "gpt-5.4-mini"
+    openai_timeout_seconds: float = 25.0
     postgres_url: str = DEFAULT_POSTGRES_URL
     email_capture_store_path: str = "/tmp/data-engineering-scenario-playground-email-captures.jsonl"
 

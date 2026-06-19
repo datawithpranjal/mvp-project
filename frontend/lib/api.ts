@@ -1,5 +1,7 @@
 import { API_BASE_URL } from "./config";
 import type {
+  AiScenarioEvaluationRequest,
+  AiScenarioEvaluationResponse,
   AuthProfileFields,
   AuthRequestOtpRequest,
   AuthRequestOtpResponse,
@@ -81,6 +83,17 @@ export function validateScenario(
   return apiFetch<ValidationResponse>(`/api/v1/scenarios/${slug}/validate`, {
     method: "POST",
     authToken,
+    body: JSON.stringify(payload)
+  });
+}
+
+export function evaluateScenarioWithAi(
+  token: string,
+  payload: AiScenarioEvaluationRequest
+): Promise<AiScenarioEvaluationResponse> {
+  return apiFetch<AiScenarioEvaluationResponse>("/api/v1/ai/evaluate-scenario", {
+    method: "POST",
+    authToken: token,
     body: JSON.stringify(payload)
   });
 }

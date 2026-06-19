@@ -199,3 +199,46 @@ export interface ValidationResponse {
   solution_answer: string;
   rubric: RubricItem[];
 }
+
+export interface AiRubricWeights {
+  root_cause: number;
+  correctness: number;
+  production_thinking: number;
+  tradeoffs: number;
+  communication: number;
+}
+
+export interface AiScenarioEvaluationContext {
+  title: string;
+  domain: string;
+  scenario_type: string;
+  business_context: string;
+  problem_statement: string;
+  requirement: string;
+  broken_code: string;
+  actual_output: string;
+  expected_output: string;
+  model_solution: string;
+  production_explanation: string;
+  common_mistakes: string[];
+  follow_ups: string[];
+  rubric: AiRubricWeights;
+}
+
+export interface AiScenarioEvaluationRequest {
+  scenario_slug: string;
+  user_answer: string;
+  context: AiScenarioEvaluationContext;
+}
+
+export interface AiScenarioEvaluationResponse {
+  score: number;
+  verdict: "weak" | "partial" | "good" | "strong";
+  strengths: string[];
+  gaps: string[];
+  improved_answer: string;
+  follow_up_questions: string[];
+  rubric_breakdown: AiRubricWeights;
+  mode: "openai";
+  model: string;
+}

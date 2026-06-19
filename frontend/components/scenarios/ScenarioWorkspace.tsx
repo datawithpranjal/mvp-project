@@ -5,8 +5,10 @@ import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
 import { trackEvent } from "../../lib/analytics";
+import { evaluateScenarioWithAi } from "../../lib/api";
 import {
   AUTH_UPDATED_EVENT,
+  getAuthToken,
   getCurrentUser,
   type AuthUser
 } from "../../lib/auth";
@@ -177,7 +179,8 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
     setSqlExecution(null);
 
     try {
-      const nextEvaluation = evaluateScenarioAnswer(scenario, submittedAnswer);
+      let nextEvaluation = evaluateScenarioAnswer(scenario, submittedAnswer);
+      let aiFallbackMessage: string | null = null;
       const runnableSqlResult =
         canRunSql && scenario.sampleTables && scenario.expectedSql
           ? await validateSqlOutput(scenario.sampleTables, answer, scenario.expectedSql)
@@ -185,6 +188,68 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
 
       if (runnableSqlResult) {
         setSqlExecution(runnableSqlResult);
+      }
+
+      const authToken = getAuthToken();
+      if (
+        authToken &&
+        scenario.scenarioType !== "mcq" &&
+        submittedAnswer.trim().length > 0
+      ) {
+        try {
+          const aiResult = await evaluateScenarioWithAi(authToken, {
+            scenario_slug: scenario.slug,
+            user_answer: submittedAnswer,
+            context: {
+              title: scenario.title,
+              domain: scenario.domain,
+              scenario_type: scenario.scenarioType,
+              business_context: scenario.businessContext.slice(0, 5000),
+              problem_statement: scenario.problemStatement.slice(0, 7000),
+              requirement: (scenario.requirement ?? scenario.tasks.join("\n")).slice(0, 5000),
+              broken_code: [
+                scenario.schema ? `Schema:\n${scenario.schema}` : "",
+                scenario.sampleInput ? `Sample input:\n${scenario.sampleInput}` : "",
+                scenario.brokenCode ? `Broken code:\n${scenario.brokenCode}` : ""
+              ]
+                .filter(Boolean)
+                .join("\n\n")
+                .slice(0, 12000),
+              actual_output: (scenario.actualOutput ?? scenario.logs ?? "").slice(0, 5000),
+              expected_output: (scenario.expectedOutput ?? "").slice(0, 5000),
+              model_solution: scenario.modelSolution.slice(0, 12000),
+              production_explanation: scenario.productionExplanation.slice(0, 10000),
+              common_mistakes: scenario.commonMistakes.slice(0, 10),
+              follow_ups: scenario.followUps.slice(0, 6),
+              rubric: {
+                root_cause: scenario.evaluationRubric.rootCause,
+                correctness: scenario.evaluationRubric.correctness,
+                production_thinking: scenario.evaluationRubric.productionThinking,
+                tradeoffs: scenario.evaluationRubric.tradeoffs,
+                communication: scenario.evaluationRubric.communication
+              }
+            }
+          });
+          nextEvaluation = {
+            score: aiResult.score,
+            verdict: aiResult.verdict,
+            strengths: aiResult.strengths,
+            gaps: aiResult.gaps,
+            improvedAnswer: aiResult.improved_answer,
+            rubricBreakdown: {
+              rootCause: aiResult.rubric_breakdown.root_cause,
+              correctness: aiResult.rubric_breakdown.correctness,
+              productionThinking: aiResult.rubric_breakdown.production_thinking,
+              tradeoffs: aiResult.rubric_breakdown.tradeoffs,
+              communication: aiResult.rubric_breakdown.communication
+            },
+            mode: "openai",
+            model: aiResult.model
+          };
+        } catch {
+          aiFallbackMessage =
+            "AI evaluation is temporarily unavailable, so local rubric feedback is shown.";
+        }
       }
 
       const passed = runnableSqlResult ? runnableSqlResult.passed : nextEvaluation.score >= 70;
@@ -211,11 +276,12 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
       });
       setEvaluation(nextEvaluation);
       setProgress(summarizeScenarioProgress(nextProgress, scenario.slug));
-      setDraftMessage(null);
+      setDraftMessage(aiFallbackMessage);
       trackEvent("first_lab_submitted", {
         scenario: scenario.slug,
         type: scenario.scenarioType,
-        passed
+        passed,
+        evaluation_mode: nextEvaluation.mode
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "The browser checker could not run this answer.";
