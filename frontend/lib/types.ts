@@ -92,6 +92,8 @@ export interface PremiumManualUnlockResponse extends PremiumCouponQuote {
   pending_review: boolean;
   unlocked_premium: boolean;
   email: string;
+  granted_at?: string;
+  expires_at?: string;
 }
 
 export interface RazorpayCreateOrderRequest {
@@ -120,6 +122,19 @@ export interface RazorpayVerifyPaymentResponse extends PremiumCouponQuote {
   verified: boolean;
   unlocked_premium: boolean;
   email: string;
+  granted_at: string;
+  expires_at: string;
+}
+
+export interface PremiumStatusResponse {
+  unlocked_premium: boolean;
+  email: string;
+  plan_label?: string;
+  billing_interval?: "monthly" | "yearly";
+  amount_inr?: number;
+  payment_reference?: string;
+  granted_at?: string;
+  expires_at?: string;
 }
 
 export interface AuthProfileFields {

@@ -299,7 +299,8 @@ export function PremiumUpgradePanel({
 
               const premiumRecord: PremiumAccessRecord = {
                 email: verification.email,
-                unlockedAt: new Date().toISOString(),
+                unlockedAt: verification.granted_at,
+                expiresAt: verification.expires_at,
                 billing_interval: verification.billing_interval,
                 amount_inr: verification.final_amount_inr,
                 payment_reference: response.razorpay_payment_id,
@@ -375,7 +376,8 @@ export function PremiumUpgradePanel({
 
       const premiumRecord: PremiumAccessRecord = {
         email: response.email,
-        unlockedAt: new Date().toISOString(),
+        unlockedAt: response.granted_at ?? new Date().toISOString(),
+        expiresAt: response.expires_at ?? new Date().toISOString(),
         billing_interval: response.billing_interval,
         amount_inr: response.final_amount_inr,
         payment_reference: response.coupon_code ?? "COUPON",
@@ -421,7 +423,7 @@ export function PremiumUpgradePanel({
             {premiumAccess.billing_interval}
           </span>
         </div>
-        <div className="mt-4 grid gap-3 md:grid-cols-3">
+        <div className="mt-4 grid gap-3 md:grid-cols-4">
           <div className="rounded-2xl border border-teal-200/20 bg-slate-950/20 px-4 py-4">
             <p className="text-xs uppercase tracking-[0.18em] text-teal-200/70">Plan price</p>
             <p className="mt-2 text-lg font-semibold text-teal-50">Rs {premiumAccess.amount_inr}</p>
@@ -430,6 +432,12 @@ export function PremiumUpgradePanel({
             <p className="text-xs uppercase tracking-[0.18em] text-teal-200/70">Unlocked at</p>
             <p className="mt-2 text-sm font-semibold text-teal-50">
               {formatTimestamp(premiumAccess.unlockedAt)}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-teal-200/20 bg-slate-950/20 px-4 py-4">
+            <p className="text-xs uppercase tracking-[0.18em] text-teal-200/70">Valid until</p>
+            <p className="mt-2 text-sm font-semibold text-teal-50">
+              {formatTimestamp(premiumAccess.expiresAt)}
             </p>
           </div>
           <div className="rounded-2xl border border-teal-200/20 bg-slate-950/20 px-4 py-4">

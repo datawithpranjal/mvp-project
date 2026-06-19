@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from app.core.config import DEFAULT_POSTGRES_URL, get_settings
@@ -13,6 +13,10 @@ class PremiumAccessServiceError(RuntimeError):
 class PremiumAccessService:
     _memory_grants: dict[str, dict[str, Any]] = {}
     _memory_payment_requests: list[dict[str, Any]] = []
+    _plan_durations = {
+        "monthly": timedelta(days=30),
+        "yearly": timedelta(days=365),
+    }
 
     def __init__(self, postgres_url: str | None = None) -> None:
         settings = get_settings()
@@ -27,13 +31,15 @@ class PremiumAccessService:
         amount_inr: int,
         payment_reference: str,
     ) -> dict[str, Any]:
+        granted_at = datetime.now(timezone.utc)
         record = {
             "email": email.strip().lower(),
             "plan_label": plan_label,
             "billing_interval": billing_interval,
             "amount_inr": amount_inr,
             "payment_reference": payment_reference,
-            "granted_at": datetime.now(timezone.utc),
+            "granted_at": granted_at,
+            "expires_at": self._expires_at_for(billing_interval, granted_at),
         }
 
         if self.postgres_url:
@@ -76,11 +82,33 @@ class PremiumAccessService:
         if not email:
             return False
 
+        return self.get_access(email) is not None
+
+    def get_access(self, email: str | None) -> dict[str, Any] | None:
+        if not email:
+            return None
+
         normalized_email = email.strip().lower()
         if self.postgres_url:
-            return self._postgres_has_access(normalized_email)
+            return self._postgres_get_access(normalized_email)
 
-        return normalized_email in self._memory_grants
+        record = self._memory_grants.get(normalized_email)
+        if not record:
+            return None
+
+        expires_at = record.get("expires_at")
+        if not isinstance(expires_at, datetime):
+            granted_at = record.get("granted_at")
+            if not isinstance(granted_at, datetime):
+                granted_at = datetime.now(timezone.utc)
+                record["granted_at"] = granted_at
+            expires_at = self._expires_at_for(str(record.get("billing_interval", "yearly")), granted_at)
+            record["expires_at"] = expires_at
+
+        if self._to_aware_datetime(expires_at) <= datetime.now(timezone.utc):
+            return None
+
+        return record
 
     def _postgres_connect(self):
         try:
@@ -98,8 +126,31 @@ class PremiumAccessService:
                 billing_interval TEXT NOT NULL,
                 amount_inr INTEGER NOT NULL,
                 payment_reference TEXT NOT NULL,
-                granted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                granted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                expires_at TIMESTAMPTZ NOT NULL
             )
+            """
+        )
+        cursor.execute(
+            """
+            ALTER TABLE premium_access_grants
+                ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ
+            """
+        )
+        cursor.execute(
+            """
+            UPDATE premium_access_grants
+            SET expires_at = CASE
+                WHEN billing_interval = 'monthly' THEN granted_at + INTERVAL '1 month'
+                ELSE granted_at + INTERVAL '1 year'
+            END
+            WHERE expires_at IS NULL
+            """
+        )
+        cursor.execute(
+            """
+            ALTER TABLE premium_access_grants
+                ALTER COLUMN expires_at SET NOT NULL
             """
         )
         cursor.execute(
@@ -158,17 +209,18 @@ class PremiumAccessService:
                         """
                         INSERT INTO premium_access_grants (
                             email, plan_label, billing_interval, amount_inr,
-                            payment_reference, granted_at
+                            payment_reference, granted_at, expires_at
                         )
-                        VALUES (%s, %s, %s, %s, %s, %s)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s)
                         ON CONFLICT (email) DO UPDATE SET
                             plan_label = EXCLUDED.plan_label,
                             billing_interval = EXCLUDED.billing_interval,
                             amount_inr = EXCLUDED.amount_inr,
                             payment_reference = EXCLUDED.payment_reference,
-                            granted_at = EXCLUDED.granted_at
+                            granted_at = EXCLUDED.granted_at,
+                            expires_at = EXCLUDED.expires_at
                         RETURNING email, plan_label, billing_interval, amount_inr,
-                                  payment_reference, granted_at
+                                  payment_reference, granted_at, expires_at
                         """,
                         (
                             record["email"],
@@ -177,6 +229,7 @@ class PremiumAccessService:
                             record["amount_inr"],
                             record["payment_reference"],
                             record["granted_at"],
+                            record["expires_at"],
                         ),
                     )
                     row = cursor.fetchone()
@@ -188,6 +241,7 @@ class PremiumAccessService:
                 "amount_inr": row[3],
                 "payment_reference": row[4],
                 "granted_at": row[5],
+                "expires_at": row[6],
             }
         except Exception as exc:
             raise PremiumAccessServiceError(f"Unable to grant premium access. {exc}") from exc
@@ -234,17 +288,47 @@ class PremiumAccessService:
             ) from exc
 
     def _postgres_has_access(self, email: str) -> bool:
+        return self._postgres_get_access(email) is not None
+
+    def _postgres_get_access(self, email: str) -> dict[str, Any] | None:
         try:
             with self._postgres_connect() as connection:
                 with connection.cursor() as cursor:
                     self._ensure_schema(cursor)
                     cursor.execute(
-                        "SELECT 1 FROM premium_access_grants WHERE email = %s LIMIT 1",
+                        """
+                        SELECT email, plan_label, billing_interval, amount_inr,
+                               payment_reference, granted_at, expires_at
+                        FROM premium_access_grants
+                        WHERE email = %s
+                          AND expires_at > NOW()
+                        LIMIT 1
+                        """,
                         (email,),
                     )
-                    return cursor.fetchone() is not None
+                    row = cursor.fetchone()
+                    if row is None:
+                        return None
+                    return {
+                        "email": row[0],
+                        "plan_label": row[1],
+                        "billing_interval": row[2],
+                        "amount_inr": row[3],
+                        "payment_reference": row[4],
+                        "granted_at": row[5],
+                        "expires_at": row[6],
+                    }
         except Exception as exc:
             raise PremiumAccessServiceError(f"Unable to check premium access. {exc}") from exc
+
+    def _expires_at_for(self, billing_interval: str, granted_at: datetime) -> datetime:
+        normalized_interval = billing_interval if billing_interval in self._plan_durations else "yearly"
+        return self._to_aware_datetime(granted_at) + self._plan_durations[normalized_interval]
+
+    def _to_aware_datetime(self, value: datetime) -> datetime:
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
 
     def _active_postgres_url(self, postgres_url: str | None) -> str | None:
         if not postgres_url or postgres_url == DEFAULT_POSTGRES_URL:

@@ -1,3 +1,4 @@
+import { getPremiumStatus } from "./api";
 import { getCurrentUser } from "./auth";
 
 export type BillingInterval = "monthly" | "yearly";
@@ -5,6 +6,7 @@ export type BillingInterval = "monthly" | "yearly";
 export interface PremiumAccessRecord {
   email: string;
   unlockedAt: string;
+  expiresAt: string;
   billing_interval: BillingInterval;
   amount_inr: number;
   payment_reference: string;
@@ -17,6 +19,10 @@ export const PREMIUM_ACCESS_UPDATED_EVENT = "premium-access-updated";
 
 function canUseStorage(): boolean {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
+}
+
+function isExpired(expiresAt: string): boolean {
+  return Number.isNaN(Date.parse(expiresAt)) || new Date(expiresAt).getTime() <= Date.now();
 }
 
 export function getPremiumAccess(): PremiumAccessRecord | null {
@@ -36,7 +42,12 @@ export function getPremiumAccess(): PremiumAccessRecord | null {
     }
 
     const parsed = JSON.parse(value) as Partial<PremiumAccessRecord>;
-    if (typeof parsed.email !== "string" || typeof parsed.unlockedAt !== "string") {
+    if (
+      typeof parsed.email !== "string" ||
+      typeof parsed.unlockedAt !== "string" ||
+      typeof parsed.expiresAt !== "string"
+    ) {
+      clearPremiumAccess();
       return null;
     }
 
@@ -44,9 +55,15 @@ export function getPremiumAccess(): PremiumAccessRecord | null {
       return null;
     }
 
+    if (isExpired(parsed.expiresAt)) {
+      clearPremiumAccess();
+      return null;
+    }
+
     return {
       email: parsed.email.trim().toLowerCase(),
       unlockedAt: parsed.unlockedAt,
+      expiresAt: parsed.expiresAt,
       billing_interval: parsed.billing_interval === "monthly" ? "monthly" : "yearly",
       amount_inr: typeof parsed.amount_inr === "number" ? parsed.amount_inr : 0,
       payment_reference:
@@ -82,4 +99,44 @@ export function savePremiumAccess(record: PremiumAccessRecord): void {
 
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(record));
   window.dispatchEvent(new Event(PREMIUM_ACCESS_UPDATED_EVENT));
+}
+
+export function clearPremiumAccess(): void {
+  if (!canUseStorage()) {
+    return;
+  }
+
+  window.localStorage.removeItem(STORAGE_KEY);
+  window.dispatchEvent(new Event(PREMIUM_ACCESS_UPDATED_EVENT));
+}
+
+export async function refreshPremiumAccessFromServer(
+  token: string
+): Promise<PremiumAccessRecord | null> {
+  const status = await getPremiumStatus(token);
+  if (
+    !status.unlocked_premium ||
+    !status.plan_label ||
+    !status.billing_interval ||
+    typeof status.amount_inr !== "number" ||
+    !status.payment_reference ||
+    !status.granted_at ||
+    !status.expires_at
+  ) {
+    clearPremiumAccess();
+    return null;
+  }
+
+  const record: PremiumAccessRecord = {
+    email: status.email.trim().toLowerCase(),
+    unlockedAt: status.granted_at,
+    expiresAt: status.expires_at,
+    billing_interval: status.billing_interval,
+    amount_inr: status.amount_inr,
+    payment_reference: status.payment_reference,
+    plan_label: status.plan_label,
+    payment_method: status.payment_reference.startsWith("pay_") ? "razorpay" : "coupon"
+  };
+  savePremiumAccess(record);
+  return record;
 }

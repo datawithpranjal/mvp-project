@@ -2,12 +2,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { AUTH_UPDATED_EVENT, getCurrentUser, logoutCurrentUser, type AuthUser } from "../lib/auth";
+import {
+  AUTH_UPDATED_EVENT,
+  getAuthToken,
+  getCurrentUser,
+  logoutCurrentUser,
+  type AuthUser
+} from "../lib/auth";
 import {
   PREMIUM_ACCESS_UPDATED_EVENT,
   getPremiumAccess,
+  refreshPremiumAccessFromServer,
   type PremiumAccessRecord
 } from "../lib/premium-access";
 import { AuthDialog } from "./auth-dialog";
@@ -21,6 +28,7 @@ export function SiteHeader() {
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const lastPremiumStatusSyncToken = useRef<string | null>(null);
   const isPracticeRoute =
     pathname === "/labs" ||
     pathname.startsWith("/labs/") ||
@@ -29,20 +37,41 @@ export function SiteHeader() {
     pathname === "/system-design";
 
   useEffect(() => {
-    function syncState() {
+    function syncState(shouldRefreshPremium: boolean = false) {
       setCurrentUser(getCurrentUser());
-      setPremiumAccess(getPremiumAccess());
+      const cachedPremiumAccess = getPremiumAccess();
+      setPremiumAccess(cachedPremiumAccess);
+
+      const token = getAuthToken();
+      if (
+        shouldRefreshPremium &&
+        token &&
+        !cachedPremiumAccess &&
+        lastPremiumStatusSyncToken.current !== token
+      ) {
+        lastPremiumStatusSyncToken.current = token;
+        refreshPremiumAccessFromServer(token)
+          .then((serverPremiumAccess) => {
+            setPremiumAccess(serverPremiumAccess);
+          })
+          .catch(() => {
+            // Keep navigation usable if premium status cannot be refreshed.
+          });
+      }
     }
 
-    syncState();
-    window.addEventListener("storage", syncState);
-    window.addEventListener(AUTH_UPDATED_EVENT, syncState);
-    window.addEventListener(PREMIUM_ACCESS_UPDATED_EVENT, syncState);
+    const syncWithServer = () => syncState(true);
+    const syncLocalOnly = () => syncState(false);
+
+    syncWithServer();
+    window.addEventListener("storage", syncWithServer);
+    window.addEventListener(AUTH_UPDATED_EVENT, syncWithServer);
+    window.addEventListener(PREMIUM_ACCESS_UPDATED_EVENT, syncLocalOnly);
 
     return () => {
-      window.removeEventListener("storage", syncState);
-      window.removeEventListener(AUTH_UPDATED_EVENT, syncState);
-      window.removeEventListener(PREMIUM_ACCESS_UPDATED_EVENT, syncState);
+      window.removeEventListener("storage", syncWithServer);
+      window.removeEventListener(AUTH_UPDATED_EVENT, syncWithServer);
+      window.removeEventListener(PREMIUM_ACCESS_UPDATED_EVENT, syncLocalOnly);
     };
   }, []);
 

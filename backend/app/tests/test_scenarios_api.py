@@ -3,6 +3,7 @@ from datetime import timedelta
 from fastapi.testclient import TestClient
 
 from app.api.routes.auth import auth_service
+from app.api.routes.premium import premium_access_service
 from app.main import app
 
 client = TestClient(app)
@@ -147,6 +148,44 @@ def test_manual_payment_submission_does_not_directly_unlock_premium() -> None:
 
     assert premium_detail_response.status_code == 200
     assert premium_detail_response.json()["is_locked"] is True
+
+
+def test_premium_status_returns_active_grant_validity() -> None:
+    email = "premium.status.student@example.com"
+    otp_response = client.post(
+        "/api/v1/auth/request-otp",
+        json={
+            "mode": "signup",
+            "email": email,
+            "full_name": "Premium Status Student",
+        },
+    )
+    token_response = client.post(
+        "/api/v1/auth/verify-otp",
+        json={"email": email, "otp_code": otp_response.json()["debug_otp"]},
+    )
+    token = token_response.json()["token"]
+
+    grant = premium_access_service.grant_manual_access(
+        email=email,
+        plan_label="Premium Annual",
+        billing_interval="yearly",
+        amount_inr=500,
+        payment_reference="pay_status_test",
+    )
+
+    response = client.get(
+        "/api/v1/premium/status",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["unlocked_premium"] is True
+    assert payload["email"] == email
+    assert payload["billing_interval"] == "yearly"
+    assert payload["payment_reference"] == "pay_status_test"
+    assert payload["expires_at"] == grant["expires_at"].isoformat()
 
 
 def test_coupon_validation_and_discounted_payment_submission() -> None:

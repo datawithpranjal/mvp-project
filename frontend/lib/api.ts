@@ -12,6 +12,7 @@ import type {
   PremiumCouponQuote,
   PremiumManualUnlockRequest,
   PremiumManualUnlockResponse,
+  PremiumStatusResponse,
   RazorpayCreateOrderRequest,
   RazorpayCreateOrderResponse,
   RazorpayVerifyPaymentRequest,
@@ -149,6 +150,12 @@ export function submitManualPremiumPayment(
     method: "POST",
     authToken: token,
     body: JSON.stringify(payload)
+  });
+}
+
+export function getPremiumStatus(token: string): Promise<PremiumStatusResponse> {
+  return apiFetch<PremiumStatusResponse>("/api/v1/premium/status", {
+    authToken: token
   });
 }
 

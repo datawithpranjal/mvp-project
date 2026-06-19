@@ -64,6 +64,50 @@ class RazorpayVerifyPaymentRequest(BaseModel):
     coupon_code: str | None = Field(default=None, max_length=64)
 
 
+def _isoformat(value: object) -> str:
+    if hasattr(value, "isoformat"):
+        return str(value.isoformat())
+    return str(value)
+
+
+def _premium_grant_payload(record: dict[str, object]) -> dict[str, object]:
+    return {
+        "plan_label": record["plan_label"],
+        "billing_interval": record["billing_interval"],
+        "amount_inr": record["amount_inr"],
+        "payment_reference": record["payment_reference"],
+        "granted_at": _isoformat(record["granted_at"]),
+        "expires_at": _isoformat(record["expires_at"]),
+    }
+
+
+@router.get("/api/v1/premium/status")
+@router.get("/v1/premium/status")
+def get_premium_status(
+    authorization: Annotated[str | None, Header()] = None,
+) -> dict[str, object]:
+    try:
+        profile = auth_service.get_profile(bearer_token(authorization))
+        active_grant = premium_access_service.get_access(profile.email)
+        if not active_grant:
+            return {
+                "unlocked_premium": False,
+                "email": profile.email,
+            }
+        return {
+            "unlocked_premium": True,
+            "email": profile.email,
+            **_premium_grant_payload(active_grant),
+        }
+    except AuthServiceError as exc:
+        raise auth_error_response(exc) from exc
+    except PremiumAccessServiceError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Premium access is temporarily unavailable. {exc}",
+        ) from exc
+
+
 @router.post("/api/v1/premium/coupons/validate")
 @router.post("/v1/premium/coupons/validate")
 def validate_premium_coupon(
@@ -241,7 +285,7 @@ def verify_razorpay_payment(
                 detail="Razorpay payment is not authorized or captured yet.",
             )
 
-        premium_access_service.grant_manual_access(
+        premium_grant = premium_access_service.grant_manual_access(
             email=profile.email,
             plan_label=quote.plan_label,
             billing_interval=quote.billing_interval,
@@ -253,6 +297,8 @@ def verify_razorpay_payment(
             "unlocked_premium": True,
             "email": profile.email,
             **quote.as_dict(),
+            "granted_at": _isoformat(premium_grant["granted_at"]),
+            "expires_at": _isoformat(premium_grant["expires_at"]),
         }
     except HTTPException:
         raise
@@ -305,7 +351,7 @@ def submit_manual_premium_payment_request(
                 "The payable amount changed. Apply the coupon again before submitting."
             )
         if quote.final_amount_inr == 0:
-            premium_access_service.grant_manual_access(
+            premium_grant = premium_access_service.grant_manual_access(
                 email=profile.email,
                 plan_label=quote.plan_label,
                 billing_interval=payload.billing_interval,
@@ -318,6 +364,8 @@ def submit_manual_premium_payment_request(
                 "unlocked_premium": True,
                 "email": profile.email,
                 **quote.as_dict(),
+                "granted_at": _isoformat(premium_grant["granted_at"]),
+                "expires_at": _isoformat(premium_grant["expires_at"]),
             }
 
         premium_access_service.submit_manual_payment_request(
@@ -362,14 +410,18 @@ def grant_manual_premium_access(
     _require_admin_token(x_admin_token)
 
     try:
-        premium_access_service.grant_manual_access(
+        premium_grant = premium_access_service.grant_manual_access(
             email=payload.email,
             plan_label=payload.plan_label,
             billing_interval=payload.billing_interval,
             amount_inr=payload.amount_inr,
             payment_reference=payload.payment_reference,
         )
-        return {"unlocked_premium": True, "email": payload.email.strip().lower()}
+        return {
+            "unlocked_premium": True,
+            "email": payload.email.strip().lower(),
+            **_premium_grant_payload(premium_grant),
+        }
     except PremiumAccessServiceError as exc:
         raise HTTPException(
             status_code=500,
