@@ -100,6 +100,7 @@ export interface RazorpayCreateOrderRequest {
 }
 
 export interface RazorpayCreateOrderResponse extends PremiumCouponQuote {
+  key_id: string;
   order_id: string;
   amount: number;
   currency: string;

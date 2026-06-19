@@ -3,11 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { AUTH_UPDATED_EVENT, getAuthToken, getCurrentUser, type AuthUser } from "../lib/auth";
-import { RAZORPAY_KEY_ID } from "../lib/config";
 import {
   captureEmail,
   createRazorpayOrder,
-  submitManualPremiumPayment,
   validatePremiumCoupon,
   verifyRazorpayPayment
 } from "../lib/api";
@@ -21,7 +19,6 @@ import {
 } from "../lib/premium-access";
 import { trackEvent } from "../lib/analytics";
 import { AuthForm } from "./auth-form";
-import { PaymentQrCode } from "./payment-qr-code";
 
 interface PremiumUpgradePanelProps {
   title: string;
@@ -147,14 +144,12 @@ export function PremiumUpgradePanel({
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [premiumAccess, setPremiumAccessState] = useState<PremiumAccessRecord | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<BillingInterval>("yearly");
-  const [paymentReference, setPaymentReference] = useState("");
   const [couponCode, setCouponCode] = useState("");
   const [couponQuote, setCouponQuote] = useState<PremiumCouponQuote | null>(null);
   const [couponError, setCouponError] = useState<string | null>(null);
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [checkoutSuccess, setCheckoutSuccess] = useState<string | null>(null);
-  const [isCompletingPayment, setIsCompletingPayment] = useState(false);
   const [isRazorpayLoading, setIsRazorpayLoading] = useState(false);
 
   useEffect(() => {
@@ -226,58 +221,6 @@ export function PremiumUpgradePanel({
     setCouponError(null);
   }
 
-  async function handleCompleteDemoPayment() {
-    if (!currentUser) {
-      return;
-    }
-    const token = getAuthToken();
-    if (!token) {
-      setCheckoutError("Please sign in again before unlocking premium access.");
-      return;
-    }
-
-    try {
-      setIsCompletingPayment(true);
-      setCheckoutError(null);
-      setCheckoutSuccess(null);
-      if (couponCode.trim() && !couponQuote) {
-        setCheckoutError("Apply the coupon before submitting the payment.");
-        return;
-      }
-      trackEvent("payment_started", {
-        plan: activePlan.id,
-        amount_inr: payableAmount,
-        coupon_code: couponQuote?.coupon_code ?? undefined
-      });
-      const nextPaymentReference = paymentReference.trim() || `MANUAL-UPI-${Date.now()}`;
-
-      await captureEmail({
-        email: currentUser.email,
-        source: `premium-upi-${activePlan.id}`,
-      });
-      await submitManualPremiumPayment(token, {
-        plan_label: activePlan.label,
-        billing_interval: activePlan.id,
-        amount_inr: payableAmount,
-        payment_reference: nextPaymentReference,
-        coupon_code: couponQuote?.coupon_code ?? undefined
-      });
-
-      setCheckoutSuccess(
-        `Payment of Rs ${payableAmount} submitted for manual review. Premium access will be enabled after verification.`
-      );
-      onUnlocked?.();
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Unable to capture your email right now. Please try again.";
-      setCheckoutError(message);
-    } finally {
-      setIsCompletingPayment(false);
-    }
-  }
-
   async function handleRazorpayCheckout() {
     if (!currentUser) {
       return;
@@ -286,11 +229,6 @@ export function PremiumUpgradePanel({
     const token = getAuthToken();
     if (!token) {
       setCheckoutError("Please sign in again before unlocking premium access.");
-      return;
-    }
-
-    if (!RAZORPAY_KEY_ID) {
-      setCheckoutError("Razorpay checkout is not configured yet. Please use the UPI option for now.");
       return;
     }
 
@@ -303,14 +241,6 @@ export function PremiumUpgradePanel({
       setIsRazorpayLoading(true);
       setCheckoutError(null);
       setCheckoutSuccess(null);
-      await loadRazorpayCheckout();
-
-      trackEvent("payment_started", {
-        plan: activePlan.id,
-        amount_inr: payableAmount,
-        coupon_code: couponQuote?.coupon_code ?? undefined,
-        payment_method: "razorpay"
-      });
 
       await captureEmail({
         email: currentUser.email,
@@ -322,9 +252,22 @@ export function PremiumUpgradePanel({
         coupon_code: couponQuote?.coupon_code ?? undefined
       });
 
+      if (!order.key_id) {
+        throw new Error("Razorpay checkout is not configured. Please contact support.");
+      }
+
+      await loadRazorpayCheckout();
+
+      trackEvent("payment_started", {
+        plan: activePlan.id,
+        amount_inr: order.final_amount_inr,
+        coupon_code: order.coupon_code ?? undefined,
+        payment_method: "razorpay"
+      });
+
       await new Promise<void>((resolve, reject) => {
         const checkout = new window.Razorpay!({
-          key: RAZORPAY_KEY_ID,
+          key: order.key_id,
           amount: order.amount,
           currency: order.currency,
           name: "The Data Foundry",
@@ -378,7 +321,7 @@ export function PremiumUpgradePanel({
             new Error(
               response.error?.description ||
                 response.error?.reason ||
-                "Payment failed. Please try again or use UPI."
+                "Payment failed. Please try again."
             )
           );
         });
@@ -400,7 +343,7 @@ export function PremiumUpgradePanel({
     return (
       <AuthForm
         title="Create an account to continue"
-        description="Sign in with OTP first, then choose a plan and complete UPI activation."
+        description="Sign in with OTP first, then choose a plan and pay securely with Razorpay."
       />
     );
   }
@@ -589,51 +532,23 @@ export function PremiumUpgradePanel({
               </div>
             </div>
             <div className="rounded-2xl border border-slate-700 bg-slate-950/50 px-4 py-4">
-              <p className="text-xs uppercase tracking-[0.18em] text-slate-500">UPI ID</p>
-              <p className="mt-2 text-sm font-semibold text-slate-50">8889990355@pthdfc</p>
+              <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Activation</p>
+              <p className="mt-2 text-sm font-semibold text-slate-50">Instant after verification</p>
             </div>
           </div>
 
           <button
             type="button"
             onClick={handleRazorpayCheckout}
-            disabled={isRazorpayLoading || isCompletingPayment}
+            disabled={isRazorpayLoading}
             className="mt-5 w-full rounded-full bg-teal-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-teal-200 disabled:cursor-not-allowed disabled:bg-teal-100"
           >
             {isRazorpayLoading ? "Opening Razorpay..." : `Pay Rs ${payableAmount} securely`}
           </button>
 
           <p className="mt-3 text-center text-xs leading-5 text-slate-500">
-            Razorpay supports UPI, cards, wallets, and net banking. Use the QR fallback only if
-            checkout is unavailable.
-          </p>
-
-          <div className="mt-5 border-t border-slate-800 pt-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-              Manual UPI fallback
-            </p>
-            <div className="mt-4 flex justify-center">
-              <PaymentQrCode />
-            </div>
-          </div>
-
-          <div className="mt-5">
-            <label htmlFor="manual-upi-reference" className="mb-2 block text-sm text-slate-300">
-              Payment reference
-            </label>
-            <input
-              id="manual-upi-reference"
-              type="text"
-              value={paymentReference}
-              onChange={(event) => setPaymentReference(event.target.value)}
-              placeholder="Optional: UPI_REF_2026_001"
-              className="w-full rounded-2xl border border-slate-700 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-amber-300/40"
-            />
-          </div>
-
-          <p className="mt-4 text-sm leading-6 text-slate-400">
-            Your payment reference is submitted for verification. Premium access is activated
-            after the payment is confirmed.
+            Razorpay supports UPI, cards, wallets, and net banking. Premium access unlocks only
+            after the payment signature and amount are verified.
           </p>
 
           {checkoutError ? (
@@ -648,14 +563,6 @@ export function PremiumUpgradePanel({
             </div>
           ) : null}
 
-          <button
-            type="button"
-            onClick={handleCompleteDemoPayment}
-            disabled={isCompletingPayment}
-            className="mt-5 w-full rounded-full bg-amber-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:bg-amber-100"
-          >
-            {isCompletingPayment ? "Submitting payment..." : "Submit UPI payment for review"}
-          </button>
         </div>
       </div>
     </div>

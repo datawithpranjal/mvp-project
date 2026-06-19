@@ -131,6 +131,7 @@ def create_razorpay_order(
         if not order.get("id"):
             raise RazorpayServiceError("Razorpay did not return an order id.")
         response: dict[str, object] = {
+            "key_id": razorpay_service.key_id,
             "order_id": str(order.get("id")),
             "amount": int(order.get("amount", amount_paise)),
             "currency": str(order.get("currency", payload.currency)).upper(),
