@@ -46,6 +46,9 @@ docker compose up --build
 - `POSTGRES_URL`: optional Postgres/Supabase connection string.
 - `RESEND_API_KEY`: optional OTP email provider key.
 - `AUTH_EMAIL_FROM`: verified sender for OTP email.
+- `AI_EVALUATION_PROVIDER`: `gemini` or `openai`.
+- `GEMINI_API_KEY`: server-side Gemini API key; never expose it to the frontend.
+- `GEMINI_MODEL`: Gemini model used for structured answer evaluation.
 
 ## How To Add A New Scenario
 
@@ -65,4 +68,3 @@ For rubric validation, include:
 - `hints`
 
 Restart or redeploy the backend. The file-backed loader will include the scenario in `/api/v1/scenarios`.
-

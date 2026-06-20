@@ -68,10 +68,11 @@ class AiEvaluationResponse(BaseModel):
     improved_answer: str
     follow_up_questions: list[str] = Field(default_factory=list)
     rubric_breakdown: AiRubricBreakdown
-    mode: Literal["openai"] = "openai"
+    mode: Literal["openai", "gemini"] = "openai"
     model: str
 
 
 class AiEvaluationStatusResponse(BaseModel):
+    provider: Literal["openai", "gemini"]
     configured: bool
     model: str

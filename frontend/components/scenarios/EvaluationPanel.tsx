@@ -15,7 +15,7 @@ export function EvaluationPanel({ result, commonMistakes, followUps }: Evaluatio
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-sm font-semibold text-teal-100">Score</p>
             <span className="rounded-full border border-teal-200/25 bg-slate-950/25 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-teal-100">
-              {result.mode === "openai" ? "AI evaluation" : "Rubric evaluation"}
+              {result.mode === "mock" ? "Rubric evaluation" : "AI evaluation"}
             </span>
           </div>
           <p className="mt-3 text-6xl font-semibold text-slate-50">{result.score}</p>

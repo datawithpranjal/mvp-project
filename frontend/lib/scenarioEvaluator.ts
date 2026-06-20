@@ -7,7 +7,7 @@ export interface ScenarioEvaluationResult {
   gaps: string[];
   improvedAnswer: string;
   rubricBreakdown: EvaluationRubric;
-  mode: "mock" | "openai";
+  mode: "mock" | "openai" | "gemini";
   model?: string;
 }
 

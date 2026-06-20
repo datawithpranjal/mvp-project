@@ -30,6 +30,7 @@ def test_ai_status_requires_admin_token(monkeypatch) -> None:
 
 def test_ai_status_reports_configuration_without_exposing_key(monkeypatch) -> None:
     monkeypatch.setattr(ai_route.settings, "admin_api_token", "test-admin-token")
+    monkeypatch.setattr(ai_route.settings, "ai_evaluation_provider", "openai")
     monkeypatch.setattr(ai_route.settings, "openai_api_key", "secret-api-key")
     monkeypatch.setattr(ai_route.settings, "openai_model", "gpt-test")
 
@@ -39,8 +40,32 @@ def test_ai_status_reports_configuration_without_exposing_key(monkeypatch) -> No
     )
 
     assert response.status_code == 200
-    assert response.json() == {"configured": True, "model": "gpt-test"}
+    assert response.json() == {
+        "provider": "openai",
+        "configured": True,
+        "model": "gpt-test",
+    }
     assert "secret-api-key" not in response.text
+
+
+def test_ai_status_reports_selected_gemini_provider(monkeypatch) -> None:
+    monkeypatch.setattr(ai_route.settings, "admin_api_token", "test-admin-token")
+    monkeypatch.setattr(ai_route.settings, "ai_evaluation_provider", "gemini")
+    monkeypatch.setattr(ai_route.settings, "gemini_api_key", "secret-gemini-key")
+    monkeypatch.setattr(ai_route.settings, "gemini_model", "gemini-2.5-pro")
+
+    response = client.get(
+        "/api/v1/admin/ai/status",
+        headers={"X-Admin-Token": "test-admin-token"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "provider": "gemini",
+        "configured": True,
+        "model": "gemini-2.5-pro",
+    }
+    assert "secret-gemini-key" not in response.text
 
 
 def test_ai_evaluation_endpoint_returns_structured_score(monkeypatch) -> None:

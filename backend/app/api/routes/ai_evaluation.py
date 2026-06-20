@@ -16,7 +16,7 @@ from app.services.ai_evaluation_service import (
     AiEvaluationConfigurationError,
     AiEvaluationError,
     AiEvaluationRateLimitError,
-    OpenAIEvaluationService,
+    get_ai_evaluation_service,
 )
 from app.services.auth_service import AuthService, AuthServiceError
 from app.services.premium_access_service import PremiumAccessService, PremiumAccessServiceError
@@ -26,7 +26,7 @@ router = APIRouter(tags=["ai-evaluation"])
 auth_service = AuthService()
 premium_access_service = PremiumAccessService()
 scenario_loader = ScenarioLoader()
-ai_evaluation_service = OpenAIEvaluationService()
+ai_evaluation_service = get_ai_evaluation_service()
 settings = get_settings()
 
 
@@ -54,7 +54,14 @@ def ai_evaluation_status(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid admin token.",
         )
+    if settings.ai_evaluation_provider == "gemini":
+        return AiEvaluationStatusResponse(
+            provider="gemini",
+            configured=bool(settings.gemini_api_key),
+            model=settings.gemini_model,
+        )
     return AiEvaluationStatusResponse(
+        provider="openai",
         configured=bool(settings.openai_api_key),
         model=settings.openai_model,
     )

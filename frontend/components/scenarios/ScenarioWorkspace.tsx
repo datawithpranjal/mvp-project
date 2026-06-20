@@ -243,7 +243,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
               tradeoffs: aiResult.rubric_breakdown.tradeoffs,
               communication: aiResult.rubric_breakdown.communication
             },
-            mode: "openai",
+            mode: aiResult.mode,
             model: aiResult.model
           };
         } catch (error) {

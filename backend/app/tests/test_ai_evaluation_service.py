@@ -5,6 +5,7 @@ import pytest
 from app.schemas.ai_evaluation import AiScenarioContext
 from app.services.ai_evaluation_service import (
     AiEvaluationConfigurationError,
+    GeminiEvaluationService,
     OpenAIEvaluationService,
 )
 
@@ -32,7 +33,7 @@ class FakeResponse:
 
 
 class FakeClient:
-    def __init__(self, response: FakeResponse) -> None:
+    def __init__(self, response: object) -> None:
         self.response = response
         self.calls: list[dict[str, object]] = []
 
@@ -49,6 +50,38 @@ class ProviderErrorResponse:
             "error": {
                 "code": "insufficient_quota",
                 "message": "The project has no remaining API quota.",
+            }
+        }
+
+
+class GeminiResponse:
+    status_code = 200
+
+    def __init__(self, output: dict[str, object]) -> None:
+        self.output = output
+
+    def json(self) -> dict[str, object]:
+        return {
+            "candidates": [
+                {
+                    "finishReason": "STOP",
+                    "content": {
+                        "parts": [{"text": json.dumps(self.output)}],
+                    },
+                }
+            ]
+        }
+
+
+class GeminiKeyErrorResponse:
+    status_code = 400
+
+    def json(self) -> dict[str, object]:
+        return {
+            "error": {
+                "code": 400,
+                "status": "INVALID_ARGUMENT",
+                "message": "API key not valid. Please pass a valid API key.",
             }
         }
 
@@ -124,4 +157,60 @@ def test_openai_evaluation_reports_missing_api_quota() -> None:
     )
 
     with pytest.raises(AiEvaluationConfigurationError, match="billing or credits"):
+        service.evaluate(sample_context(), "A reasonable answer")
+
+
+def test_gemini_evaluation_returns_structured_result() -> None:
+    client = FakeClient(
+        GeminiResponse(
+            {
+                "strengths": ["The retry behavior was diagnosed correctly."],
+                "gaps": ["Explain the reconciliation alert."],
+                "improved_answer": "Use an idempotent merge and reconcile batch counts.",
+                "follow_up_questions": ["How would you make replay safe?"],
+                "rubric_breakdown": {
+                    "root_cause": 23,
+                    "correctness": 22,
+                    "production_thinking": 18,
+                    "tradeoffs": 10,
+                    "communication": 12,
+                },
+            }
+        )
+    )
+    service = GeminiEvaluationService(
+        api_key="test-gemini-key",
+        model="gemini-2.5-pro",
+        client=client,
+    )
+
+    result = service.evaluate(sample_context(), "Use an idempotent merge.")
+
+    assert result.score == 85
+    assert result.verdict == "strong"
+    assert result.mode == "gemini"
+    assert result.model == "gemini-2.5-pro"
+    call = client.calls[0]
+    assert call["url"].endswith("/gemini-2.5-pro:generateContent")
+    assert call["headers"]["x-goog-api-key"] == "test-gemini-key"
+    assert "test-gemini-key" not in json.dumps(call["json"])
+    assert call["json"]["generationConfig"]["responseMimeType"] == "application/json"
+    assert "responseJsonSchema" in call["json"]["generationConfig"]
+
+
+def test_gemini_evaluation_requires_backend_key() -> None:
+    service = GeminiEvaluationService(api_key="", model="gemini-2.5-pro")
+
+    with pytest.raises(AiEvaluationConfigurationError, match="not configured"):
+        service.evaluate(sample_context(), "A reasonable answer")
+
+
+def test_gemini_evaluation_reports_invalid_api_key() -> None:
+    service = GeminiEvaluationService(
+        api_key="invalid-key",
+        model="gemini-2.5-pro",
+        client=FakeClient(GeminiKeyErrorResponse()),
+    )
+
+    with pytest.raises(AiEvaluationConfigurationError, match="rejected"):
         service.evaluate(sample_context(), "A reasonable answer")

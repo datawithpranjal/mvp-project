@@ -132,6 +132,28 @@ GOOGLE_OAUTH_REDIRECT_URI=https://your-backend-project.vercel.app/api/v1/auth/go
 GOOGLE_OAUTH_STATE_SECRET=choose-a-long-random-token
 RAZORPAY_KEY_ID=your-razorpay-key-id
 RAZORPAY_KEY_SECRET=your-razorpay-key-secret
+AI_EVALUATION_PROVIDER=gemini
+GEMINI_API_KEY=your-new-server-side-gemini-key
+GEMINI_MODEL=gemini-2.5-pro
+GEMINI_TIMEOUT_SECONDS=30
+```
+
+AI answer evaluation supports `gemini` and `openai`. Set only the selected provider's
+key in the backend Vercel project; never add an AI provider secret to the frontend or
+use a `NEXT_PUBLIC_` prefix. After changing the provider or key, redeploy the backend.
+
+To confirm the selected provider without exposing its key, call the protected status
+endpoint using the backend `ADMIN_API_TOKEN`:
+
+```bash
+curl -H "X-Admin-Token: YOUR_ADMIN_TOKEN" \
+  https://api.datawithpranjal.com/api/v1/admin/ai/status
+```
+
+For Gemini, the expected response is:
+
+```json
+{"provider":"gemini","configured":true,"model":"gemini-2.5-pro"}
 ```
 
 For production email capture, set `POSTGRES_URL` to your Supabase Postgres connection string instead of the local Docker value. Use the full URI with your database password, for example:

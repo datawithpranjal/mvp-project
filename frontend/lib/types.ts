@@ -239,6 +239,6 @@ export interface AiScenarioEvaluationResponse {
   improved_answer: string;
   follow_up_questions: string[];
   rubric_breakdown: AiRubricWeights;
-  mode: "openai";
+  mode: "openai" | "gemini";
   model: string;
 }

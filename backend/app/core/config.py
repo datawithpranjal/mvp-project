@@ -1,5 +1,5 @@
 from functools import lru_cache
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
@@ -28,9 +28,13 @@ class Settings(BaseSettings):
     google_oauth_state_secret: str | None = None
     razorpay_key_id: str | None = None
     razorpay_key_secret: str | None = None
+    ai_evaluation_provider: Literal["openai", "gemini"] = "openai"
     openai_api_key: str | None = None
     openai_model: str = "gpt-5.4-mini"
     openai_timeout_seconds: float = 25.0
+    gemini_api_key: str | None = None
+    gemini_model: str = "gemini-2.5-pro"
+    gemini_timeout_seconds: float = 30.0
     postgres_url: str = DEFAULT_POSTGRES_URL
     email_capture_store_path: str = "/tmp/data-engineering-scenario-playground-email-captures.jsonl"
 
