@@ -362,10 +362,10 @@ def test_signup_otp_login_profile_and_logout_flow() -> None:
     assert me_response.status_code == 401
 
 
-def test_signup_otp_allows_email_only() -> None:
+def test_signup_otp_requires_name_but_signin_only_requires_email() -> None:
     email = "otp.email.only@example.com"
 
-    otp_response = client.post(
+    missing_name_response = client.post(
         "/api/v1/auth/request-otp",
         json={
             "mode": "signup",
@@ -373,6 +373,19 @@ def test_signup_otp_allows_email_only() -> None:
         },
     )
 
+    assert missing_name_response.status_code == 400
+    assert missing_name_response.json() == {
+        "detail": "Please enter your name to create an account."
+    }
+
+    otp_response = client.post(
+        "/api/v1/auth/request-otp",
+        json={
+            "mode": "signup",
+            "email": email,
+            "full_name": "Email Only Student",
+        },
+    )
     assert otp_response.status_code == 200
     otp_payload = otp_response.json()
 
@@ -384,9 +397,19 @@ def test_signup_otp_allows_email_only() -> None:
     assert session_response.status_code == 200
     session_payload = session_response.json()
     assert session_payload["user"]["email"] == email
-    assert session_payload["user"]["full_name"] == email
+    assert session_payload["user"]["full_name"] == "Email Only Student"
     assert session_payload["user"]["role"] == "Student"
     assert session_payload["user"]["experience_level"] == "Beginner"
+
+    for otp in auth_service._memory_otps:
+        if otp["email"] == email:
+            otp["created_at"] -= timedelta(seconds=61)
+
+    signin_response = client.post(
+        "/api/v1/auth/request-otp",
+        json={"mode": "signin", "email": email},
+    )
+    assert signin_response.status_code == 200
 
 
 def test_otp_request_rate_limit_returns_429() -> None:

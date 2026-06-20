@@ -83,6 +83,12 @@ class AuthService:
 
     def request_otp(self, payload: AuthRequestOtpRequest) -> AuthRequestOtpResponse:
         now = self._now()
+        if payload.mode == "signup":
+            full_name = (payload.full_name or "").strip()
+            if len(full_name) < 2:
+                raise AuthValidationError("Please enter your name to create an account.")
+            if len(full_name) > 80:
+                raise AuthValidationError("Name must be 80 characters or fewer.")
         self._check_otp_request_rate_limit(payload.email, now)
 
         otp_code = f"{secrets.randbelow(900000) + 100000}"

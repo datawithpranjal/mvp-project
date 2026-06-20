@@ -22,8 +22,8 @@ export function AuthDialog({ isOpen, onClose }: AuthDialogProps) {
         onClick={(event) => event.stopPropagation()}
       >
         <AuthForm
-          title="Log in to The Data Foundry"
-          description="Use an email OTP to access your profile, premium status, and interview prep workspace."
+          title="Access The Data Foundry"
+          description="Create an account or log in securely with a one-time code sent to your email."
           onSuccess={onClose}
         />
       </div>

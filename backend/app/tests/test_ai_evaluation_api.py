@@ -106,7 +106,11 @@ def test_ai_evaluation_endpoint_returns_structured_score(monkeypatch) -> None:
     email = "ai.evaluation.student@example.com"
     otp_response = client.post(
         "/api/v1/auth/request-otp",
-        json={"mode": "signup", "email": email},
+        json={
+            "mode": "signup",
+            "email": email,
+            "full_name": "AI Evaluation Student",
+        },
     )
     token_response = client.post(
         "/api/v1/auth/verify-otp",
