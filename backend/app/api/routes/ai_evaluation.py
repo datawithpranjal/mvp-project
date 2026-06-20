@@ -41,6 +41,65 @@ settings = get_settings()
 def ai_evaluation_status(
     x_admin_token: Annotated[str | None, Header()] = None,
 ) -> AiEvaluationStatusResponse:
+    _require_admin_token(x_admin_token)
+    if settings.ai_evaluation_provider == "gemini":
+        return AiEvaluationStatusResponse(
+            provider="gemini",
+            configured=bool(settings.gemini_api_key),
+            model=settings.gemini_model,
+        )
+    return AiEvaluationStatusResponse(
+        provider="openai",
+        configured=bool(settings.openai_api_key),
+        model=settings.openai_model,
+    )
+
+
+@router.post(
+    "/api/v1/admin/ai/test",
+    response_model=AiEvaluationResponse,
+)
+@router.post(
+    "/v1/admin/ai/test",
+    response_model=AiEvaluationResponse,
+)
+def test_ai_evaluation_provider(
+    x_admin_token: Annotated[str | None, Header()] = None,
+) -> AiEvaluationResponse:
+    _require_admin_token(x_admin_token)
+    context = AiScenarioContext(
+        title="AI provider diagnostic",
+        domain="data_quality",
+        scenario_type="interview_explanation",
+        business_context="A daily pipeline loaded the same source batch twice.",
+        problem_statement="Explain the likely root cause and a production-safe fix.",
+        requirement="Cover idempotency, reconciliation, and monitoring.",
+        model_solution="Use a stable batch key and idempotent merge, then reconcile counts.",
+        production_explanation="Alert on duplicate keys and source-to-target count drift.",
+    )
+    try:
+        return ai_evaluation_service.evaluate(
+            context,
+            "The retry repeated an append. I would use an idempotent merge, reconcile counts, and alert on duplicates.",
+        )
+    except AiEvaluationConfigurationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
+    except AiEvaluationRateLimitError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=str(exc),
+        ) from exc
+    except AiEvaluationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(exc),
+        ) from exc
+
+
+def _require_admin_token(x_admin_token: str | None) -> None:
     if not settings.admin_api_token:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -54,17 +113,6 @@ def ai_evaluation_status(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid admin token.",
         )
-    if settings.ai_evaluation_provider == "gemini":
-        return AiEvaluationStatusResponse(
-            provider="gemini",
-            configured=bool(settings.gemini_api_key),
-            model=settings.gemini_model,
-        )
-    return AiEvaluationStatusResponse(
-        provider="openai",
-        configured=bool(settings.openai_api_key),
-        model=settings.openai_model,
-    )
 
 
 @router.post(

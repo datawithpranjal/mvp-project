@@ -56,6 +56,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
   const [progress, setProgress] = useState<ScenarioProgressSummary | null>(null);
   const [activeFollowUpIndex, setActiveFollowUpIndex] = useState(0);
   const [draftMessage, setDraftMessage] = useState<string | null>(null);
+  const [evaluationNotice, setEvaluationNotice] = useState<string | null>(null);
   const [sqlExecution, setSqlExecution] = useState<BrowserSqlValidationResult | null>(null);
   const [isChecking, setIsChecking] = useState(false);
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
@@ -78,6 +79,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
     setProgress(summarizeScenarioProgress(savedProgress, scenario.slug));
     setSqlExecution(null);
     setEvaluation(null);
+    setEvaluationNotice(null);
     setModelSolutionVisible(false);
     setHydratedScenarioSlug(scenario.slug);
   }, [scenario]);
@@ -177,6 +179,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
         : `${answer}\n\nInterview explanation:\n${interviewAnswer}`;
     setIsChecking(true);
     setSqlExecution(null);
+    setEvaluationNotice(null);
 
     try {
       let nextEvaluation = evaluateScenarioAnswer(scenario, submittedAnswer);
@@ -251,7 +254,12 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
             error instanceof Error ? error.message : "The AI service returned an unknown error.";
           console.error("AI scenario evaluation failed:", reason);
           aiFallbackMessage = `AI evaluation could not run: ${reason} Rubric feedback is shown instead.`;
+          setEvaluationNotice(aiFallbackMessage);
         }
+      } else if (!authToken && scenario.scenarioType !== "mcq") {
+        setEvaluationNotice(
+          "Sign in before submitting to receive AI evaluation. Rubric feedback is shown for this guest attempt."
+        );
       }
 
       const passed = runnableSqlResult ? runnableSqlResult.passed : nextEvaluation.score >= 70;
@@ -688,6 +696,19 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
 
           {evaluation ? (
             <>
+              {evaluationNotice ? (
+                <section
+                  role="status"
+                  className="rounded-[2rem] border border-amber-300/30 bg-amber-300/10 p-5"
+                >
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-200">
+                    AI evaluation fallback
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-amber-100">
+                    {evaluationNotice}
+                  </p>
+                </section>
+              ) : null}
               <EvaluationPanel
                 result={evaluation}
                 commonMistakes={scenario.commonMistakes}
