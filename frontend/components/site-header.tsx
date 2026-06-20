@@ -129,30 +129,31 @@ export function SiteHeader() {
           </nav>
 
           {currentUser ? (
-            <div className="flex flex-wrap items-center justify-end gap-3">
+            <div className="flex shrink-0 items-center justify-end gap-2 sm:gap-3">
               <ThemeToggle />
               {premiumAccess ? (
-                <span className="rounded-full border border-amber-300/25 bg-amber-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-amber-100">
-                  Premium active
+                <span
+                  role="img"
+                  aria-label="Premium member"
+                  title="Premium member"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-amber-300/35 bg-amber-300/10 text-amber-200 shadow-[0_0_24px_rgba(252,211,77,0.08)]"
+                >
+                  <PremiumCrownIcon />
                 </span>
               ) : null}
-              <div className="rounded-2xl border border-slate-700 bg-slate-950/40 px-4 py-3 text-right">
-                <p className="text-sm font-semibold text-slate-50">{currentUser.name}</p>
-                <p className="text-xs uppercase tracking-[0.16em] text-slate-500">
-                  {currentUser.email}
-                </p>
-              </div>
               <Link
                 href="/dashboard"
-                className="rounded-full bg-teal-300 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-teal-200"
+                className="hidden rounded-full bg-teal-300 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-teal-200 sm:inline-flex"
               >
                 Dashboard
               </Link>
               <Link
                 href="/profile"
-                className="hidden rounded-full border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-teal-300/40 hover:text-teal-100 sm:inline-flex"
+                aria-label={`Open profile for ${currentUser.name}`}
+                title={`Profile: ${currentUser.name}`}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-700 text-slate-200 transition hover:border-teal-300/50 hover:bg-teal-300/10 hover:text-teal-100"
               >
-                Profile
+                <ProfileIcon />
               </Link>
               <button
                 type="button"
@@ -162,7 +163,7 @@ export function SiteHeader() {
                   await logoutCurrentUser();
                   setIsLoggingOut(false);
                 }}
-                className="rounded-full border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-rose-300/40 hover:text-rose-100"
+                className="hidden rounded-full border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-rose-300/40 hover:text-rose-100 md:inline-flex"
               >
                 {isLoggingOut ? "Logging out..." : "Logout"}
               </button>
@@ -209,7 +210,13 @@ export function SiteHeader() {
               ["Scenario Playground", "/scenarios"],
               ["Practice", "/labs"],
               ["Roadmap", "/roadmap"],
-              ["Pricing", "/pricing"]
+              ["Pricing", "/pricing"],
+              ...(currentUser
+                ? [
+                    ["Dashboard", "/dashboard"],
+                    ["Profile", "/profile"]
+                  ]
+                : [])
             ].map(([label, href]) => (
               <Link
                 key={href}
@@ -224,6 +231,21 @@ export function SiteHeader() {
                 {label}
               </Link>
             ))}
+            {currentUser ? (
+              <button
+                type="button"
+                disabled={isLoggingOut}
+                onClick={async () => {
+                  setIsLoggingOut(true);
+                  await logoutCurrentUser();
+                  setIsLoggingOut(false);
+                  setIsMobileMenuOpen(false);
+                }}
+                className="rounded-2xl border border-rose-300/20 bg-rose-300/5 px-4 py-3 text-left text-rose-100 md:hidden"
+              >
+                {isLoggingOut ? "Logging out..." : "Logout"}
+              </button>
+            ) : null}
           </nav>
         ) : null}
         {isPracticeRoute ? <PracticeTabs /> : null}
@@ -257,6 +279,42 @@ function MenuIcon({ isOpen }: { isOpen: boolean }) {
           <path d="M4 17h16" />
         </>
       )}
+    </svg>
+  );
+}
+
+function PremiumCrownIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-5 w-5"
+    >
+      <path d="m4 8 4 4 4-7 4 7 4-4-2 10H6L4 8Z" />
+      <path d="M7 21h10" />
+    </svg>
+  );
+}
+
+function ProfileIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-5 w-5"
+    >
+      <circle cx="12" cy="8" r="3.5" />
+      <path d="M5 20c.7-4 3.1-6 7-6s6.3 2 7 6" />
     </svg>
   );
 }
