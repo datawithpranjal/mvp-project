@@ -5,6 +5,7 @@ import pytest
 from app.schemas.ai_evaluation import AiScenarioContext
 from app.services.ai_evaluation_service import (
     AiEvaluationConfigurationError,
+    AiEvaluationError,
     GeminiEvaluationService,
     OpenAIEvaluationService,
 )
@@ -83,6 +84,29 @@ class GeminiKeyErrorResponse:
                 "status": "INVALID_ARGUMENT",
                 "message": "API key not valid. Please pass a valid API key.",
             }
+        }
+
+
+class GeminiRawResponse:
+    status_code = 200
+
+    def __init__(self, text: str, finish_reason: str = "STOP") -> None:
+        self.text = text
+        self.finish_reason = finish_reason
+
+    def json(self) -> dict[str, object]:
+        return {
+            "candidates": [
+                {
+                    "finishReason": self.finish_reason,
+                    "content": {
+                        "parts": [
+                            {"thought": True, "text": "Internal reasoning"},
+                            {"text": self.text},
+                        ],
+                    },
+                }
+            ]
         }
 
 
@@ -196,6 +220,10 @@ def test_gemini_evaluation_returns_structured_result() -> None:
     assert "test-gemini-key" not in json.dumps(call["json"])
     assert call["json"]["generationConfig"]["responseMimeType"] == "application/json"
     assert "responseJsonSchema" in call["json"]["generationConfig"]
+    assert call["json"]["generationConfig"]["maxOutputTokens"] == 4096
+    assert call["json"]["generationConfig"]["thinkingConfig"] == {
+        "thinkingBudget": 512
+    }
 
 
 def test_gemini_evaluation_requires_backend_key() -> None:
@@ -214,3 +242,41 @@ def test_gemini_evaluation_reports_invalid_api_key() -> None:
 
     with pytest.raises(AiEvaluationConfigurationError, match="rejected"):
         service.evaluate(sample_context(), "A reasonable answer")
+
+
+def test_gemini_evaluation_accepts_fenced_json_and_ignores_thought_parts() -> None:
+    output = {
+        "strengths": ["The retry was identified."],
+        "gaps": ["Add monitoring."],
+        "improved_answer": "Use an idempotent merge and reconcile counts.",
+        "follow_up_questions": ["How would you replay safely?"],
+        "rubric_breakdown": {
+            "root_cause": 20,
+            "correctness": 20,
+            "production_thinking": 15,
+            "tradeoffs": 10,
+            "communication": 10,
+        },
+    }
+    response = GeminiRawResponse(f"```json\n{json.dumps(output)}\n```")
+    service = GeminiEvaluationService(
+        api_key="test-key",
+        model="gemini-2.5-pro",
+        client=FakeClient(response),
+    )
+
+    result = service.evaluate(sample_context(), "Use an idempotent merge.")
+
+    assert result.score == 75
+    assert result.mode == "gemini"
+
+
+def test_gemini_evaluation_reports_truncated_output() -> None:
+    service = GeminiEvaluationService(
+        api_key="test-key",
+        model="gemini-2.5-pro",
+        client=FakeClient(GeminiRawResponse('{"strengths":', "MAX_TOKENS")),
+    )
+
+    with pytest.raises(AiEvaluationError, match="output limit"):
+        service.evaluate(sample_context(), "Use an idempotent merge.")

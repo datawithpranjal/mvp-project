@@ -347,11 +347,22 @@ class GeminiEvaluationService(BaseEvaluationService):
         if response.status_code >= 400:
             raise AiEvaluationError("Gemini could not evaluate this answer right now.")
 
+        response_payload: dict[str, Any] = {}
+        output_text = ""
         try:
             response_payload = response.json()
             output_text = self._extract_output_text(response_payload)
-            model_output = AiEvaluationModelOutput.model_validate_json(output_text)
+            model_output = AiEvaluationModelOutput.model_validate_json(
+                self._strip_json_fence(output_text)
+            )
         except (ValueError, TypeError, ValidationError, json.JSONDecodeError) as exc:
+            logger.warning(
+                "Gemini returned invalid structured output model=%s finish_reason=%s output_chars=%s error=%s",
+                self.model,
+                self._finish_reason(response_payload) or "unknown",
+                len(output_text),
+                type(exc).__name__,
+            )
             raise AiEvaluationError(
                 "Gemini returned an invalid evaluation response."
             ) from exc
@@ -403,8 +414,11 @@ class GeminiEvaluationService(BaseEvaluationService):
             "generationConfig": {
                 "responseMimeType": "application/json",
                 "responseJsonSchema": AiEvaluationModelOutput.model_json_schema(),
-                "maxOutputTokens": 1600,
+                "maxOutputTokens": 4096,
                 "temperature": 0.2,
+                "thinkingConfig": {
+                    "thinkingBudget": 512,
+                },
             },
         }
 
@@ -420,6 +434,10 @@ class GeminiEvaluationService(BaseEvaluationService):
         if not isinstance(candidate, dict):
             raise AiEvaluationError("Gemini returned an invalid evaluation candidate.")
         finish_reason = str(candidate.get("finishReason") or "")
+        if finish_reason == "MAX_TOKENS":
+            raise AiEvaluationError(
+                "Gemini reached its output limit before completing the evaluation."
+            )
         if finish_reason in {"SAFETY", "BLOCKLIST", "PROHIBITED_CONTENT", "SPII"}:
             raise AiEvaluationError("Gemini declined to evaluate this answer.")
         content = candidate.get("content", {})
@@ -427,11 +445,33 @@ class GeminiEvaluationService(BaseEvaluationService):
         texts = [
             str(part["text"])
             for part in parts
-            if isinstance(part, dict) and part.get("text")
+            if (
+                isinstance(part, dict)
+                and part.get("text")
+                and not part.get("thought", False)
+            )
         ]
         if not texts:
             raise AiEvaluationError("Gemini returned no evaluation text.")
         return "".join(texts)
+
+    def _finish_reason(self, payload: dict[str, Any]) -> str:
+        candidates = payload.get("candidates", [])
+        if not isinstance(candidates, list) or not candidates:
+            return ""
+        candidate = candidates[0]
+        return str(candidate.get("finishReason") or "") if isinstance(candidate, dict) else ""
+
+    def _strip_json_fence(self, value: str) -> str:
+        normalized = value.strip().lstrip("\ufeff")
+        if not normalized.startswith("```"):
+            return normalized
+        lines = normalized.splitlines()
+        if lines and lines[0].strip().lower() in {"```", "```json"}:
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        return "\n".join(lines).strip()
 
     def _provider_error(self, response: Any) -> tuple[str, str]:
         if response.status_code < 400:
