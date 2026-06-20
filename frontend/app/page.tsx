@@ -27,7 +27,7 @@ export default function HomePage() {
     SYSTEM_DESIGN_CASES.filter((item) => item.isFree).length;
   const homepageStats = [
     {
-      value: totalQuestionCount.toLocaleString("en-IN"),
+      value: `${totalQuestionCount.toLocaleString("en-IN")}+`,
       label: "Practice questions",
       detail: "Coding labs, production scenarios, platform decisions, and system design cases"
     },
@@ -42,7 +42,7 @@ export default function HomePage() {
       detail: "Broken logic, logs, trade-offs, data quality, and monitoring"
     },
     {
-      value: freeQuestionCount.toLocaleString("en-IN"),
+      value: `${freeQuestionCount.toLocaleString("en-IN")}+`,
       label: "Free practice questions",
       detail: "Start guided practice before choosing a premium plan"
     }
@@ -101,6 +101,18 @@ export default function HomePage() {
       </section>
 
       <section className="mt-10">
+        <div className="mb-6">
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-200">
+            Core Labs
+          </p>
+          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-50">
+            A platform for practice, simulation, and job readiness.
+          </h2>
+        </div>
+        <CoreLabGrid />
+      </section>
+
+      <section className="mt-10">
         <div className="panel rounded-[2rem] p-6">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-200">
             Why normal courses are not enough
@@ -114,43 +126,6 @@ export default function HomePage() {
             turns those situations into daily practice instead of passive watching.
           </p>
         </div>
-      </section>
-
-      <section className="panel mt-10 rounded-[2rem] border border-teal-300/20 p-7">
-        <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-center">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-200">
-              Try before signup
-            </p>
-            <h2 className="mt-3 text-2xl font-semibold text-slate-50">
-              Solve one free production SQL lab without creating an account.
-            </h2>
-            <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300">
-              Inspect sample data, submit a corrected query, compare actual versus expected
-              output, and get feedback. Signup is only suggested after your first attempt.
-            </p>
-          </div>
-          <TrackedLink
-            href="/scenarios/wrong-group-by-grain-customer-revenue"
-            event="first_lab_started"
-            eventPayload={{ source: "homepage_free_trial" }}
-            className="shrink-0 rounded-full bg-teal-300 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-teal-200"
-          >
-            Try free lab
-          </TrackedLink>
-        </div>
-      </section>
-
-      <section className="mt-10">
-        <div className="mb-6">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-200">
-            Core Labs
-          </p>
-          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-50">
-            A platform for practice, simulation, and job readiness.
-          </h2>
-        </div>
-        <CoreLabGrid />
       </section>
 
       <section className="mt-10 grid gap-6 lg:grid-cols-2">

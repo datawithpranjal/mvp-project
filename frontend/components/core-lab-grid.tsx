@@ -28,7 +28,7 @@ export function CoreLabGrid() {
               >
                 <CoreLabCardContent
                   lab={lab}
-                  cta={isFeatured ? "Enter Scenario Playground" : "Open lab"}
+                  cta={isFeatured ? "Start Scenario Playground" : "Start Lab"}
                 />
               </Link>
             ) : (
@@ -116,7 +116,7 @@ function CoreLabCardContent({ lab, cta }: { lab: CoreLab; cta: string }) {
       </div>
       <div
         className={`mt-6 flex items-center justify-between text-sm font-semibold ${
-          isFeatured ? "text-amber-200" : "text-teal-200"
+          lab.status === "available" || isFeatured ? "text-amber-200" : "text-slate-400"
         }`}
       >
         <span>{cta}</span>
