@@ -167,6 +167,19 @@ curl -X POST -H "X-Admin-Token: YOUR_ADMIN_TOKEN" \
 Successful output includes `"mode":"gemini"` and a scored rubric. A non-200 response
 contains the safe provider error to investigate in the backend deployment logs.
 
+### Read customer feedback
+
+Feedback submitted from the global footer is stored in the Postgres table
+`product_feedback`. You can read it in the Supabase Table Editor or through the protected
+backend endpoint:
+
+```bash
+curl -H "X-Admin-Token: YOUR_ADMIN_TOKEN" \
+  "https://api.datawithpranjal.com/api/v1/admin/feedback?limit=100"
+```
+
+The admin token must remain server-side and private.
+
 For production email capture, set `POSTGRES_URL` to your Supabase Postgres connection string instead of the local Docker value. Use the full URI with your database password, for example:
 
 ```text

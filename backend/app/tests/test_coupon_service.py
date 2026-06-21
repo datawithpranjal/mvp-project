@@ -67,3 +67,15 @@ def test_invalid_coupon_is_rejected(tmp_path: Path) -> None:
 
     with pytest.raises(CouponValidationError, match="invalid"):
         service.quote("yearly", "NOTREAL")
+
+
+def test_first50_catalog_coupon_applies_99_percent_discount() -> None:
+    service = CouponService()
+
+    monthly = service.quote("monthly", "first50")
+    yearly = service.quote("yearly", "FIRST50")
+
+    assert monthly.coupon_code == "FIRST50"
+    assert monthly.discount_label == "99% off"
+    assert monthly.final_amount_inr == 2
+    assert yearly.final_amount_inr == 10

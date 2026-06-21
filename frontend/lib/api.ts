@@ -15,6 +15,8 @@ import type {
   PremiumManualUnlockRequest,
   PremiumManualUnlockResponse,
   PremiumStatusResponse,
+  ProductFeedbackRequest,
+  ProductFeedbackResponse,
   RazorpayCreateOrderRequest,
   RazorpayCreateOrderResponse,
   RazorpayVerifyPaymentRequest,
@@ -102,6 +104,15 @@ export function captureEmail(
   payload: EmailCaptureRequest
 ): Promise<EmailCaptureResponse> {
   return apiFetch<EmailCaptureResponse>("/api/v1/email-captures", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function submitProductFeedback(
+  payload: ProductFeedbackRequest
+): Promise<ProductFeedbackResponse> {
+  return apiFetch<ProductFeedbackResponse>("/api/v1/feedback", {
     method: "POST",
     body: JSON.stringify(payload)
   });

@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { FeedbackDialog } from "./feedback-dialog";
+
 const SUPPORT_EMAIL = "datawithpranjal@gmail.com";
 
 export function SiteFooter() {
@@ -18,12 +20,15 @@ export function SiteFooter() {
               Contact the Data with Pranjal support team. For payment or account issues,
               include your registered email and payment reference so we can help faster.
             </p>
-            <a
-              href={`mailto:${SUPPORT_EMAIL}?subject=The%20Data%20Foundry%20Support`}
-              className="mt-5 inline-flex rounded-full bg-teal-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-teal-200"
-            >
-              Email {SUPPORT_EMAIL}
-            </a>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <FeedbackDialog />
+              <a
+                href={`mailto:${SUPPORT_EMAIL}?subject=The%20Data%20Foundry%20Support`}
+                className="inline-flex rounded-full border border-teal-300/30 px-5 py-3 text-sm font-semibold text-teal-100 transition hover:bg-teal-300/10"
+              >
+                Email support
+              </a>
+            </div>
           </div>
 
           <nav aria-label="Footer navigation" className="flex flex-wrap gap-x-5 gap-y-3 text-sm">

@@ -18,5 +18,15 @@
     "applies_to": ["monthly", "yearly"],
     "starts_at": null,
     "expires_at": null
+  },
+  {
+    "code": "FIRST50",
+    "description": "Launch offer for early Data Foundry learners",
+    "discount_type": "percent",
+    "discount_value": 99,
+    "active": true,
+    "applies_to": ["monthly", "yearly"],
+    "starts_at": null,
+    "expires_at": null
   }
 ]

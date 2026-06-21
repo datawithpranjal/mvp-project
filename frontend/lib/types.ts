@@ -68,6 +68,21 @@ export interface EmailCaptureResponse {
   unlocked_premium: boolean;
 }
 
+export interface ProductFeedbackRequest {
+  name: string;
+  email: string;
+  category: "general" | "content" | "bug" | "feature" | "other";
+  message: string;
+  rating?: number;
+  page_url?: string;
+  website?: string;
+}
+
+export interface ProductFeedbackResponse {
+  submitted: boolean;
+  message: string;
+}
+
 export interface PremiumManualUnlockRequest {
   plan_label: string;
   billing_interval: "monthly" | "yearly";

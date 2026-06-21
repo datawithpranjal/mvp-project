@@ -37,6 +37,7 @@ class Settings(BaseSettings):
     gemini_timeout_seconds: float = 30.0
     postgres_url: str = DEFAULT_POSTGRES_URL
     email_capture_store_path: str = "/tmp/data-engineering-scenario-playground-email-captures.jsonl"
+    feedback_store_path: str = "/tmp/data-foundry-product-feedback.jsonl"
 
     model_config = SettingsConfigDict(
         case_sensitive=False,
