@@ -19,9 +19,12 @@ import {
 } from "../../lib/coding-labs";
 import {
   getCodingLabDrafts,
+  getCodingLabProgressMap,
   getLastCodingLab,
+  recordCodingLabAttempt,
   saveCodingLabDraft,
-  saveLastCodingLab
+  saveLastCodingLab,
+  type CodingLabProgress
 } from "../../lib/coding-lab-session";
 
 interface PythonTestResult {
@@ -53,6 +56,8 @@ interface LabRunResult {
   score?: number;
   reviewResults?: ReviewKeywordResult[];
 }
+
+type ProgressFilter = "All" | "Attempted" | "Completed" | "Not started";
 
 declare global {
   interface Window {
@@ -102,18 +107,6 @@ async function getPyodide() {
   return window.__dataFoundryPyodide;
 }
 
-function rememberCompletion(lab: CodingLab, passed: boolean) {
-  if (!passed) return;
-  const key = "data-foundry-coding-lab-progress";
-  const current = JSON.parse(window.localStorage.getItem(key) ?? "{}") as Record<string, unknown>;
-  current[lab.slug] = {
-    completed: true,
-    completedAt: new Date().toISOString(),
-    track: lab.track
-  };
-  window.localStorage.setItem(key, JSON.stringify(current));
-}
-
 async function runSqlLab(lab: CodingLab, answer: string): Promise<LabRunResult> {
   if (!lab.expectedSql) {
     return {
@@ -149,7 +142,6 @@ async function runSqlLab(lab: CodingLab, answer: string): Promise<LabRunResult> 
   }
 
   const passed = sqlResults.every((result) => result.passed);
-  rememberCompletion(lab, passed);
   const passedCount = sqlResults.filter((result) => result.passed).length;
 
   return {
@@ -205,7 +197,6 @@ async function runPythonLab(lab: CodingLab, answer: string): Promise<LabRunResul
   const raw = await pyodide.runPythonAsync(`${answer}\n\n${buildPythonHarness(lab)}`);
   const pythonResults = JSON.parse(String(raw)) as PythonTestResult[];
   const passed = pythonResults.every((result) => result.passed);
-  rememberCompletion(lab, passed);
 
   return {
     passed,
@@ -233,8 +224,6 @@ function evaluateCodeReviewLab(lab: CodingLab, answer: string): LabRunResult {
   const score = Math.min(100, keywordScore + (answerLooksSubstantial ? 20 : 0));
   const passed = score >= 70;
 
-  rememberCompletion(lab, passed);
-
   return {
     passed,
     score,
@@ -256,6 +245,8 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
   const [isRunning, setIsRunning] = useState(false);
   const [topic, setTopic] = useState("All");
   const [difficulty, setDifficulty] = useState("All");
+  const [progressFilter, setProgressFilter] = useState<ProgressFilter>("All");
+  const [progressMap, setProgressMap] = useState<Record<string, CodingLabProgress>>({});
   const [expectedPreview, setExpectedPreview] = useState<BrowserSqlResultTable | null>(null);
   const [expectedPreviewError, setExpectedPreviewError] = useState("");
   const [workspaceMessage, setWorkspaceMessage] = useState("");
@@ -268,10 +259,40 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
     return ["All", ...Array.from(all).sort()];
   }, [labs]);
 
+  const progressStats = useMemo(() => {
+    const attempted = labs.filter((lab) => (progressMap[lab.slug]?.attemptCount ?? 0) > 0).length;
+    const completed = labs.filter((lab) => progressMap[lab.slug]?.completed).length;
+    const drafted = labs.filter(
+      (lab) => !progressMap[lab.slug]?.attemptCount && Boolean(answers[lab.slug])
+    ).length;
+
+    return {
+      attempted,
+      completed,
+      notStarted: Math.max(0, labs.length - attempted - drafted),
+      drafted
+    };
+  }, [answers, labs, progressMap]);
+
+  const progressFilterOptions: Array<{ label: ProgressFilter; count: number }> = [
+    { label: "All", count: labs.length },
+    { label: "Attempted", count: progressStats.attempted },
+    { label: "Completed", count: progressStats.completed },
+    { label: "Not started", count: progressStats.notStarted }
+  ];
+
   const filteredLabs = labs.filter((lab) => {
     const topicMatches = topic === "All" || lab.topicTags.includes(topic);
     const difficultyMatches = difficulty === "All" || lab.difficulty === difficulty;
-    return topicMatches && difficultyMatches;
+    const labProgress = progressMap[lab.slug];
+    const attemptCount = labProgress?.attemptCount ?? 0;
+    const hasDraft = Boolean(answers[lab.slug]);
+    const progressMatches =
+      progressFilter === "All" ||
+      (progressFilter === "Attempted" && attemptCount > 0) ||
+      (progressFilter === "Completed" && Boolean(labProgress?.completed)) ||
+      (progressFilter === "Not started" && attemptCount === 0 && !hasDraft);
+    return topicMatches && difficultyMatches && progressMatches;
   });
 
   useEffect(() => {
@@ -315,6 +336,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
         Object.entries(savedDrafts).map(([slug, draft]) => [slug, draft.code])
       )
     );
+    setProgressMap(getCodingLabProgressMap());
     setDraftsLoaded(true);
   }, [labs, track]);
 
@@ -372,6 +394,9 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
             ? await runPythonLab(selectedLab, answer)
             : evaluateCodeReviewLab(selectedLab, answer);
       setResult(nextResult);
+      setProgressMap(
+        recordCodingLabAttempt(selectedLab.slug, selectedLab.track, nextResult.passed === true)
+      );
       trackEvent("first_lab_submitted", {
         lab: selectedLab.slug,
         track: selectedLab.track,
@@ -427,12 +452,14 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
           }
         ]
       });
+      setProgressMap(recordCodingLabAttempt(selectedLab.slug, selectedLab.track, false));
     } catch (error) {
       setResult({
         passed: false,
         message: error instanceof Error ? error.message : "The query could not run.",
         table: { columns: [], rows: [] }
       });
+      setProgressMap(recordCodingLabAttempt(selectedLab.slug, selectedLab.track, false));
     } finally {
       setIsRunning(false);
     }
@@ -490,13 +517,11 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
                 : "Inspect the data, write the solution, run validation checks, and explain the production lesson."}
             </p>
           </div>
-          <div className="grid grid-cols-3 gap-3 text-center">
+          <div className="grid grid-cols-2 gap-3 text-center sm:grid-cols-4">
             <Stat label="Labs" value={labs.length} />
+            <Stat label="Attempted" value={progressStats.attempted} />
+            <Stat label="Completed" value={progressStats.completed} />
             <Stat label="Free" value={labs.filter((lab) => lab.isFree).length} />
-            <Stat
-              label="Practice"
-              value={track === "sql" ? "SQL query" : track === "python" ? "Python function" : "Code review"}
-            />
           </div>
         </div>
       </section>
@@ -530,30 +555,51 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
               </option>
             ))}
           </select>
+          <div className="mt-4 rounded-3xl border border-slate-800 bg-slate-950/30 p-3">
+            <p className="px-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+              Progress
+            </p>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              {progressFilterOptions.map((item) => (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={() => setProgressFilter(item.label)}
+                  className={`rounded-2xl border px-3 py-3 text-left text-xs transition ${
+                    progressFilter === item.label
+                      ? "border-amber-300/60 bg-amber-300/15 text-amber-50"
+                      : "border-slate-800 bg-slate-950/30 text-slate-300 hover:border-amber-300/30"
+                  }`}
+                >
+                  <span className="block font-semibold">{item.label}</span>
+                  <span className="mt-1 block text-lg font-bold">{item.count}</span>
+                </button>
+              ))}
+            </div>
+            <p className="mt-3 px-2 text-xs leading-5 text-slate-500">
+              Attempts are saved automatically after you run or submit a question.
+            </p>
+          </div>
           <div className="mt-5 max-h-[720px] space-y-3 overflow-y-auto pr-1 md:max-h-[calc(100vh-18rem)]">
-            {filteredLabs.map((lab) => (
-              <button
-                key={lab.slug}
-                type="button"
-                onClick={() => switchLab(lab.slug)}
-                className={`w-full rounded-3xl border p-4 text-left transition ${
-                  lab.slug === selectedLab.slug
-                    ? "border-teal-300/60 bg-teal-300/10"
-                    : "border-slate-800 bg-slate-950/30 hover:border-teal-300/30"
-                }`}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                    {lab.section}
-                  </span>
-                  <span className="rounded-full border border-slate-700 px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-slate-400">
-                    {lab.estimatedMinutes}m
-                  </span>
-                </div>
-                <p className="mt-2 text-sm font-semibold leading-5 text-slate-100">{lab.title}</p>
-                <p className="mt-2 text-xs leading-5 text-slate-400">{lab.problemStatement}</p>
-              </button>
-            ))}
+            {filteredLabs.length > 0 ? (
+              filteredLabs.map((lab) => (
+                <LabListButton
+                  key={lab.slug}
+                  lab={lab}
+                  active={lab.slug === selectedLab.slug}
+                  progress={progressMap[lab.slug]}
+                  hasDraft={Boolean(answers[lab.slug])}
+                  onSelect={() => switchLab(lab.slug)}
+                />
+              ))
+            ) : (
+              <div className="rounded-3xl border border-slate-800 bg-slate-950/30 p-4">
+                <p className="text-sm font-semibold text-slate-200">No questions found.</p>
+                <p className="mt-2 text-xs leading-5 text-slate-400">
+                  Try another progress tab, topic, or difficulty filter.
+                </p>
+              </div>
+            )}
           </div>
         </aside>
 
@@ -809,6 +855,70 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
         </aside>
       </section>
     </main>
+  );
+}
+
+function LabListButton({
+  lab,
+  active,
+  progress,
+  hasDraft,
+  onSelect
+}: {
+  lab: CodingLab;
+  active: boolean;
+  progress?: CodingLabProgress;
+  hasDraft: boolean;
+  onSelect: () => void;
+}) {
+  const status =
+    progress?.completed
+      ? "Completed"
+      : (progress?.attemptCount ?? 0) > 0
+        ? "Attempted"
+        : hasDraft
+          ? "Draft saved"
+          : "Not started";
+  const statusClass =
+    status === "Completed"
+      ? "bg-teal-300 text-slate-950"
+      : status === "Attempted"
+        ? "bg-amber-300 text-slate-950"
+        : status === "Draft saved"
+          ? "border border-sky-300/40 text-sky-100"
+          : "border border-slate-700 text-slate-400";
+
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={`w-full rounded-3xl border p-4 text-left transition ${
+        active
+          ? "border-teal-300/60 bg-teal-300/10"
+          : "border-slate-800 bg-slate-950/30 hover:border-teal-300/30"
+      }`}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+          {lab.section}
+        </span>
+        <span className="rounded-full border border-slate-700 px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-slate-400">
+          {lab.estimatedMinutes}m
+        </span>
+      </div>
+      <p className="mt-2 text-sm font-semibold leading-5 text-slate-100">{lab.title}</p>
+      <p className="mt-2 text-xs leading-5 text-slate-400">{lab.problemStatement}</p>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <span className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${statusClass}`}>
+          {status}
+        </span>
+        {(progress?.attemptCount ?? 0) > 0 ? (
+          <span className="rounded-full border border-slate-700 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+            {progress?.attemptCount} attempt{progress?.attemptCount === 1 ? "" : "s"}
+          </span>
+        ) : null}
+      </div>
+    </button>
   );
 }
 
