@@ -173,6 +173,14 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
   }
 
   async function checkAnswer() {
+    const authToken = getAuthToken();
+    if (!authToken || !getCurrentUser()) {
+      setDraftMessage("Log in or create an account to submit your answer and save progress.");
+      setIsAuthOpen(true);
+      trackEvent("signup_started", { source: "scenario_submit", scenario: scenario.slug });
+      return;
+    }
+
     const submittedAnswer =
       scenario.scenarioType === "mcq"
         ? selectedOptionId
@@ -193,7 +201,6 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
         setSqlExecution(runnableSqlResult);
       }
 
-      const authToken = getAuthToken();
       if (
         authToken &&
         scenario.scenarioType !== "mcq" &&
@@ -256,10 +263,6 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
           aiFallbackMessage = `AI evaluation could not run: ${reason} Rubric feedback is shown instead.`;
           setEvaluationNotice(aiFallbackMessage);
         }
-      } else if (!authToken && scenario.scenarioType !== "mcq") {
-        setEvaluationNotice(
-          "Sign in before submitting to receive AI evaluation. Rubric feedback is shown for this guest attempt."
-        );
       }
 
       const passed = runnableSqlResult ? runnableSqlResult.passed : nextEvaluation.score >= 70;
@@ -341,13 +344,6 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
     } finally {
       setIsChecking(false);
     }
-  }
-
-  function resetSqlWorkspace() {
-    setAnswer(scenario.brokenCode || "");
-    setSqlExecution(null);
-    setEvaluation(null);
-    setDraftMessage("Sample database and editor reset.");
   }
 
   async function copySchema() {
@@ -495,13 +491,6 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
                 ) : null}
                 {canRunSql ? (
                   <>
-                    <button
-                      type="button"
-                      onClick={resetSqlWorkspace}
-                      className="rounded-full border border-slate-700 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:border-teal-300/40"
-                    >
-                      Reset sample DB
-                    </button>
                     <button
                       type="button"
                       onClick={copySchema}

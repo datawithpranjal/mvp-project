@@ -8,6 +8,7 @@ import {
   type BrowserSqlResultTable
 } from "../../lib/browser-sql";
 import { trackEvent } from "../../lib/analytics";
+import { getCurrentUser } from "../../lib/auth";
 import {
   formatTrackLabel,
   getCodingLabs,
@@ -26,6 +27,7 @@ import {
   saveLastCodingLab,
   type CodingLabProgress
 } from "../../lib/coding-lab-session";
+import { AuthDialog } from "../auth-dialog";
 
 interface PythonTestResult {
   name: string;
@@ -252,6 +254,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
   const [workspaceMessage, setWorkspaceMessage] = useState("");
   const [draftsLoaded, setDraftsLoaded] = useState(false);
   const [saveStatus, setSaveStatus] = useState("Saved");
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
 
   const topics = useMemo(() => {
     const all = new Set<string>();
@@ -384,6 +387,13 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
 
   async function runLab() {
     if (!selectedLab) return;
+    if (!getCurrentUser()) {
+      setWorkspaceMessage("Log in or create an account to submit your answer and save progress.");
+      setIsAuthOpen(true);
+      trackEvent("signup_started", { source: "coding_lab_submit", lab: selectedLab.slug });
+      return;
+    }
+
     try {
       setIsRunning(true);
       setResult(null);
@@ -463,15 +473,6 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
     } finally {
       setIsRunning(false);
     }
-  }
-
-  function resetWorkspace() {
-    setAnswers((current) => ({
-      ...current,
-      [selectedLab.slug]: selectedLab.starterCode
-    }));
-    setResult(null);
-    setWorkspaceMessage("Sample database and editor reset.");
   }
 
   async function copySchema() {
@@ -705,13 +706,6 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
                   <>
                     <button
                       type="button"
-                      onClick={resetWorkspace}
-                      className="rounded-full border border-slate-700 px-4 py-3 text-sm font-semibold text-slate-300 transition hover:border-teal-300/40"
-                    >
-                      Reset sample DB
-                    </button>
-                    <button
-                      type="button"
                       onClick={copySchema}
                       className="rounded-full border border-slate-700 px-4 py-3 text-sm font-semibold text-slate-300 transition hover:border-teal-300/40"
                     >
@@ -854,6 +848,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
           </div>
         </aside>
       </section>
+      <AuthDialog isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
     </main>
   );
 }
