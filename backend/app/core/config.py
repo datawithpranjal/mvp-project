@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     postgres_url: str = DEFAULT_POSTGRES_URL
     email_capture_store_path: str = "/tmp/data-engineering-scenario-playground-email-captures.jsonl"
     feedback_store_path: str = "/tmp/data-foundry-product-feedback.jsonl"
+    usage_store_path: str = "/tmp/data-foundry-usage-events.jsonl"
 
     model_config = SettingsConfigDict(
         case_sensitive=False,

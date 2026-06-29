@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { SiteFooter } from "../components/site-footer";
 import { SiteHeader } from "../components/site-header";
 import { ThemeBootstrap } from "../components/theme-bootstrap";
+import { UsageTracker } from "../components/usage-tracker";
 import "@xyflow/react/dist/style.css";
 import "./globals.css";
 
@@ -22,6 +23,7 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <ThemeBootstrap />
+        <UsageTracker />
         <SiteHeader />
         {children}
         <SiteFooter />

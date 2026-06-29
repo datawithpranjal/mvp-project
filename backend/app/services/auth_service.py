@@ -25,6 +25,7 @@ from app.schemas.auth import (
 from app.schemas.email_capture import EmailCaptureRequest
 from app.services.email_capture_store import EmailCaptureStore, EmailCaptureStoreError
 from app.services.otp_delivery_service import OtpDeliveryError, OtpDeliveryService
+from app.services.usage_store import UsageStore, UsageStoreError
 
 OTP_REQUEST_LIMIT = 5
 OTP_REQUEST_WINDOW = timedelta(minutes=15)
@@ -75,6 +76,7 @@ class AuthService:
             or "development-google-oauth-state-secret"
         )
         self.email_capture_store = EmailCaptureStore(postgres_url=configured_postgres_url)
+        self.usage_store = UsageStore(postgres_url=configured_postgres_url)
         self.otp_delivery_service = OtpDeliveryService()
         self.show_debug_otp = (
             settings.auth_show_debug_otp
@@ -128,6 +130,7 @@ class AuthService:
         token = secrets.token_urlsafe(32)
         expires_at = now + self.session_ttl
         updated_user = self._record_login_and_session(user["id"], token, now, expires_at)
+        self._record_login_usage(updated_user)
 
         return AuthSessionResponse(
             token=token,
@@ -187,6 +190,7 @@ class AuthService:
         token = secrets.token_urlsafe(32)
         expires_at = now + self.session_ttl
         updated_user = self._record_login_and_session(user["id"], token, now, expires_at)
+        self._record_login_usage(updated_user)
         session = AuthSessionResponse(
             token=token,
             expires_at=expires_at.isoformat(),
@@ -457,6 +461,13 @@ class AuthService:
             )
         except OtpDeliveryError as exc:
             raise AuthServiceError(f"Unable to send OTP email. {exc}") from exc
+
+    def _record_login_usage(self, user: dict[str, Any]) -> None:
+        try:
+            self.usage_store.record_login(user)
+        except UsageStoreError:
+            # Usage tracking should never block authentication.
+            return
 
     def _build_google_state(self, return_to: str) -> str:
         safe_return_to = return_to if return_to.startswith("/") else "/dashboard"

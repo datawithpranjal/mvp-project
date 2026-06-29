@@ -9,6 +9,7 @@ import {
 } from "../../lib/browser-sql";
 import { trackEvent } from "../../lib/analytics";
 import { getCurrentUser } from "../../lib/auth";
+import { sendUsageEvent } from "../../lib/usage";
 import {
   formatTrackLabel,
   getCodingLabs,
@@ -407,12 +408,26 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
       setProgressMap(
         recordCodingLabAttempt(selectedLab.slug, selectedLab.track, nextResult.passed === true)
       );
+      sendUsageEvent("coding_lab_submitted", {
+        metadata: {
+          lab_slug: selectedLab.slug,
+          track: selectedLab.track,
+          passed: nextResult.passed === true,
+          score: nextResult.score ?? null
+        }
+      });
       trackEvent("first_lab_submitted", {
         lab: selectedLab.slug,
         track: selectedLab.track,
         passed: nextResult.passed
       });
       if (nextResult.passed) {
+        sendUsageEvent("coding_lab_completed", {
+          metadata: {
+            lab_slug: selectedLab.slug,
+            track: selectedLab.track
+          }
+        });
         trackEvent("lab_completed", { lab: selectedLab.slug, track: selectedLab.track });
       }
     } catch (error) {

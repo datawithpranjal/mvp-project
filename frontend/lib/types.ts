@@ -83,6 +83,27 @@ export interface ProductFeedbackResponse {
   message: string;
 }
 
+export type UsageEventName =
+  | "session_start"
+  | "session_heartbeat"
+  | "page_view"
+  | "coding_lab_submitted"
+  | "coding_lab_completed"
+  | "scenario_submitted"
+  | "scenario_completed";
+
+export interface UsageEventRequest {
+  event_name: UsageEventName;
+  session_id: string;
+  page_url?: string;
+  active_seconds?: number;
+  metadata?: Record<string, string | number | boolean | null | undefined>;
+}
+
+export interface UsageEventResponse {
+  recorded: boolean;
+}
+
 export interface PremiumManualUnlockRequest {
   plan_label: string;
   billing_interval: "monthly" | "yearly";

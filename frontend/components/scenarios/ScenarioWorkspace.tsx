@@ -28,6 +28,7 @@ import {
   type ScenarioProgressSummary
 } from "../../lib/progress";
 import { evaluateScenarioAnswer, type ScenarioEvaluationResult } from "../../lib/scenarioEvaluator";
+import { sendUsageEvent } from "../../lib/usage";
 import {
   formatDifficulty,
   formatDomain,
@@ -290,6 +291,16 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
       setEvaluation(nextEvaluation);
       setProgress(summarizeScenarioProgress(nextProgress, scenario.slug));
       setDraftMessage(aiFallbackMessage);
+      sendUsageEvent("scenario_submitted", {
+        metadata: {
+          scenario_slug: scenario.slug,
+          scenario_type: scenario.scenarioType,
+          domain: scenario.domain,
+          passed,
+          score: nextEvaluation.score,
+          sql_passed: runnableSqlResult?.passed ?? null
+        }
+      });
       trackEvent("first_lab_submitted", {
         scenario: scenario.slug,
         type: scenario.scenarioType,
@@ -360,6 +371,13 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
   function completeLab() {
     const nextProgress = markScenarioCompleted(scenario.slug);
     setProgress(summarizeScenarioProgress(nextProgress, scenario.slug));
+    sendUsageEvent("scenario_completed", {
+      metadata: {
+        scenario_slug: scenario.slug,
+        scenario_type: scenario.scenarioType,
+        domain: scenario.domain
+      }
+    });
     trackEvent("lab_completed", { scenario: scenario.slug });
     if (nextScenario) {
       router.push(`/scenarios/${nextScenario.slug}`);

@@ -180,6 +180,23 @@ curl -H "X-Admin-Token: YOUR_ADMIN_TOKEN" \
 
 The admin token must remain server-side and private.
 
+### Read learner usage metrics
+
+Logged-in learner activity is stored in the Postgres table `user_usage_events`.
+The platform records login success, active session heartbeats, page views, lab
+submissions, and scenario completions. It does not store raw answers or OTPs in
+the usage table.
+
+To see a founder/admin summary for the last 30 days:
+
+```bash
+curl -H "X-Admin-Token: YOUR_ADMIN_TOKEN" \
+  "https://api.datawithpranjal.com/api/v1/admin/usage/summary?days=30&limit=100"
+```
+
+The response includes each learner's active seconds, submitted/completed question
+counts, login counts for the last 7 and 30 days, session counts, and last seen time.
+
 For production email capture, set `POSTGRES_URL` to your Supabase Postgres connection string instead of the local Docker value. Use the full URI with your database password, for example:
 
 ```text

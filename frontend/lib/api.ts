@@ -23,6 +23,8 @@ import type {
   RazorpayVerifyPaymentResponse,
   ScenarioDetail,
   ScenarioSummary,
+  UsageEventRequest,
+  UsageEventResponse,
   ValidationRequest,
   ValidationResponse
 } from "./types";
@@ -114,6 +116,17 @@ export function submitProductFeedback(
 ): Promise<ProductFeedbackResponse> {
   return apiFetch<ProductFeedbackResponse>("/api/v1/feedback", {
     method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function recordUsageEvent(
+  token: string,
+  payload: UsageEventRequest
+): Promise<UsageEventResponse> {
+  return apiFetch<UsageEventResponse>("/api/v1/usage/events", {
+    method: "POST",
+    authToken: token,
     body: JSON.stringify(payload)
   });
 }
