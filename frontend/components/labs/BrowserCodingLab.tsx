@@ -241,6 +241,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
   const labs = useMemo(() => getCodingLabs(track), [track]);
   const [selectedSlug, setSelectedSlug] = useState(labs[0]?.slug ?? "");
   const selectedLab = labs.find((lab) => lab.slug === selectedSlug) ?? labs[0];
+  const [isLibraryMode, setIsLibraryMode] = useState(true);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [hintCount, setHintCount] = useState(0);
   const [showSolution, setShowSolution] = useState(false);
@@ -328,6 +329,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
     const requestedSlug = new URLSearchParams(window.location.search).get("lab");
     if (requestedSlug && labs.some((lab) => lab.slug === requestedSlug)) {
       setSelectedSlug(requestedSlug);
+      setIsLibraryMode(false);
     } else {
       const lastSlug = getLastCodingLab(track);
       if (lastSlug && labs.some((lab) => lab.slug === lastSlug)) {
@@ -504,6 +506,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
 
   function switchLab(slug: string) {
     setSelectedSlug(slug);
+    setIsLibraryMode(false);
     setHintCount(0);
     setShowSolution(false);
     setResult(null);
@@ -513,6 +516,15 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
   function goToNextLab() {
     if (!nextLab) return;
     switchLab(nextLab.slug);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function returnToLibrary() {
+    setIsLibraryMode(true);
+    setHintCount(0);
+    setShowSolution(false);
+    setResult(null);
+    setWorkspaceMessage("");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -542,10 +554,73 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
         </div>
       </section>
 
+      {isLibraryMode ? (
+        <LabLibraryView
+          labs={filteredLabs}
+          allLabCount={labs.length}
+          track={track}
+          topics={topics}
+          topic={topic}
+          difficulty={difficulty}
+          progressFilter={progressFilter}
+          progressFilterOptions={progressFilterOptions}
+          progressMap={progressMap}
+          answers={answers}
+          onTopicChange={setTopic}
+          onDifficultyChange={setDifficulty}
+          onProgressFilterChange={setProgressFilter}
+          onSelectLab={switchLab}
+        />
+      ) : (
+        <>
+
       <section className="mt-6 grid gap-6 md:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)] 2xl:grid-cols-[320px_minmax(0,1fr)_320px]">
         <aside className="panel h-fit rounded-[2rem] p-5 md:sticky md:top-24 md:max-h-[calc(100vh-7rem)] md:overflow-hidden">
-          <div className="flex flex-wrap gap-2">
-            {["All", "beginner", "intermediate", "advanced"].map((item) => (
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-teal-200">
+                Questions
+              </p>
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                Jump directly to another lab.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={returnToLibrary}
+              className="rounded-full border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-300 transition hover:border-amber-300/40 hover:text-amber-100"
+            >
+              All cards
+            </button>
+          </div>
+          <div className="mt-4 max-h-[420px] space-y-3 overflow-y-auto pr-1 md:max-h-[calc(100vh-18rem)]">
+            {filteredLabs.length > 0 ? (
+              filteredLabs.map((lab) => (
+                <LabListButton
+                  key={lab.slug}
+                  lab={lab}
+                  active={lab.slug === selectedLab.slug}
+                  progress={progressMap[lab.slug]}
+                  hasDraft={Boolean(answers[lab.slug])}
+                  onSelect={() => switchLab(lab.slug)}
+                />
+              ))
+            ) : (
+              <div className="rounded-3xl border border-slate-800 bg-slate-950/30 p-4">
+                <p className="text-sm font-semibold text-slate-200">No questions found.</p>
+                <p className="mt-2 text-xs leading-5 text-slate-400">
+                  Try another progress tab, topic, or difficulty filter.
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div className="mt-5 border-t border-slate-800 pt-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+              Refine list
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {["All", "beginner", "intermediate", "advanced"].map((item) => (
               <button
                 key={item}
                 type="button"
@@ -559,18 +634,19 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
                 {item}
               </button>
             ))}
+            </div>
+            <select
+              value={topic}
+              onChange={(event) => setTopic(event.target.value)}
+              className="mt-4 w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100"
+            >
+              {topics.map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+            </select>
           </div>
-          <select
-            value={topic}
-            onChange={(event) => setTopic(event.target.value)}
-            className="mt-4 w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100"
-          >
-            {topics.map((item) => (
-              <option key={item} value={item}>
-                {item}
-              </option>
-            ))}
-          </select>
           <div className="mt-4 rounded-3xl border border-slate-800 bg-slate-950/30 p-3">
             <p className="px-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
               Progress
@@ -595,27 +671,6 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
             <p className="mt-3 px-2 text-xs leading-5 text-slate-500">
               Attempts are saved automatically after you run or submit a question.
             </p>
-          </div>
-          <div className="mt-5 max-h-[720px] space-y-3 overflow-y-auto pr-1 md:max-h-[calc(100vh-18rem)]">
-            {filteredLabs.length > 0 ? (
-              filteredLabs.map((lab) => (
-                <LabListButton
-                  key={lab.slug}
-                  lab={lab}
-                  active={lab.slug === selectedLab.slug}
-                  progress={progressMap[lab.slug]}
-                  hasDraft={Boolean(answers[lab.slug])}
-                  onSelect={() => switchLab(lab.slug)}
-                />
-              ))
-            ) : (
-              <div className="rounded-3xl border border-slate-800 bg-slate-950/30 p-4">
-                <p className="text-sm font-semibold text-slate-200">No questions found.</p>
-                <p className="mt-2 text-xs leading-5 text-slate-400">
-                  Try another progress tab, topic, or difficulty filter.
-                </p>
-              </div>
-            )}
           </div>
         </aside>
 
@@ -863,8 +918,205 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
           </div>
         </aside>
       </section>
+        </>
+      )}
       <AuthDialog isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
     </main>
+  );
+}
+
+function LabLibraryView({
+  labs,
+  allLabCount,
+  track,
+  topics,
+  topic,
+  difficulty,
+  progressFilter,
+  progressFilterOptions,
+  progressMap,
+  answers,
+  onTopicChange,
+  onDifficultyChange,
+  onProgressFilterChange,
+  onSelectLab
+}: {
+  labs: CodingLab[];
+  allLabCount: number;
+  track: CodingLabTrack;
+  topics: string[];
+  topic: string;
+  difficulty: string;
+  progressFilter: ProgressFilter;
+  progressFilterOptions: Array<{ label: ProgressFilter; count: number }>;
+  progressMap: Record<string, CodingLabProgress>;
+  answers: Record<string, string>;
+  onTopicChange: (topic: string) => void;
+  onDifficultyChange: (difficulty: string) => void;
+  onProgressFilterChange: (filter: ProgressFilter) => void;
+  onSelectLab: (slug: string) => void;
+}) {
+  return (
+    <section className="mt-6 space-y-6">
+      <div className="panel rounded-[2rem] p-6">
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-200">
+              Choose a question first
+            </p>
+            <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-50">
+              Start with the card that matches today&apos;s practice goal.
+            </h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
+              Open any {formatTrackLabel(track)} question from the library. Once you choose one,
+              the question navigator stays on the left so moving to the next lab is quick.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {progressFilterOptions.map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                onClick={() => onProgressFilterChange(item.label)}
+                className={`rounded-3xl border px-4 py-4 text-left transition ${
+                  progressFilter === item.label
+                    ? "border-amber-300/70 bg-amber-300/15 text-amber-50"
+                    : "border-slate-800 bg-slate-950/35 text-slate-300 hover:border-amber-300/30"
+                }`}
+              >
+                <span className="text-xs font-semibold uppercase tracking-[0.16em]">
+                  {item.label}
+                </span>
+                <span className="mt-2 block text-2xl font-bold">{item.count}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-3 lg:grid-cols-[minmax(0,1fr)_260px]">
+          <div className="flex flex-wrap gap-2">
+            {["All", "beginner", "intermediate", "advanced"].map((item) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => onDifficultyChange(item)}
+                className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] ${
+                  difficulty === item
+                    ? "bg-teal-300 text-slate-950"
+                    : "border border-slate-700 bg-slate-950/40 text-slate-300 hover:border-teal-300/40"
+                }`}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+          <select
+            value={topic}
+            onChange={(event) => onTopicChange(event.target.value)}
+            className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100"
+          >
+            {topics.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {labs.length > 0 ? (
+          labs.map((lab) => (
+            <LabLibraryCard
+              key={lab.slug}
+              lab={lab}
+              progress={progressMap[lab.slug]}
+              hasDraft={Boolean(answers[lab.slug])}
+              onSelect={() => onSelectLab(lab.slug)}
+            />
+          ))
+        ) : (
+          <div className="panel rounded-[2rem] p-8 sm:col-span-2 xl:col-span-3">
+            <p className="text-lg font-semibold text-slate-100">No matching questions found.</p>
+            <p className="mt-2 text-sm leading-6 text-slate-400">
+              Try changing the difficulty, topic, or progress filter. There are {allLabCount} total
+              questions in this lab.
+            </p>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function LabLibraryCard({
+  lab,
+  progress,
+  hasDraft,
+  onSelect
+}: {
+  lab: CodingLab;
+  progress?: CodingLabProgress;
+  hasDraft: boolean;
+  onSelect: () => void;
+}) {
+  const status =
+    progress?.completed
+      ? "Completed"
+      : (progress?.attemptCount ?? 0) > 0
+        ? "Attempted"
+        : hasDraft
+          ? "Draft saved"
+          : "Not started";
+  const statusTone =
+    status === "Completed"
+      ? "bg-teal-300 text-slate-950"
+      : status === "Attempted"
+        ? "bg-amber-300 text-slate-950"
+        : status === "Draft saved"
+          ? "border border-sky-300/40 text-sky-100"
+          : "border border-slate-700 text-slate-400";
+
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className="group flex min-h-[280px] flex-col rounded-[2rem] border border-slate-800 bg-slate-950/45 p-5 text-left transition hover:-translate-y-1 hover:border-amber-300/50 hover:bg-slate-950/70"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="rounded-full border border-slate-700 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+          {lab.section}
+        </span>
+        <span className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${statusTone}`}>
+          {status}
+        </span>
+      </div>
+      <h3 className="mt-5 text-xl font-semibold leading-7 text-slate-50">{lab.title}</h3>
+      <p className="mt-3 line-clamp-4 text-sm leading-6 text-slate-400">
+        {lab.problemStatement}
+      </p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <span className="rounded-full border border-slate-700 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+          {lab.difficulty}
+        </span>
+        <span className="rounded-full border border-slate-700 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+          {lab.estimatedMinutes} min
+        </span>
+        {lab.topicTags.slice(0, 2).map((tag) => (
+          <span
+            key={tag}
+            className="rounded-full border border-slate-700 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400"
+          >
+            {tag}
+          </span>
+        ))}
+      </div>
+      <div className="mt-auto pt-6">
+        <span className="inline-flex rounded-full bg-amber-300 px-5 py-3 text-sm font-bold text-slate-950 transition group-hover:bg-amber-200">
+          Start this lab
+        </span>
+      </div>
+    </button>
   );
 }
 
