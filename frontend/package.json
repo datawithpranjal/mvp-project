@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "validate:content": "tsx ../scripts/validate-labs.ts",
+    "validate:content:quality": "tsx ../scripts/validate-content-quality.ts",
     "import:scenarios:v2": "tsx ../scripts/import-scenario-volume-2.ts"
   },
   "dependencies": {
