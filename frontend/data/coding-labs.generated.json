@@ -9765,7 +9765,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can use slicing/indexing without losing characters. Edge cases include empty strings and one-character strings. The solution is safe because slicing returns a new string and avoids manual index errors. A common beginner mistake is forgetting that string indexes are zero-based or accidentally dropping the first/last character.",
     "tables": [],
     "solutionCode": "def reverse_a_string(s):\n    return s[::-1]",
     "testCases": [
@@ -9777,7 +9777,11 @@
         "expected": "enilepip"
       }
     ],
-    "functionName": "reverse_a_string"
+    "functionName": "reverse_a_string",
+    "expectedOutcome": "Implement `reverse_a_string` to return the input string in reverse order. Visible sample: [\"pipeline\"] returns \"enilepip\".",
+    "commonMistakes": [
+      "Forgetting that string indexes are zero-based or accidentally dropping the first/last character."
+    ]
   },
   {
     "id": "python-coding-002",
@@ -9800,7 +9804,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can normalize text before comparison. Edge cases include case differences, spaces, punctuation, and empty cleaned strings. The solution is safe because normalizing with alphanumeric filtering makes the comparison deterministic. A common beginner mistake is checking the raw string without lowercasing or removing spaces.",
     "tables": [],
     "solutionCode": "def check_whether_a_string_is_a_palindrome(s):\n    cleaned = ''.join(ch.lower() for ch in s if ch.isalnum())\n    return cleaned == cleaned[::-1]",
     "testCases": [
@@ -9812,7 +9816,11 @@
         "expected": true
       }
     ],
-    "functionName": "check_whether_a_string_is_a_palindrome"
+    "functionName": "check_whether_a_string_is_a_palindrome",
+    "expectedOutcome": "Implement `check_whether_a_string_is_a_palindrome` to return True when the cleaned string reads the same forward and backward. Visible sample: [\"A man a plan a canal Panama\"] returns true.",
+    "commonMistakes": [
+      "Checking the raw string without lowercasing or removing spaces."
+    ]
   },
   {
     "id": "python-coding-003",
@@ -9835,7 +9843,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can count frequencies while preserving original order. Edge cases include all repeated characters and strings with the unique character near the end. The solution is safe because a two-pass count keeps the original order instead of returning any unique character. A common beginner mistake is using a set only and losing the order needed to identify the first unique value.",
     "tables": [],
     "solutionCode": "def find_the_first_non_repeating_character(s):\n    counts = {}\n    for ch in s:\n        counts[ch] = counts.get(ch, 0) + 1\n    for ch in s:\n        if counts[ch] == 1:\n            return ch\n    return None",
     "testCases": [
@@ -9847,7 +9855,11 @@
         "expected": "w"
       }
     ],
-    "functionName": "find_the_first_non_repeating_character"
+    "functionName": "find_the_first_non_repeating_character",
+    "expectedOutcome": "Implement `find_the_first_non_repeating_character` to return the first character that appears exactly once, or None when there is no such character. Visible sample: [\"swiss\"] returns \"w\".",
+    "commonMistakes": [
+      "Using a set only and losing the order needed to identify the first unique value."
+    ]
   },
   {
     "id": "python-coding-004",
@@ -9870,7 +9882,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can compare normalized character collections. Edge cases include case differences, spaces, repeated letters, and unequal lengths. The solution is safe because normalizing then sorting gives a deterministic equality check for interview-sized inputs. A common beginner mistake is forgetting repeated characters and only comparing unique character sets.",
     "tables": [],
     "solutionCode": "def check_whether_two_strings_are_anagrams(a, b):\n    return sorted(a.replace(' ', '').lower()) == sorted(b.replace(' ', '').lower())",
     "testCases": [
@@ -9883,7 +9895,11 @@
         "expected": true
       }
     ],
-    "functionName": "check_whether_two_strings_are_anagrams"
+    "functionName": "check_whether_two_strings_are_anagrams",
+    "expectedOutcome": "Implement `check_whether_two_strings_are_anagrams` to return True when two strings contain the same letters after basic cleanup. Visible sample: [\"listen\",\"silent\"] returns true.",
+    "commonMistakes": [
+      "Forgetting repeated characters and only comparing unique character sets."
+    ]
   },
   {
     "id": "python-coding-005",
@@ -9906,7 +9922,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can build and query a frequency dictionary. Edge cases include empty strings and ties in frequency. The solution is safe because counting once and using max over counts avoids nested scans. A common beginner mistake is calling max on an empty dictionary or recounting the string for every character.",
     "tables": [],
     "solutionCode": "def find_the_most_frequent_character(s):\n    counts = {}\n    for ch in s:\n        counts[ch] = counts.get(ch, 0) + 1\n    return max(counts, key=counts.get) if counts else None",
     "testCases": [
@@ -9918,7 +9934,11 @@
         "expected": "a"
       }
     ],
-    "functionName": "find_the_most_frequent_character"
+    "functionName": "find_the_most_frequent_character",
+    "expectedOutcome": "Implement `find_the_most_frequent_character` to return the character with the highest frequency, or None for empty input. Visible sample: [\"banana\"] returns \"a\".",
+    "commonMistakes": [
+      "Calling max on an empty dictionary or recounting the string for every character."
+    ]
   },
   {
     "id": "python-coding-006",
@@ -9941,7 +9961,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can shrink a candidate prefix until all words match. Edge cases include empty word lists, no shared prefix, and one-word input. The solution is safe because starting from the first word bounds the search and handles shorter later words safely. A common beginner mistake is assuming every word has the same length or indexing past a short word.",
     "tables": [],
     "solutionCode": "def longest_common_prefix(words):\n    if not words:\n        return ''\n    prefix = words[0]\n    for word in words[1:]:\n        while not word.startswith(prefix):\n            prefix = prefix[:-1]\n            if not prefix:\n                return ''\n    return prefix",
     "testCases": [
@@ -9957,7 +9977,11 @@
         "expected": "fl"
       }
     ],
-    "functionName": "longest_common_prefix"
+    "functionName": "longest_common_prefix",
+    "expectedOutcome": "Implement `longest_common_prefix` to return the longest prefix shared by every word. Visible sample: [[\"flow\",\"flower\",\"flight\"]] returns \"fl\".",
+    "commonMistakes": [
+      "Assuming every word has the same length or indexing past a short word."
+    ]
   },
   {
     "id": "python-coding-007",
@@ -9980,7 +10004,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can track consecutive character runs. Edge cases include empty strings and the final run at the end of input. The solution is safe because appending each closed run and then the final run prevents data loss. A common beginner mistake is forgetting to append the last group after the loop finishes.",
     "tables": [],
     "solutionCode": "def compress_a_string_with_counts(s):\n    if not s:\n        return ''\n    parts = []\n    current = s[0]\n    count = 0\n    for ch in s:\n        if ch == current:\n            count += 1\n        else:\n            parts.append(current + str(count))\n            current = ch\n            count = 1\n    parts.append(current + str(count))\n    return ''.join(parts)",
     "testCases": [
@@ -9992,7 +10016,11 @@
         "expected": "a3b2c1"
       }
     ],
-    "functionName": "compress_a_string_with_counts"
+    "functionName": "compress_a_string_with_counts",
+    "expectedOutcome": "Implement `compress_a_string_with_counts` to return run-length encoded text such as a3b2c1. Visible sample: [\"aaabbc\"] returns \"a3b2c1\".",
+    "commonMistakes": [
+      "Forgetting to append the last group after the loop finishes."
+    ]
   },
   {
     "id": "python-coding-008",
@@ -10015,7 +10043,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can use a stack for nested structure validation. Edge cases include closing brackets before opening brackets and leftover open brackets. The solution is safe because a stack enforces last-open-first-closed matching for nested pairs. A common beginner mistake is only counting opening and closing brackets without checking order.",
     "tables": [],
     "solutionCode": "def validate_parentheses(s):\n    pairs = {')': '(', ']': '[', '}': '{'}\n    stack = []\n    for ch in s:\n        if ch in pairs.values():\n            stack.append(ch)\n        elif ch in pairs:\n            if not stack or stack.pop() != pairs[ch]:\n                return False\n    return not stack",
     "testCases": [
@@ -10027,7 +10055,11 @@
         "expected": true
       }
     ],
-    "functionName": "validate_parentheses"
+    "functionName": "validate_parentheses",
+    "expectedOutcome": "Implement `validate_parentheses` to return True only when brackets are balanced and properly nested. Visible sample: [\"({[]})\"] returns true.",
+    "commonMistakes": [
+      "Only counting opening and closing brackets without checking order."
+    ]
   },
   {
     "id": "python-coding-009",
@@ -10050,7 +10082,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can classify alphabetic characters after normalization. Edge cases include uppercase letters, non-letter characters, and empty input. The solution is safe because checking isalpha prevents digits/spaces from corrupting counts. A common beginner mistake is counting every non-vowel as a consonant, including spaces and punctuation.",
     "tables": [],
     "solutionCode": "def count_vowels_and_consonants(s):\n    vowels = set('aeiou')\n    result = {'vowels': 0, 'consonants': 0}\n    for ch in s.lower():\n        if ch.isalpha():\n            result['vowels' if ch in vowels else 'consonants'] += 1\n    return result",
     "testCases": [
@@ -10065,7 +10097,11 @@
         }
       }
     ],
-    "functionName": "count_vowels_and_consonants"
+    "functionName": "count_vowels_and_consonants",
+    "expectedOutcome": "Implement `count_vowels_and_consonants` to return a dictionary with vowel and consonant counts. Visible sample: [\"Data\"] returns {\"vowels\":2,\"consonants\":2}.",
+    "commonMistakes": [
+      "Counting every non-vowel as a consonant, including spaces and punctuation."
+    ]
   },
   {
     "id": "python-coding-010",
@@ -10088,7 +10124,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can aggregate tokens with a dictionary. Edge cases include case differences, repeated words, and extra whitespace. The solution is safe because lowercasing before counting keeps equivalent words together. A common beginner mistake is using a list count repeatedly instead of one pass through the tokens.",
     "tables": [],
     "solutionCode": "def word_frequency_from_a_sentence(sentence):\n    counts = {}\n    for word in sentence.lower().split():\n        counts[word] = counts.get(word, 0) + 1\n    return counts",
     "testCases": [
@@ -10103,7 +10139,11 @@
         }
       }
     ],
-    "functionName": "word_frequency_from_a_sentence"
+    "functionName": "word_frequency_from_a_sentence",
+    "expectedOutcome": "Implement `word_frequency_from_a_sentence` to return word counts from a sentence. Visible sample: [\"data data engineering\"] returns {\"data\":2,\"engineering\":1}.",
+    "commonMistakes": [
+      "Using a list count repeatedly instead of one pass through the tokens."
+    ]
   },
   {
     "id": "python-coding-011",
@@ -10126,7 +10166,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can combine a seen set with an output list. Edge cases include multiple duplicates and already-unique input. The solution is safe because the set gives fast membership checks while the list preserves order. A common beginner mistake is converting directly to a set and losing the original sequence.",
     "tables": [],
     "solutionCode": "def remove_duplicates_while_preserving_order(items):\n    seen = set()\n    output = []\n    for item in items:\n        if item not in seen:\n            seen.add(item)\n            output.append(item)\n    return output",
     "testCases": [
@@ -10148,7 +10188,11 @@
         ]
       }
     ],
-    "functionName": "remove_duplicates_while_preserving_order"
+    "functionName": "remove_duplicates_while_preserving_order",
+    "expectedOutcome": "Implement `remove_duplicates_while_preserving_order` to return unique items while keeping their first-seen order. Visible sample: [[3,1,3,2,1]] returns [3,1,2].",
+    "commonMistakes": [
+      "Converting directly to a set and losing the original sequence."
+    ]
   },
   {
     "id": "python-coding-012",
@@ -10171,7 +10215,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can compare expected arithmetic sum with actual sum. Edge cases include missing first/last number and unsorted input. The solution is safe because the formula works regardless of input order and uses constant extra space. A common beginner mistake is assuming the list is sorted or looping with off-by-one range boundaries.",
     "tables": [],
     "solutionCode": "def find_the_missing_number_from_1_to_n(nums, n):\n    return n * (n + 1) // 2 - sum(nums)",
     "testCases": [
@@ -10189,7 +10233,11 @@
         "expected": 3
       }
     ],
-    "functionName": "find_the_missing_number_from_1_to_n"
+    "functionName": "find_the_missing_number_from_1_to_n",
+    "expectedOutcome": "Implement `find_the_missing_number_from_1_to_n` to return the missing integer from the range 1..n. Visible sample: [[1,2,4,5],5] returns 3.",
+    "commonMistakes": [
+      "Assuming the list is sorted or looping with off-by-one range boundaries."
+    ]
   },
   {
     "id": "python-coding-013",
@@ -10212,7 +10260,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can use a hash map for complements. Edge cases include duplicate numbers and pairs found late in the list. The solution is safe because storing prior values prevents using the same element twice. A common beginner mistake is checking value presence after storing the current index and matching the same element.",
     "tables": [],
     "solutionCode": "def two_sum(nums, target):\n    seen = {}\n    for i, value in enumerate(nums):\n        need = target - value\n        if need in seen:\n            return [seen[need], i]\n        seen[value] = i\n    return []",
     "testCases": [
@@ -10233,7 +10281,11 @@
         ]
       }
     ],
-    "functionName": "two_sum"
+    "functionName": "two_sum",
+    "expectedOutcome": "Implement `two_sum` to return the indices of two values that add up to the target, or an empty list. Visible sample: [[2,7,11,15],9] returns [0,1].",
+    "commonMistakes": [
+      "Checking value presence after storing the current index and matching the same element."
+    ]
   },
   {
     "id": "python-coding-014",
@@ -10256,7 +10308,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can normalize k with modulo and use slicing. Edge cases include empty lists, k larger than list length, and k equal to zero. The solution is safe because modulo keeps slicing boundaries valid for any positive k. A common beginner mistake is forgetting k modulo length and producing the wrong rotation for large k.",
     "tables": [],
     "solutionCode": "def rotate_a_list_by_k_steps(nums, k):\n    if not nums:\n        return []\n    k %= len(nums)\n    return nums[-k:] + nums[:-k]",
     "testCases": [
@@ -10281,7 +10333,11 @@
         ]
       }
     ],
-    "functionName": "rotate_a_list_by_k_steps"
+    "functionName": "rotate_a_list_by_k_steps",
+    "expectedOutcome": "Implement `rotate_a_list_by_k_steps` to return the list rotated right by k positions. Visible sample: [[1,2,3,4,5],2] returns [4,5,1,2,3].",
+    "commonMistakes": [
+      "Forgetting k modulo length and producing the wrong rotation for large k."
+    ]
   },
   {
     "id": "python-coding-015",
@@ -10304,7 +10360,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can separate non-zero values while preserving order. Edge cases include all-zero lists, no-zero lists, and repeated zeros. The solution is safe because counting removed zeros lets the function rebuild the same length output. A common beginner mistake is sorting the list and changing the relative order of non-zero values.",
     "tables": [],
     "solutionCode": "def move_all_zeros_to_the_end(nums):\n    non_zero = [n for n in nums if n != 0]\n    return non_zero + [0] * (len(nums) - len(non_zero))",
     "testCases": [
@@ -10328,7 +10384,11 @@
         ]
       }
     ],
-    "functionName": "move_all_zeros_to_the_end"
+    "functionName": "move_all_zeros_to_the_end",
+    "expectedOutcome": "Implement `move_all_zeros_to_the_end` to return values with non-zero items first and zeros at the end. Visible sample: [[0,1,0,3,12]] returns [1,3,12,0,0].",
+    "commonMistakes": [
+      "Sorting the list and changing the relative order of non-zero values."
+    ]
   },
   {
     "id": "python-coding-016",
@@ -10351,7 +10411,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can merge using two pointers. Edge cases include one list ending earlier and duplicate values. The solution is safe because two pointers avoid repeated sorting and preserve sorted order. A common beginner mistake is forgetting to append the remaining tail after one input is exhausted.",
     "tables": [],
     "solutionCode": "def merge_two_sorted_lists(a, b):\n    i = j = 0\n    output = []\n    while i < len(a) and j < len(b):\n        if a[i] <= b[j]:\n            output.append(a[i]); i += 1\n        else:\n            output.append(b[j]); j += 1\n    return output + a[i:] + b[j:]",
     "testCases": [
@@ -10377,7 +10437,11 @@
         ]
       }
     ],
-    "functionName": "merge_two_sorted_lists"
+    "functionName": "merge_two_sorted_lists",
+    "expectedOutcome": "Implement `merge_two_sorted_lists` to return one sorted list from two sorted inputs. Visible sample: [[1,3,5],[2,4]] returns [1,2,3,4,5].",
+    "commonMistakes": [
+      "Forgetting to append the remaining tail after one input is exhausted."
+    ]
   },
   {
     "id": "python-coding-017",
@@ -10400,7 +10464,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can use set intersection for membership. Edge cases include duplicates and no-overlap inputs. The solution is safe because sets remove duplicate noise and make intersection efficient. A common beginner mistake is returning duplicate matches when the expected result is unique common elements.",
     "tables": [],
     "solutionCode": "def find_the_intersection_of_two_lists(a, b):\n    return sorted(set(a).intersection(b))",
     "testCases": [
@@ -10425,7 +10489,11 @@
         ]
       }
     ],
-    "functionName": "find_the_intersection_of_two_lists"
+    "functionName": "find_the_intersection_of_two_lists",
+    "expectedOutcome": "Implement `find_the_intersection_of_two_lists` to return sorted common elements from two lists. Visible sample: [[1,2,2,3],[2,3,4]] returns [2,3].",
+    "commonMistakes": [
+      "Returning duplicate matches when the expected result is unique common elements."
+    ]
   },
   {
     "id": "python-coding-018",
@@ -10448,7 +10516,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can count values then sort by frequency and value. Edge cases include ties, k larger than unique count, and repeated values. The solution is safe because sorting by negative frequency then value makes output stable. A common beginner mistake is ignoring tie-breaking and returning nondeterministic dictionary order.",
     "tables": [],
     "solutionCode": "def top_k_frequent_elements(nums, k):\n    counts = {}\n    for n in nums:\n        counts[n] = counts.get(n, 0) + 1\n    return [item for item, _ in sorted(counts.items(), key=lambda x: (-x[1], x[0]))[:k]]",
     "testCases": [
@@ -10471,7 +10539,11 @@
         ]
       }
     ],
-    "functionName": "top_k_frequent_elements"
+    "functionName": "top_k_frequent_elements",
+    "expectedOutcome": "Implement `top_k_frequent_elements` to return the k most frequent elements with deterministic tie ordering. Visible sample: [[1,1,1,2,2,3],2] returns [1,2].",
+    "commonMistakes": [
+      "Ignoring tie-breaking and returning nondeterministic dictionary order."
+    ]
   },
   {
     "id": "python-coding-019",
@@ -10494,7 +10566,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can build dictionary buckets from row dictionaries. Edge cases include multiple rows per key and missing/empty groups. The solution is safe because setdefault initializes each group safely before appending. A common beginner mistake is overwriting the group instead of appending every matching record.",
     "tables": [],
     "solutionCode": "def group_records_by_key(records, key):\n    grouped = {}\n    for record in records:\n        grouped.setdefault(record[key], []).append(record)\n    return grouped",
     "testCases": [
@@ -10527,7 +10599,11 @@
         }
       }
     ],
-    "functionName": "group_records_by_key"
+    "functionName": "group_records_by_key",
+    "expectedOutcome": "Implement `group_records_by_key` to return records grouped by the requested key. Visible sample: [[{\"id\":1,\"region\":\"west\"},{\"id\":2,\"region\":\"west\"}],\"region\"] returns {\"west\":[{\"id\":1,\"region\":\"west\"},{\"id\":2,\"region\":\"west\"}]}.",
+    "commonMistakes": [
+      "Overwriting the group instead of appending every matching record."
+    ]
   },
   {
     "id": "python-coding-020",
@@ -10550,7 +10626,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can use recursion to visit nested arrays. Edge cases include deep nesting, already-flat input, and empty nested lists. The solution is safe because recursive expansion handles each nested list before appending scalar values. A common beginner mistake is only flattening one level and leaving deeper lists nested.",
     "tables": [],
     "solutionCode": "def flatten_a_nested_list(items):\n    output = []\n    for item in items:\n        if isinstance(item, list):\n            output.extend(flatten_a_nested_list(item))\n        else:\n            output.append(item)\n    return output",
     "testCases": [
@@ -10578,7 +10654,11 @@
         ]
       }
     ],
-    "functionName": "flatten_a_nested_list"
+    "functionName": "flatten_a_nested_list",
+    "expectedOutcome": "Implement `flatten_a_nested_list` to return a flat list from arbitrarily nested lists. Visible sample: [[1,[2,[3,4]],5]] returns [1,2,3,4,5].",
+    "commonMistakes": [
+      "Only flattening one level and leaving deeper lists nested."
+    ]
   },
   {
     "id": "python-coding-021",
@@ -10601,7 +10681,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can increment dictionary counters in one pass. Edge cases include empty input and repeated keys. The solution is safe because get with a default avoids missing-key errors. A common beginner mistake is initializing counts incorrectly and raising KeyError on first occurrence.",
     "tables": [],
     "solutionCode": "def count_occurrences_using_a_dictionary(items):\n    counts = {}\n    for item in items:\n        counts[item] = counts.get(item, 0) + 1\n    return counts",
     "testCases": [
@@ -10620,7 +10700,11 @@
         }
       }
     ],
-    "functionName": "count_occurrences_using_a_dictionary"
+    "functionName": "count_occurrences_using_a_dictionary",
+    "expectedOutcome": "Implement `count_occurrences_using_a_dictionary` to return item occurrence counts. Visible sample: [[\"A\",\"B\",\"A\"]] returns {\"A\":2,\"B\":1}.",
+    "commonMistakes": [
+      "Initializing counts incorrectly and raising KeyError on first occurrence."
+    ]
   },
   {
     "id": "python-coding-022",
@@ -10643,7 +10727,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can group duplicate values when inverting a mapping. Edge cases include duplicate values and non-string values. The solution is safe because stringifying values creates stable JSON-compatible keys in the lab output. A common beginner mistake is assuming values are unique and overwriting earlier keys.",
     "tables": [],
     "solutionCode": "def invert_a_dictionary_with_duplicate_values(mapping):\n    inverted = {}\n    for key, value in mapping.items():\n        inverted.setdefault(str(value), []).append(key)\n    return {key: sorted(value) for key, value in inverted.items()}",
     "testCases": [
@@ -10667,7 +10751,11 @@
         }
       }
     ],
-    "functionName": "invert_a_dictionary_with_duplicate_values"
+    "functionName": "invert_a_dictionary_with_duplicate_values",
+    "expectedOutcome": "Implement `invert_a_dictionary_with_duplicate_values` to return a dictionary from original values to sorted lists of original keys. Visible sample: [{\"a\":1,\"b\":1,\"c\":2}] returns {\"1\":[\"a\",\"b\"],\"2\":[\"c\"]}.",
+    "commonMistakes": [
+      "Assuming values are unique and overwriting earlier keys."
+    ]
   },
   {
     "id": "python-coding-023",
@@ -10690,7 +10778,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can combine partial dictionaries with the same business key. Edge cases include multiple fragments for one id and sorted output order. The solution is safe because merging into an id-indexed dictionary keeps one consolidated record per id. A common beginner mistake is appending every fragment and leaving duplicate ids unresolved.",
     "tables": [],
     "solutionCode": "def merge_a_list_of_dictionaries_by_id(records):\n    merged = {}\n    for record in records:\n        record_id = record['id']\n        merged.setdefault(record_id, {}).update(record)\n    return [merged[key] for key in sorted(merged)]",
     "testCases": [
@@ -10725,7 +10813,11 @@
         ]
       }
     ],
-    "functionName": "merge_a_list_of_dictionaries_by_id"
+    "functionName": "merge_a_list_of_dictionaries_by_id",
+    "expectedOutcome": "Implement `merge_a_list_of_dictionaries_by_id` to return merged records keyed by id. Visible sample: [[{\"id\":1,\"name\":\"Asha\"},{\"id\":1,\"city\":\"Pune\"},{\"id\":2,\"name\":\"Ben\"}]] returns [{\"id\":1,\"name\":\"Asha\",\"city\":\"Pune\"},{\"id\":2,\"name\":\"Ben\"}].",
+    "commonMistakes": [
+      "Appending every fragment and leaving duplicate ids unresolved."
+    ]
   },
   {
     "id": "python-coding-024",
@@ -10748,7 +10840,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can track seen values and duplicate outputs. Edge cases include items repeated more than twice and no duplicates. The solution is safe because separate seen and duplicates collections prevent duplicate duplicate-reporting. A common beginner mistake is adding the same duplicate value multiple times.",
     "tables": [],
     "solutionCode": "def detect_duplicates_in_a_list(items):\n    seen = set()\n    duplicates = []\n    for item in items:\n        if item in seen and item not in duplicates:\n            duplicates.append(item)\n        seen.add(item)\n    return duplicates",
     "testCases": [
@@ -10770,7 +10862,11 @@
         ]
       }
     ],
-    "functionName": "detect_duplicates_in_a_list"
+    "functionName": "detect_duplicates_in_a_list",
+    "expectedOutcome": "Implement `detect_duplicates_in_a_list` to return each duplicated item once in first-duplicate order. Visible sample: [[1,2,1,3,2,2]] returns [1,2].",
+    "commonMistakes": [
+      "Adding the same duplicate value multiple times."
+    ]
   },
   {
     "id": "python-coding-025",
@@ -10793,7 +10889,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can sort mapping items by metric value. Edge cases include equal values and empty dictionaries. The solution is safe because sorting items then rebuilding the dictionary preserves insertion order in modern Python. A common beginner mistake is sorting keys instead of sorting by the numeric value.",
     "tables": [],
     "solutionCode": "def sort_a_dictionary_by_value(mapping):\n    return dict(sorted(mapping.items(), key=lambda item: item[1], reverse=True))",
     "testCases": [
@@ -10813,7 +10909,11 @@
         }
       }
     ],
-    "functionName": "sort_a_dictionary_by_value"
+    "functionName": "sort_a_dictionary_by_value",
+    "expectedOutcome": "Implement `sort_a_dictionary_by_value` to return a dictionary ordered by descending value. Visible sample: [{\"a\":2,\"b\":5,\"c\":1}] returns {\"b\":5,\"a\":2,\"c\":1}.",
+    "commonMistakes": [
+      "Sorting keys instead of sorting by the numeric value."
+    ]
   },
   {
     "id": "python-coding-026",
@@ -10836,7 +10936,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can count complements seen so far. Edge cases include duplicate values, negative numbers, and repeated pair values. The solution is safe because counting prior complements handles duplicates without reusing future elements. A common beginner mistake is using a set and undercounting duplicate pair combinations.",
     "tables": [],
     "solutionCode": "def count_pairs_with_a_given_sum(nums, target):\n    counts = {}\n    pairs = 0\n    for num in nums:\n        pairs += counts.get(target - num, 0)\n        counts[num] = counts.get(num, 0) + 1\n    return pairs",
     "testCases": [
@@ -10855,7 +10955,11 @@
         "expected": 3
       }
     ],
-    "functionName": "count_pairs_with_a_given_sum"
+    "functionName": "count_pairs_with_a_given_sum",
+    "expectedOutcome": "Implement `count_pairs_with_a_given_sum` to return the number of index pairs whose values sum to the target. Visible sample: [[1,5,7,-1,5],6] returns 3.",
+    "commonMistakes": [
+      "Using a set and undercounting duplicate pair combinations."
+    ]
   },
   {
     "id": "python-coding-027",
@@ -10878,7 +10982,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can detect reversed tuple pairs with a set. Edge cases include pairs arriving in either order and unrelated pairs. The solution is safe because tracking prior pairs lets the function report a match only when both directions exist. A common beginner mistake is checking only identical pairs instead of reversed pairs.",
     "tables": [],
     "solutionCode": "def find_symmetric_pairs(pairs):\n    seen = set()\n    output = []\n    for a, b in pairs:\n        if (b, a) in seen:\n            output.append([b, a])\n        seen.add((a, b))\n    return output",
     "testCases": [
@@ -10912,7 +11016,11 @@
         ]
       }
     ],
-    "functionName": "find_symmetric_pairs"
+    "functionName": "find_symmetric_pairs",
+    "expectedOutcome": "Implement `find_symmetric_pairs` to return pairs that have a reversed counterpart already seen. Visible sample: [[[1,2],[3,4],[2,1],[5,6]]] returns [[1,2]].",
+    "commonMistakes": [
+      "Checking only identical pairs instead of reversed pairs."
+    ]
   },
   {
     "id": "python-coding-028",
@@ -10935,7 +11043,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can maintain state while iterating ordered transactions. Edge cases include negative amounts, zero amounts, and empty transaction lists. The solution is safe because building new dictionaries preserves original fields while adding balance. A common beginner mistake is mutating shared input unexpectedly or resetting balance each row.",
     "tables": [],
     "solutionCode": "def build_running_balance_from_transactions(transactions):\n    balance = 0\n    output = []\n    for txn in transactions:\n        balance += txn['amount']\n        output.append({**txn, 'balance': balance})\n    return output",
     "testCases": [
@@ -10967,7 +11075,11 @@
         ]
       }
     ],
-    "functionName": "build_running_balance_from_transactions"
+    "functionName": "build_running_balance_from_transactions",
+    "expectedOutcome": "Implement `build_running_balance_from_transactions` to return transactions enriched with cumulative balance. Visible sample: [[{\"id\":1,\"amount\":100},{\"id\":2,\"amount\":-40}]] returns [{\"id\":1,\"amount\":100,\"balance\":100},{\"id\":2,\"amount\":-40,\"balance\":60}].",
+    "commonMistakes": [
+      "Mutating shared input unexpectedly or resetting balance each row."
+    ]
   },
   {
     "id": "python-coding-029",
@@ -10990,7 +11102,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can multiply integers from 2 through n. Edge cases include n equal to 0 or 1 and larger positive values. The solution is safe because iterative multiplication avoids recursion-depth risk for interview-sized inputs. A common beginner mistake is starting from 0 or using the wrong inclusive range boundary.",
     "tables": [],
     "solutionCode": "def factorial(n):\n    result = 1\n    for value in range(2, n + 1):\n        result *= value\n    return result",
     "testCases": [
@@ -11002,7 +11114,11 @@
         "expected": 120
       }
     ],
-    "functionName": "factorial"
+    "functionName": "factorial",
+    "expectedOutcome": "Implement `factorial` to return n factorial for non-negative n. Visible sample: [5] returns 120.",
+    "commonMistakes": [
+      "Starting from 0 or using the wrong inclusive range boundary."
+    ]
   },
   {
     "id": "python-coding-030",
@@ -11025,7 +11141,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can iterate with two rolling values. Edge cases include n equal to 0, n equal to 1, and larger n. The solution is safe because constant-space iteration avoids exponential recursive recomputation. A common beginner mistake is using naive recursion and making the runtime explode.",
     "tables": [],
     "solutionCode": "def fibonacci_number(n):\n    if n <= 1:\n        return n\n    prev, curr = 0, 1\n    for _ in range(2, n + 1):\n        prev, curr = curr, prev + curr\n    return curr",
     "testCases": [
@@ -11037,7 +11153,11 @@
         "expected": 13
       }
     ],
-    "functionName": "fibonacci_number"
+    "functionName": "fibonacci_number",
+    "expectedOutcome": "Implement `fibonacci_number` to return the nth Fibonacci number. Visible sample: [7] returns 13.",
+    "commonMistakes": [
+      "Using naive recursion and making the runtime explode."
+    ]
   },
   {
     "id": "python-coding-031",
@@ -11060,7 +11180,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can test divisibility only up to the square root. Edge cases include numbers less than 2, even composites, and square numbers. The solution is safe because stopping at divisor squared <= n avoids unnecessary checks while catching factors. A common beginner mistake is treating 1 as prime or checking divisors all the way to n.",
     "tables": [],
     "solutionCode": "def prime_number_check(n):\n    if n < 2:\n        return False\n    divisor = 2\n    while divisor * divisor <= n:\n        if n % divisor == 0:\n            return False\n        divisor += 1\n    return True",
     "testCases": [
@@ -11072,7 +11192,11 @@
         "expected": true
       }
     ],
-    "functionName": "prime_number_check"
+    "functionName": "prime_number_check",
+    "expectedOutcome": "Implement `prime_number_check` to return whether n is prime. Visible sample: [29] returns true.",
+    "commonMistakes": [
+      "Treating 1 as prime or checking divisors all the way to n."
+    ]
   },
   {
     "id": "python-coding-032",
@@ -11095,7 +11219,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can test each candidate for factors up to its square root. Edge cases include n below 2 and composite boundaries. The solution is safe because bounded divisor checks keep the simple solution understandable and correct. A common beginner mistake is including 1 or forgetting that n itself should be tested.",
     "tables": [],
     "solutionCode": "def generate_all_primes_up_to_n(n):\n    primes = []\n    for value in range(2, n + 1):\n        is_prime = True\n        for divisor in range(2, int(value ** 0.5) + 1):\n            if value % divisor == 0:\n                is_prime = False\n                break\n        if is_prime:\n            primes.append(value)\n    return primes",
     "testCases": [
@@ -11112,7 +11236,11 @@
         ]
       }
     ],
-    "functionName": "generate_all_primes_up_to_n"
+    "functionName": "generate_all_primes_up_to_n",
+    "expectedOutcome": "Implement `generate_all_primes_up_to_n` to return all prime numbers up to n inclusive. Visible sample: [10] returns [2,3,5,7].",
+    "commonMistakes": [
+      "Including 1 or forgetting that n itself should be tested."
+    ]
   },
   {
     "id": "python-coding-033",
@@ -11135,7 +11263,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can use binary search boundaries correctly. Edge cases include missing targets, first/last element matches, and empty lists. The solution is safe because moving left/right boundaries guarantees progress and logarithmic search. A common beginner mistake is using while left < right and missing the final candidate.",
     "tables": [],
     "solutionCode": "def binary_search_in_a_sorted_array(nums, target):\n    left, right = 0, len(nums) - 1\n    while left <= right:\n        mid = (left + right) // 2\n        if nums[mid] == target:\n            return mid\n        if nums[mid] < target:\n            left = mid + 1\n        else:\n            right = mid - 1\n    return -1",
     "testCases": [
@@ -11153,7 +11281,11 @@
         "expected": 2
       }
     ],
-    "functionName": "binary_search_in_a_sorted_array"
+    "functionName": "binary_search_in_a_sorted_array",
+    "expectedOutcome": "Implement `binary_search_in_a_sorted_array` to return the index of target in a sorted list, or -1. Visible sample: [[1,3,5,7],5] returns 2.",
+    "commonMistakes": [
+      "Using while left < right and missing the final candidate."
+    ]
   },
   {
     "id": "python-coding-034",
@@ -11176,7 +11308,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can use a sliding window with last-seen indexes. Edge cases include repeated characters inside the current window and empty strings. The solution is safe because only moving the left boundary forward prevents invalid shrinking. A common beginner mistake is resetting the whole window on any repeat and losing valid partial windows.",
     "tables": [],
     "solutionCode": "def longest_substring_without_repeating_characters(s):\n    seen = {}\n    left = 0\n    best = 0\n    for right, ch in enumerate(s):\n        if ch in seen and seen[ch] >= left:\n            left = seen[ch] + 1\n        seen[ch] = right\n        best = max(best, right - left + 1)\n    return best",
     "testCases": [
@@ -11188,7 +11320,11 @@
         "expected": 3
       }
     ],
-    "functionName": "longest_substring_without_repeating_characters"
+    "functionName": "longest_substring_without_repeating_characters",
+    "expectedOutcome": "Implement `longest_substring_without_repeating_characters` to return the length of the longest substring without repeated characters. Visible sample: [\"abcabcbb\"] returns 3.",
+    "commonMistakes": [
+      "Resetting the whole window on any repeat and losing valid partial windows."
+    ]
   },
   {
     "id": "python-coding-035",
@@ -11211,7 +11347,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can sort intervals then combine overlaps. Edge cases include touching/overlapping ranges, unsorted input, and empty input. The solution is safe because sorting first ensures each interval only needs comparison with the current merged tail. A common beginner mistake is trying to merge without sorting and missing overlaps.",
     "tables": [],
     "solutionCode": "def merge_overlapping_intervals(intervals):\n    intervals = sorted(intervals)\n    merged = []\n    for start, end in intervals:\n        if not merged or start > merged[-1][1]:\n            merged.append([start, end])\n        else:\n            merged[-1][1] = max(merged[-1][1], end)\n    return merged",
     "testCases": [
@@ -11245,7 +11381,11 @@
         ]
       }
     ],
-    "functionName": "merge_overlapping_intervals"
+    "functionName": "merge_overlapping_intervals",
+    "expectedOutcome": "Implement `merge_overlapping_intervals` to return merged non-overlapping intervals. Visible sample: [[[1,3],[2,6],[8,10]]] returns [[1,6],[8,10]].",
+    "commonMistakes": [
+      "Trying to merge without sorting and missing overlaps."
+    ]
   },
   {
     "id": "python-coding-036",
@@ -11268,7 +11408,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can apply Kadane-style rolling best logic. Edge cases include all-negative arrays and single-element arrays. The solution is safe because initializing from the first value preserves correctness for negative-only input. A common beginner mistake is initializing best to 0 and incorrectly returning 0 for all-negative arrays.",
     "tables": [],
     "solutionCode": "def maximum_subarray_sum(nums):\n    best = current = nums[0]\n    for num in nums[1:]:\n        current = max(num, current + num)\n        best = max(best, current)\n    return best",
     "testCases": [
@@ -11288,7 +11428,11 @@
         "expected": 6
       }
     ],
-    "functionName": "maximum_subarray_sum"
+    "functionName": "maximum_subarray_sum",
+    "expectedOutcome": "Implement `maximum_subarray_sum` to return the maximum contiguous subarray sum. Visible sample: [[-2,1,-3,4,-1,2,1]] returns 6.",
+    "commonMistakes": [
+      "Initializing best to 0 and incorrectly returning 0 for all-negative arrays."
+    ]
   },
   {
     "id": "python-coding-037",
@@ -11311,7 +11455,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can scan log lines without storing extra state. Edge cases include mixed-case error strings and empty logs. The solution is safe because a generator expression counts in one pass and is safe for large line streams. A common beginner mistake is checking only uppercase ERROR and missing lowercase error entries.",
     "tables": [],
     "solutionCode": "def read_a_large_log_file_and_count_error_lines(lines):\n    return sum(1 for line in lines if 'ERROR' in line.upper())",
     "testCases": [
@@ -11327,7 +11471,11 @@
         "expected": 2
       }
     ],
-    "functionName": "read_a_large_log_file_and_count_error_lines"
+    "functionName": "read_a_large_log_file_and_count_error_lines",
+    "expectedOutcome": "Implement `read_a_large_log_file_and_count_error_lines` to return the number of lines containing ERROR case-insensitively. Visible sample: [[\"INFO ok\",\"ERROR failed\",\"error retry\"]] returns 2.",
+    "commonMistakes": [
+      "Checking only uppercase ERROR and missing lowercase error entries."
+    ]
   },
   {
     "id": "python-coding-038",
@@ -11350,7 +11498,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can parse CSV rows and aggregate a numeric field. Edge cases include multiple rows per group and trailing newlines. The solution is safe because DictReader uses headers so the code is resilient to column order. A common beginner mistake is splitting by comma manually and breaking when column order changes.",
     "tables": [],
     "solutionCode": "def parse_csv_and_aggregate_a_numeric_column(csv_text, group_col, value_col):\n    import csv\n    from io import StringIO\n    totals = {}\n    for row in csv.DictReader(StringIO(csv_text)):\n        totals[row[group_col]] = totals.get(row[group_col], 0) + int(row[value_col])\n    return totals",
     "testCases": [
@@ -11367,7 +11515,11 @@
         }
       }
     ],
-    "functionName": "parse_csv_and_aggregate_a_numeric_column"
+    "functionName": "parse_csv_and_aggregate_a_numeric_column",
+    "expectedOutcome": "Implement `parse_csv_and_aggregate_a_numeric_column` to return totals by a chosen CSV group column. Visible sample: [\"region,amount\\\\nwest,10\\\\nwest,5\\\\nnorth,7\\\\n\",\"region\",\"amount\"] returns {\"west\":15,\"north\":7}.",
+    "commonMistakes": [
+      "Splitting by comma manually and breaking when column order changes."
+    ]
   },
   {
     "id": "python-coding-039",
@@ -11390,7 +11542,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can navigate nested dictionaries and project selected fields. Edge cases include multiple records and nested object access. The solution is safe because explicit key access makes the required output shape clear and stable. A common beginner mistake is returning whole nested records instead of the requested flattened fields.",
     "tables": [],
     "solutionCode": "def parse_nested_json_and_extract_selected_fields(records):\n    return [{'order_id': row['order']['id'], 'customer_id': row['order']['customer']['id']} for row in records]",
     "testCases": [
@@ -11416,7 +11568,11 @@
         ]
       }
     ],
-    "functionName": "parse_nested_json_and_extract_selected_fields"
+    "functionName": "parse_nested_json_and_extract_selected_fields",
+    "expectedOutcome": "Implement `parse_nested_json_and_extract_selected_fields` to return flattened order/customer fields from nested records. Visible sample: [[{\"order\":{\"id\":101,\"customer\":{\"id\":1}}}]] returns [{\"order_id\":101,\"customer_id\":1}].",
+    "commonMistakes": [
+      "Returning whole nested records instead of the requested flattened fields."
+    ]
   },
   {
     "id": "python-coding-040",
@@ -11439,7 +11595,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can compare two sequences with line numbers. Edge cases include files with different lengths and changed lines. The solution is safe because iterating to the max length captures missing lines on either side. A common beginner mistake is zipping the lists and silently ignoring extra trailing lines.",
     "tables": [],
     "solutionCode": "def compare_two_files_line_by_line(left_lines, right_lines):\n    max_len = max(len(left_lines), len(right_lines))\n    diffs = []\n    for index in range(max_len):\n        left = left_lines[index] if index < len(left_lines) else None\n        right = right_lines[index] if index < len(right_lines) else None\n        if left != right:\n            diffs.append({'line': index + 1, 'left': left, 'right': right})\n    return diffs",
     "testCases": [
@@ -11464,7 +11620,11 @@
         ]
       }
     ],
-    "functionName": "compare_two_files_line_by_line"
+    "functionName": "compare_two_files_line_by_line",
+    "expectedOutcome": "Implement `compare_two_files_line_by_line` to return line-level differences between two lists of lines. Visible sample: [[\"a\",\"b\"],[\"a\",\"c\"]] returns [{\"line\":2,\"left\":\"b\",\"right\":\"c\"}].",
+    "commonMistakes": [
+      "Zipping the lists and silently ignoring extra trailing lines."
+    ]
   },
   {
     "id": "python-coding-041",
@@ -11487,7 +11647,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can track seen business keys across row dictionaries. Edge cases include multiple duplicates and unique-only inputs. The solution is safe because a seen set reports only records that repeat an existing key. A common beginner mistake is flagging the first occurrence as duplicate instead of later repeats.",
     "tables": [],
     "solutionCode": "def find_duplicate_records_in_a_csv_by_key(rows, key):\n    seen = set()\n    duplicates = []\n    for row in rows:\n        value = row[key]\n        if value in seen:\n            duplicates.append(row)\n        seen.add(value)\n    return duplicates",
     "testCases": [
@@ -11514,7 +11674,11 @@
         ]
       }
     ],
-    "functionName": "find_duplicate_records_in_a_csv_by_key"
+    "functionName": "find_duplicate_records_in_a_csv_by_key",
+    "expectedOutcome": "Implement `find_duplicate_records_in_a_csv_by_key` to return duplicate records after the first occurrence of a key. Visible sample: [[{\"id\":1,\"name\":\"A\"},{\"id\":1,\"name\":\"B\"}],\"id\"] returns [{\"id\":1,\"name\":\"B\"}].",
+    "commonMistakes": [
+      "Flagging the first occurrence as duplicate instead of later repeats."
+    ]
   },
   {
     "id": "python-coding-042",
@@ -11537,7 +11701,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can slice a trailing window for each position. Edge cases include fewer than seven rows and normal full windows. The solution is safe because using max(0, index - 6) handles early rows safely. A common beginner mistake is dividing by seven even when fewer than seven values exist.",
     "tables": [],
     "solutionCode": "def compute_a_rolling_7_day_average(values):\n    output = []\n    for index in range(len(values)):\n        window = values[max(0, index - 6):index + 1]\n        output.append(round(sum(window) / len(window), 2))\n    return output",
     "testCases": [
@@ -11559,7 +11723,11 @@
         ]
       }
     ],
-    "functionName": "compute_a_rolling_7_day_average"
+    "functionName": "compute_a_rolling_7_day_average",
+    "expectedOutcome": "Implement `compute_a_rolling_7_day_average` to return rolling averages using up to the last seven values. Visible sample: [[10,20,30,40]] returns [10,15,20,25].",
+    "commonMistakes": [
+      "Dividing by seven even when fewer than seven values exist."
+    ]
   },
   {
     "id": "python-coding-043",
@@ -11582,7 +11750,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can build nested dictionaries incrementally. Edge cases include multiple inner metrics for the same outer key and empty input. The solution is safe because setdefault creates the outer bucket before assigning inner metrics. A common beginner mistake is overwriting the whole outer dictionary for every tuple.",
     "tables": [],
     "solutionCode": "def convert_a_list_of_tuples_into_a_nested_dictionary(rows):\n    output = {}\n    for outer, inner, value in rows:\n        output.setdefault(outer, {})[inner] = value\n    return output",
     "testCases": [
@@ -11610,7 +11778,11 @@
         }
       }
     ],
-    "functionName": "convert_a_list_of_tuples_into_a_nested_dictionary"
+    "functionName": "convert_a_list_of_tuples_into_a_nested_dictionary",
+    "expectedOutcome": "Implement `convert_a_list_of_tuples_into_a_nested_dictionary` to return a nested dictionary from outer key, inner key, value tuples. Visible sample: [[[\"west\",\"orders\",10],[\"west\",\"revenue\",100]]] returns {\"west\":{\"orders\":10,\"revenue\":100}}.",
+    "commonMistakes": [
+      "Overwriting the whole outer dictionary for every tuple."
+    ]
   },
   {
     "id": "python-coding-044",
@@ -11633,7 +11805,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can split each log line into level and message fields. Edge cases include messages containing spaces and multiple log levels. The solution is safe because splitting once preserves the full message text after the level. A common beginner mistake is using split without a max split and losing multi-word messages.",
     "tables": [],
     "solutionCode": "def implement_a_simple_log_parser(lines):\n    parsed = []\n    for line in lines:\n        level, message = line.split(' ', 1)\n        parsed.append({'level': level, 'message': message})\n    return parsed",
     "testCases": [
@@ -11657,7 +11829,11 @@
         ]
       }
     ],
-    "functionName": "implement_a_simple_log_parser"
+    "functionName": "implement_a_simple_log_parser",
+    "expectedOutcome": "Implement `implement_a_simple_log_parser` to return structured log records with level and message. Visible sample: [[\"INFO started\",\"ERROR failed\"]] returns [{\"level\":\"INFO\",\"message\":\"started\"},{\"level\":\"ERROR\",\"message\":\"failed\"}].",
+    "commonMistakes": [
+      "Using split without a max split and losing multi-word messages."
+    ]
   },
   {
     "id": "python-coding-045",
@@ -11680,7 +11856,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can create a decorator-style wrapper function. Edge cases include None input in the lab harness and arbitrary function arguments. The solution is safe because using *args and **kwargs lets the wrapper support different function signatures. A common beginner mistake is forgetting to return the wrapped function result.",
     "tables": [],
     "solutionCode": "def write_a_decorator_that_measures_execution_time(fn):\n    import time\n    if fn is None:\n        return None\n    def wrapper(*args, **kwargs):\n        start = time.time()\n        result = fn(*args, **kwargs)\n        wrapper.last_runtime_ms = (time.time() - start) * 1000\n        return result\n    return wrapper",
     "testCases": [
@@ -11692,7 +11868,11 @@
         "expected": null
       }
     ],
-    "functionName": "write_a_decorator_that_measures_execution_time"
+    "functionName": "write_a_decorator_that_measures_execution_time",
+    "expectedOutcome": "Implement `write_a_decorator_that_measures_execution_time` to return a wrapper that measures runtime and preserves the wrapped result. Visible sample: [null] returns null.",
+    "commonMistakes": [
+      "Forgetting to return the wrapped function result."
+    ]
   },
   {
     "id": "python-coding-046",
@@ -11715,7 +11895,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can write generator logic with range stepping. Edge cases include final partial chunks and chunk sizes that do not divide evenly. The solution is safe because yielding slices avoids loading extra structures beyond the emitted chunk. A common beginner mistake is dropping the final partial chunk.",
     "tables": [],
     "solutionCode": "def create_a_generator_that_yields_chunks_from_an_iterable(items, chunk_size):\n    for index in range(0, len(items), chunk_size):\n        yield items[index:index + chunk_size]",
     "testCases": [
@@ -11746,7 +11926,11 @@
         ]
       }
     ],
-    "functionName": "create_a_generator_that_yields_chunks_from_an_iterable"
+    "functionName": "create_a_generator_that_yields_chunks_from_an_iterable",
+    "expectedOutcome": "Implement `create_a_generator_that_yields_chunks_from_an_iterable` to yield consecutive chunks of the requested size. Visible sample: [[1,2,3,4,5],2] returns [[1,2],[3,4],[5]].",
+    "commonMistakes": [
+      "Dropping the final partial chunk."
+    ]
   },
   {
     "id": "python-coding-047",
@@ -11769,7 +11953,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can maintain cache values and recency order. Edge cases include updates to existing keys, capacity eviction, and cache misses. The solution is safe because moving accessed keys to the end keeps the eviction candidate accurate. A common beginner mistake is evicting by insertion order without updating recency on get.",
     "tables": [],
     "solutionCode": "def implement_a_simple_lru_cache(operations, capacity):\n    cache = {}\n    order = []\n    output = []\n    for op in operations:\n        if op[0] == 'put':\n            _, key, value = op\n            if key in cache:\n                order.remove(key)\n            elif len(order) >= capacity:\n                oldest = order.pop(0)\n                del cache[oldest]\n            cache[key] = value\n            order.append(key)\n            output.append(None)\n        else:\n            _, key = op\n            if key not in cache:\n                output.append(-1)\n            else:\n                order.remove(key)\n                order.append(key)\n                output.append(cache[key])\n    return output",
     "testCases": [
@@ -11812,7 +11996,11 @@
         ]
       }
     ],
-    "functionName": "implement_a_simple_lru_cache"
+    "functionName": "implement_a_simple_lru_cache",
+    "expectedOutcome": "Implement `implement_a_simple_lru_cache` to return results from simulated put/get operations with LRU eviction. Visible sample: [[[\"put\",1,\"A\"],[\"put\",2,\"B\"],[\"get\",1],[\"put\",3,\"C\"],[\"get\",2]],2] returns [null,null,\"A\",null,-1].",
+    "commonMistakes": [
+      "Evicting by insertion order without updating recency on get."
+    ]
   },
   {
     "id": "python-coding-048",
@@ -11835,7 +12023,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can intersect sets across multiple collections. Edge cases include empty outer input, duplicates, and no common values. The solution is safe because starting with the first set and intersecting each later set is deterministic and concise. A common beginner mistake is only comparing the first two lists and ignoring the rest.",
     "tables": [],
     "solutionCode": "def find_common_elements_across_multiple_lists(lists):\n    if not lists:\n        return []\n    common = set(lists[0])\n    for items in lists[1:]:\n        common &= set(items)\n    return sorted(common)",
     "testCases": [
@@ -11864,7 +12052,11 @@
         ]
       }
     ],
-    "functionName": "find_common_elements_across_multiple_lists"
+    "functionName": "find_common_elements_across_multiple_lists",
+    "expectedOutcome": "Implement `find_common_elements_across_multiple_lists` to return sorted values present in every list. Visible sample: [[[1,2,3],[2,3,4],[2,5]]] returns [2].",
+    "commonMistakes": [
+      "Only comparing the first two lists and ignoring the rest."
+    ]
   },
   {
     "id": "python-coding-049",
@@ -11887,7 +12079,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can normalize and deduplicate text identifiers. Edge cases include blank strings, duplicate emails with different case, and leading/trailing spaces. The solution is safe because a seen set prevents duplicates while the output list preserves order. A common beginner mistake is lowercasing but forgetting to trim whitespace before deduplication.",
     "tables": [],
     "solutionCode": "def normalize_an_email_list(emails):\n    output = []\n    seen = set()\n    for email in emails:\n        normalized = email.strip().lower()\n        if normalized and normalized not in seen:\n            seen.add(normalized)\n            output.append(normalized)\n    return output",
     "testCases": [
@@ -11906,7 +12098,11 @@
         ]
       }
     ],
-    "functionName": "normalize_an_email_list"
+    "functionName": "normalize_an_email_list",
+    "expectedOutcome": "Implement `normalize_an_email_list` to return trimmed, lowercase, unique email addresses in first-seen order. Visible sample: [[\" A@X.COM \",\"a@x.com\",\"b@y.com\"]] returns [\"a@x.com\",\"b@y.com\"].",
+    "commonMistakes": [
+      "Lowercasing but forgetting to trim whitespace before deduplication."
+    ]
   },
   {
     "id": "python-coding-050",
@@ -11929,7 +12125,7 @@
       "Name the data structure you need before coding.",
       "Handle empty input and duplicate values explicitly."
     ],
-    "explanation": "A strong answer explains the baseline, the improved data structure, and the time/space trade-off.",
+    "explanation": "This problem tests whether you can aggregate transaction amounts by customer. Edge cases include multiple transactions per customer, negative adjustments, and empty inputs. The solution is safe because summing by customer before selecting max avoids row-level mistakes. A common beginner mistake is choosing the single largest transaction instead of total customer revenue.",
     "tables": [],
     "solutionCode": "def find_the_top_customer_by_revenue_from_transactions(transactions):\n    totals = {}\n    for txn in transactions:\n        totals[txn['customer_id']] = totals.get(txn['customer_id'], 0) + txn['amount']\n    return max(totals.items(), key=lambda item: item[1])[0] if totals else None",
     "testCases": [
@@ -11954,6 +12150,10 @@
         "expected": 1
       }
     ],
-    "functionName": "find_the_top_customer_by_revenue_from_transactions"
+    "functionName": "find_the_top_customer_by_revenue_from_transactions",
+    "expectedOutcome": "Implement `find_the_top_customer_by_revenue_from_transactions` to return the customer_id with the highest total revenue, or None for no transactions. Visible sample: [[{\"customer_id\":1,\"amount\":50},{\"customer_id\":2,\"amount\":80},{\"customer_id\":1,\"amount\":40}]] returns 1.",
+    "commonMistakes": [
+      "Choosing the single largest transaction instead of total customer revenue."
+    ]
   }
 ]

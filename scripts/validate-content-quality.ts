@@ -5,18 +5,19 @@ import path from "node:path";
 import codingLabGenerated from "../frontend/data/coding-labs.generated.json";
 import { pysparkLabData } from "../frontend/data/pyspark-labs.generated";
 import {
-  OPERATIONS_LABS,
+  ALL_OPERATIONS_LABS,
   type OperationsLab
 } from "../frontend/data/platform-operations-labs";
 import {
-  getScenarios,
+  ALL_SCENARIOS,
   type Scenario,
   type ScenarioSampleTable
 } from "../frontend/lib/scenarios";
 import {
-  SYSTEM_DESIGN_CASES,
+  ALL_SYSTEM_DESIGN_CASES,
   type SystemDesignCase
 } from "../frontend/lib/system-design";
+import { isLaunchReadyCodingLab } from "../frontend/lib/launch-ready-content";
 import type {
   CodingLab,
   CodingLabTable,
@@ -44,6 +45,7 @@ interface Finding {
   title: string;
   check: string;
   message: string;
+  launchReady: boolean;
 }
 
 interface ValidationItem {
@@ -64,6 +66,7 @@ interface ValidationItem {
   solutionCode?: string;
   tables?: CodingLabTable[];
   sqlTestCases?: SqlTestCase[];
+  launchReady?: boolean;
 }
 
 const ROOT_DIR = path.resolve(__dirname, "..");
@@ -124,7 +127,7 @@ const findings: Finding[] = [];
 
 function addFinding(
   severity: Severity,
-  item: Pick<ValidationItem, "source" | "kind" | "id" | "title">,
+  item: Pick<ValidationItem, "source" | "kind" | "id" | "title"> & { launchReady?: boolean },
   check: string,
   message: string
 ) {
@@ -135,8 +138,27 @@ function addFinding(
     id: item.id,
     title: item.title,
     check,
-    message
+    message,
+    launchReady: "launchReady" in item ? Boolean(item.launchReady) : false
   });
+}
+
+function launchSection(item: ValidationItem): string {
+  if (item.kind === "coding-lab" && item.source.includes("coding-labs.generated")) {
+    return item.slug.startsWith("sql-") ? "SQL labs" : "Python labs";
+  }
+  if (item.kind === "coding-lab" && item.source.includes("pyspark-labs.generated")) {
+    return "PySpark labs";
+  }
+  if (item.kind === "operations-lab" && item.slug.startsWith("airflow-")) {
+    return "Airflow labs";
+  }
+  if (item.kind === "operations-lab" && item.slug.startsWith("aws-")) {
+    return "AWS labs";
+  }
+  if (item.kind === "scenario") return "Broken Pipeline scenarios";
+  if (item.kind === "system-design") return "System Design cases";
+  return item.kind;
 }
 
 function asString(value: unknown): string {
@@ -204,7 +226,8 @@ function normalizeCodingLab(value: unknown, source: string): ValidationItem | nu
     expectedSql: asString(record.expectedSql),
     solutionCode: asString(record.solutionCode),
     tables: normalizeTables(record.tables),
-    sqlTestCases: normalizeSqlTestCases(record.sqlTestCases)
+    sqlTestCases: normalizeSqlTestCases(record.sqlTestCases),
+    launchReady: isLaunchReadyCodingLab(slug)
   };
 }
 
@@ -233,7 +256,8 @@ function itemFromScenario(scenario: Scenario): ValidationItem {
     starterCode: scenario.brokenCode,
     expectedSql: scenario.expectedSql,
     solutionCode: scenario.modelSolution,
-    tables: scenarioTablesToCodingTables(scenario.sampleTables)
+    tables: scenarioTablesToCodingTables(scenario.sampleTables),
+    launchReady: scenario.launchReady
   };
 }
 
@@ -252,7 +276,8 @@ function itemFromOperationsLab(lab: OperationsLab): ValidationItem {
     explanation: Object.values(lab.modelAnswer).join("\n"),
     hints: lab.hints,
     starterCode: lab.evidence,
-    solutionCode: Object.values(lab.modelAnswer).join("\n")
+    solutionCode: Object.values(lab.modelAnswer).join("\n"),
+    launchReady: lab.launchReady
   };
 }
 
@@ -271,7 +296,8 @@ function itemFromSystemDesignCase(systemCase: SystemDesignCase): ValidationItem 
     explanation: Object.values(systemCase.modelAnswer).join("\n"),
     hints: systemCase.hints,
     starterCode: systemCase.badArchitecture,
-    solutionCode: Object.values(systemCase.modelAnswer).join("\n")
+    solutionCode: Object.values(systemCase.modelAnswer).join("\n"),
+    launchReady: systemCase.launchReady
   };
 }
 
@@ -499,7 +525,8 @@ function validateHints(item: ValidationItem) {
 
 function validateSqlReferences(item: ValidationItem) {
   const tables = item.tables ?? [];
-  if (item.starterCode?.trim()) {
+  const hasExecutableSql = Boolean(item.expectedSql?.trim());
+  if (hasExecutableSql && item.starterCode?.trim()) {
     const unavailableStarterTables = findUnavailableSqlTables(item.starterCode, tables);
     if (unavailableStarterTables.length > 0) {
       addFinding(
@@ -511,7 +538,7 @@ function validateSqlReferences(item: ValidationItem) {
     }
   }
 
-  if (item.expectedSql?.trim()) {
+  if (hasExecutableSql && item.expectedSql?.trim()) {
     const unavailableExpectedTables = findUnavailableSqlTables(item.expectedSql, tables);
     if (unavailableExpectedTables.length > 0) {
       addFinding(
@@ -640,10 +667,43 @@ async function validateSqlExecution(SQL: SqlJsStatic, item: ValidationItem) {
   }
 }
 
-function printReport() {
+function printReport(items: ValidationItem[]) {
   const severityOrder: Severity[] = ["BLOCKER", "WARNING", "SUGGESTION"];
+  const launchReadyItems = items.filter((item) => item.launchReady);
+  const launchReadyBlockers = findings.filter(
+    (finding) => finding.launchReady && finding.severity === "BLOCKER"
+  );
+  const hiddenBlockers = findings.filter(
+    (finding) => !finding.launchReady && finding.severity === "BLOCKER"
+  );
+  const launchCounts = new Map<string, number>();
+  for (const item of launchReadyItems) {
+    const section = launchSection(item);
+    launchCounts.set(section, (launchCounts.get(section) ?? 0) + 1);
+  }
+
   console.log("\nData Foundry content quality report");
   console.log("===================================");
+  console.log("\nLaunch-ready gate");
+  console.log("-----------------");
+  console.log(`Launch-ready records: ${launchReadyItems.length}`);
+  Array.from(launchCounts)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .forEach(([section, count]) => console.log(`- ${section}: ${count}`));
+  console.log(`Launch-ready BLOCKER findings: ${launchReadyBlockers.length}`);
+  console.log(`Hidden BLOCKER findings: ${hiddenBlockers.length}`);
+
+  if (launchReadyBlockers.length > 0) {
+    console.log("\nLaunch-ready blockers to fix before beta:");
+    launchReadyBlockers.slice(0, 20).forEach((finding) => {
+      console.log(
+        `- ${finding.source} :: ${finding.id} :: ${finding.title}\n  ${finding.message}`
+      );
+    });
+    if (launchReadyBlockers.length > 20) {
+      console.log(`- ... ${launchReadyBlockers.length - 20} more`);
+    }
+  }
 
   for (const severity of severityOrder) {
     const severityFindings = findings.filter((finding) => finding.severity === severity);
@@ -681,7 +741,7 @@ function printReport() {
     .join(" | ");
   console.log(`\nSummary: ${summary}\n`);
 
-  if (process.env.CONTENT_QA_STRICT === "1" && findings.some((finding) => finding.severity === "BLOCKER")) {
+  if (process.env.CONTENT_QA_STRICT === "1" && launchReadyBlockers.length > 0) {
     process.exitCode = 1;
   }
 }
@@ -693,9 +753,9 @@ async function main() {
   const generatedPySparkLabs = (pysparkLabData as unknown[])
     .map((lab) => normalizeCodingLab(lab, "frontend/data/pyspark-labs.generated.ts"))
     .filter((lab): lab is ValidationItem => Boolean(lab));
-  const scenarioItems = getScenarios().map(itemFromScenario);
-  const operationsItems = OPERATIONS_LABS.map(itemFromOperationsLab);
-  const systemDesignItems = SYSTEM_DESIGN_CASES.map(itemFromSystemDesignCase);
+  const scenarioItems = ALL_SCENARIOS.map(itemFromScenario);
+  const operationsItems = ALL_OPERATIONS_LABS.map(itemFromOperationsLab);
+  const systemDesignItems = ALL_SYSTEM_DESIGN_CASES.map(itemFromSystemDesignCase);
 
   const items = [
     ...generatedSqlLabs,
@@ -729,7 +789,7 @@ async function main() {
   console.log(
     `Validated ${items.length} records: ${generatedSqlLabs.length} generated SQL/Python labs, ${generatedPySparkLabs.length} generated PySpark labs, ${scenarioItems.length} scenarios, ${operationsItems.length} operations labs, ${systemDesignItems.length} system-design cases.`
   );
-  printReport();
+  printReport(items);
 }
 
 main().catch((error) => {

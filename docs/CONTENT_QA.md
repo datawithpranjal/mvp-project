@@ -16,7 +16,7 @@ This prints a report grouped by:
 - `WARNING`: content that may be mismatched, duplicated, or risky.
 - `SUGGESTION`: content that may still work but should be manually reviewed.
 
-The default run is report-only and does not fail the command. To make blockers fail in CI:
+The default run is report-only and does not fail the command. To make launch-ready blockers fail in CI:
 
 ```bash
 CONTENT_QA_STRICT=1 npm run validate:content:quality
@@ -39,3 +39,5 @@ CONTENT_QA_STRICT=1 npm run validate:content:quality
 This script does not rewrite content. Treat findings as a QA report, then fix content in a separate content cleanup change.
 
 The semantic and hint checks are heuristic. They are designed to catch suspicious content at scale, not replace human review.
+
+The production UI shows launch-ready content by default. Set `NEXT_PUBLIC_SHOW_HIDDEN_CONTENT=true` only for internal review builds that need to see hidden/unreviewed content.
