@@ -51,6 +51,27 @@ export const CORE_LABS = [
     status: "available"
   },
   {
+    title: "Azure Lab",
+    description:
+      "Practice Azure data platform decisions across ADLS, ADF, Synapse, Databricks, governance, and production trade-offs.",
+    href: "/labs/azure",
+    status: "coming-soon"
+  },
+  {
+    title: "GCP Lab",
+    description:
+      "Practice GCP data engineering choices across BigQuery, Cloud Storage, Dataflow, Pub/Sub, orchestration, and cost controls.",
+    href: "/labs/gcp",
+    status: "coming-soon"
+  },
+  {
+    title: "Data Modelling Lab",
+    description:
+      "Practice facts, dimensions, grains, SCDs, marts, and warehouse design decisions using realistic business requirements.",
+    href: "/labs/data-modelling",
+    status: "coming-soon"
+  },
+  {
     title: "System Design Studio",
     description: "Design data platforms, defend architecture trade-offs, and practice interview framing.",
     href: "/system-design",
