@@ -9,12 +9,22 @@ import type { AuthRequestOtpRequest } from "../lib/types";
 interface AuthFormProps {
   title: string;
   description: string;
+  initialMode?: "signin" | "signup";
+  showModeTabs?: boolean;
+  showOtpBadge?: boolean;
   onSuccess?: (user: AuthUser) => void;
 }
 
-export function AuthForm({ title, description, onSuccess }: AuthFormProps) {
+export function AuthForm({
+  title,
+  description,
+  initialMode = "signin",
+  showModeTabs = true,
+  showOtpBadge = true,
+  onSuccess
+}: AuthFormProps) {
   const [step, setStep] = useState<"details" | "otp">("details");
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [mode, setMode] = useState<"signin" | "signup">(initialMode);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [otpCode, setOtpCode] = useState("");
@@ -121,41 +131,45 @@ export function AuthForm({ title, description, onSuccess }: AuthFormProps) {
           <h3 className="text-lg font-semibold text-slate-50">{title}</h3>
           <p className="mt-2 text-sm leading-6 text-slate-300">{description}</p>
         </div>
-        <span className="rounded-full border border-sky-300/20 bg-sky-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-sky-100">
-          OTP Login
-        </span>
+        {showOtpBadge ? (
+          <span className="rounded-full border border-sky-300/20 bg-sky-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-sky-100">
+            OTP Login
+          </span>
+        ) : null}
       </div>
 
       {step === "details" ? (
         <form onSubmit={handleRequestOtp} className="mt-5 space-y-4">
-          <div
-            role="tablist"
-            aria-label="Choose account action"
-            className="grid grid-cols-2 rounded-2xl border border-slate-800 bg-slate-950/35 p-1"
-          >
-            {([
-              ["signin", "Log in"],
-              ["signup", "Create account"]
-            ] as const).map(([value, label]) => (
-              <button
-                key={value}
-                type="button"
-                role="tab"
-                aria-selected={mode === value}
-                onClick={() => {
-                  setMode(value);
-                  setError(null);
-                }}
-                className={`rounded-xl px-4 py-3 text-sm font-semibold transition ${
-                  mode === value
-                    ? "bg-teal-300 text-slate-950"
-                    : "text-slate-300 hover:text-teal-100"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          {showModeTabs ? (
+            <div
+              role="tablist"
+              aria-label="Choose account action"
+              className="grid grid-cols-2 rounded-2xl border border-slate-800 bg-slate-950/35 p-1"
+            >
+              {([
+                ["signin", "Log in"],
+                ["signup", "Create account"]
+              ] as const).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="tab"
+                  aria-selected={mode === value}
+                  onClick={() => {
+                    setMode(value);
+                    setError(null);
+                  }}
+                  className={`rounded-xl px-4 py-3 text-sm font-semibold transition ${
+                    mode === value
+                      ? "bg-teal-300 text-slate-950"
+                      : "text-slate-300 hover:text-teal-100"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          ) : null}
 
           {mode === "signup" ? (
             <div>

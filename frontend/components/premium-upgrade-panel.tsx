@@ -404,7 +404,10 @@ export function PremiumUpgradePanel({
     return (
       <AuthForm
         title="Create an account to continue"
-        description="Sign in with OTP first, then choose a plan and pay securely with Razorpay."
+        description="Enter your name and email. We will send a secure OTP before you choose a plan and pay with Razorpay."
+        initialMode="signup"
+        showModeTabs={false}
+        showOtpBadge={false}
       />
     );
   }

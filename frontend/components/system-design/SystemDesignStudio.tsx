@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
+import { evaluateScenarioWithAi } from "../../lib/api";
+import { getAuthToken } from "../../lib/auth";
 import { InteractiveLearningFlow } from "../interactive-learning-flow";
 import { buildArchitectureFlow } from "../../lib/learning-flow";
 import { getPremiumAccess, type PremiumAccessRecord } from "../../lib/premium-access";
@@ -18,6 +20,7 @@ import {
   type SystemDesignEvaluation,
   type SystemDesignProgress
 } from "../../lib/system-design";
+import { AuthDialog } from "../auth-dialog";
 
 const STORAGE_KEY = "the-data-foundry-system-design-progress-v1";
 
@@ -59,6 +62,9 @@ export function SystemDesignStudio() {
   const [hintCount, setHintCount] = useState(0);
   const [showModelAnswer, setShowModelAnswer] = useState(false);
   const [evaluation, setEvaluation] = useState<SystemDesignEvaluation | null>(null);
+  const [evaluationNotice, setEvaluationNotice] = useState<string | null>(null);
+  const [isEvaluating, setIsEvaluating] = useState(false);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
 
   useEffect(() => {
     const savedProgress = readProgress();
@@ -128,14 +134,124 @@ export function SystemDesignStudio() {
     });
   }
 
-  function evaluateAnswer() {
-    const nextEvaluation = evaluateSystemDesignAnswer(selectedCase, answer, selectedOptions);
-    setEvaluation(nextEvaluation);
-    saveCaseProgress(selectedCase, {
-      draft: answer,
-      selectedOptions,
-      score: nextEvaluation.score
-    });
+  async function evaluateAnswer() {
+    const submittedAnswer = answer.trim();
+    if (!submittedAnswer) {
+      setEvaluationNotice("Write your architecture answer first, then request AI feedback.");
+      return;
+    }
+
+    const token = getAuthToken();
+    if (!token) {
+      setEvaluationNotice("Sign in with OTP to get AI evaluation on your architecture answer.");
+      setIsAuthOpen(true);
+      return;
+    }
+
+    setIsEvaluating(true);
+    setEvaluationNotice(null);
+
+    try {
+      const modelAnswer = [
+        `Overview: ${selectedCase.modelAnswer.overview}`,
+        `Data flow: ${selectedCase.modelAnswer.dataFlow}`,
+        `Storage model: ${selectedCase.modelAnswer.storageModel}`,
+        `Processing: ${selectedCase.modelAnswer.processing}`,
+        `Reliability: ${selectedCase.modelAnswer.reliability}`,
+        `Trade-offs: ${selectedCase.modelAnswer.tradeoffs}`,
+        `Interview framing: ${selectedCase.modelAnswer.interviewFraming}`
+      ].join("\n\n");
+
+      const aiResult = await evaluateScenarioWithAi(token, {
+        scenario_slug: selectedCase.slug,
+        user_answer: submittedAnswer,
+        context: {
+          title: selectedCase.title,
+          domain: formatSystemDesignDomain(selectedCase.domain),
+          scenario_type: "system_design",
+          business_context: selectedCase.businessContext,
+          problem_statement: selectedCase.badArchitecture,
+          requirement: [
+            selectedCase.learnerTask,
+            "Functional requirements:",
+            ...selectedCase.functionalRequirements,
+            "Non-functional requirements:",
+            ...selectedCase.nonFunctionalRequirements,
+            "Decision choices made by the learner:",
+            ...selectedCase.decisions.map((decision) => {
+              const selected = selectedOptions[decision.id];
+              const option = decision.options.find((item) => item.id === selected);
+              return `${decision.question} -> ${option?.label ?? "No option selected"}`;
+            })
+          ].join("\n"),
+          broken_code: selectedCase.badArchitecture,
+          actual_output: "",
+          expected_output: selectedCase.architectureStages.join(" -> "),
+          model_solution: modelAnswer,
+          production_explanation: selectedCase.modelAnswer.interviewFraming,
+          common_mistakes: [
+            "Skipping non-functional requirements such as SLA, freshness, reliability, and cost.",
+            "Listing tools without explaining trade-offs or failure handling.",
+            "Forgetting monitoring, backfills, idempotency, and data quality checks."
+          ],
+          follow_ups: selectedCase.followUps,
+          rubric: {
+            root_cause: selectedCase.rubric.requirements,
+            correctness: selectedCase.rubric.architecture,
+            production_thinking: selectedCase.rubric.reliability,
+            tradeoffs: selectedCase.rubric.tradeoffs,
+            communication: selectedCase.rubric.communication
+          }
+        }
+      });
+
+      const nextEvaluation: SystemDesignEvaluation = {
+        score: aiResult.score,
+        verdict: aiResult.verdict,
+        strengths: aiResult.strengths,
+        gaps: aiResult.gaps,
+        improvedAnswer: aiResult.improved_answer,
+        followUpQuestions: aiResult.follow_up_questions,
+        mode: aiResult.mode,
+        model: aiResult.model,
+        matchedKeywords: [],
+        missingKeywords: [],
+        rubricBreakdown: {
+          requirements: aiResult.rubric_breakdown.root_cause,
+          architecture: aiResult.rubric_breakdown.correctness,
+          tradeoffs: aiResult.rubric_breakdown.tradeoffs,
+          reliability: aiResult.rubric_breakdown.production_thinking,
+          communication: aiResult.rubric_breakdown.communication
+        }
+      };
+
+      setEvaluation(nextEvaluation);
+      saveCaseProgress(selectedCase, {
+        draft: submittedAnswer,
+        selectedOptions,
+        score: nextEvaluation.score
+      });
+    } catch (error) {
+      const reason =
+        error instanceof Error ? error.message : "AI evaluation could not run right now.";
+      console.error("AI system design evaluation failed:", reason);
+      const fallbackEvaluation = evaluateSystemDesignAnswer(
+        selectedCase,
+        submittedAnswer,
+        selectedOptions
+      );
+      setEvaluation({ ...fallbackEvaluation, mode: "local" });
+      setEvaluationNotice(
+        `AI evaluation could not run: ${reason} Temporary rubric feedback is shown instead.`
+      );
+      saveCaseProgress(selectedCase, {
+        draft: submittedAnswer,
+        selectedOptions,
+        score: fallbackEvaluation.score
+      });
+    } finally {
+      setIsEvaluating(false);
+    }
   }
 
   function markCompleted() {
@@ -294,6 +410,8 @@ export function SystemDesignStudio() {
                 onNext={() => nextCase && setSelectedSlug(nextCase.slug)}
                 canGoNext={Boolean(nextCase)}
                 evaluation={evaluation}
+                evaluationNotice={evaluationNotice}
+                isEvaluating={isEvaluating}
               />
               {showModelAnswer ? <ModelAnswer item={selectedCase} /> : null}
               <div className="panel rounded-[2rem] p-6">
@@ -309,6 +427,7 @@ export function SystemDesignStudio() {
           )}
         </section>
       </section>
+      <AuthDialog isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
     </main>
   );
 }
@@ -433,7 +552,9 @@ function AnswerWorkspace({
   onComplete,
   onNext,
   canGoNext,
-  evaluation
+  evaluation,
+  evaluationNotice,
+  isEvaluating
 }: {
   item: SystemDesignCase;
   answer: string;
@@ -446,6 +567,8 @@ function AnswerWorkspace({
   onNext: () => void;
   canGoNext: boolean;
   evaluation: SystemDesignEvaluation | null;
+  evaluationNotice: string | null;
+  isEvaluating: boolean;
 }) {
   return (
     <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
@@ -471,12 +594,18 @@ function AnswerWorkspace({
             <button
               type="button"
               onClick={onEvaluate}
-              className="rounded-full bg-amber-300 px-4 py-2 text-sm font-bold text-slate-950 transition hover:bg-amber-200"
+              disabled={isEvaluating}
+              className="rounded-full bg-amber-300 px-4 py-2 text-sm font-bold text-slate-950 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:bg-amber-100"
             >
-              Evaluate answer
+              {isEvaluating ? "Evaluating with AI..." : "Evaluate answer"}
             </button>
           </div>
         </div>
+        {evaluationNotice ? (
+          <div className="mt-4 rounded-2xl border border-amber-300/25 bg-amber-300/10 px-4 py-3 text-sm leading-6 text-amber-100">
+            {evaluationNotice}
+          </div>
+        ) : null}
         <textarea
           value={answer}
           onChange={(event) => setAnswer(event.target.value)}
@@ -533,18 +662,33 @@ function AnswerWorkspace({
           </div>
         </div>
 
-        {evaluation ? <EvaluationPanel evaluation={evaluation} /> : <RubricCard item={item} />}
+        {evaluation ? (
+          <EvaluationPanel evaluation={evaluation} item={item} />
+        ) : (
+          <RubricCard item={item} />
+        )}
       </aside>
     </section>
   );
 }
 
-function EvaluationPanel({ evaluation }: { evaluation: SystemDesignEvaluation }) {
+function EvaluationPanel({
+  evaluation,
+  item
+}: {
+  evaluation: SystemDesignEvaluation;
+  item: SystemDesignCase;
+}) {
   return (
     <div className="panel rounded-[2rem] border border-teal-300/20 p-6">
       <p className="text-xs font-semibold uppercase tracking-[0.22em] text-teal-200">
-        Evaluation
+        {evaluation.mode === "local" ? "Temporary rubric feedback" : "AI evaluation"}
       </p>
+      {evaluation.mode && evaluation.mode !== "local" ? (
+        <p className="mt-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+          Powered by {evaluation.mode}
+        </p>
+      ) : null}
       <p className="mt-3 text-5xl font-semibold text-slate-50">{evaluation.score}/100</p>
       <p className="mt-2 text-sm font-semibold text-teal-100">{verdictLabel(evaluation.score)}</p>
       <div className="mt-5 space-y-3">
@@ -557,12 +701,28 @@ function EvaluationPanel({ evaluation }: { evaluation: SystemDesignEvaluation })
             <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-800">
               <div
                 className="h-full rounded-full bg-teal-300"
-                style={{ width: `${Math.min(100, value * 4)}%` }}
+                style={{
+                  width: `${Math.min(
+                    100,
+                    (value / Math.max(1, item.rubric[key as keyof SystemDesignCase["rubric"]])) *
+                      100
+                  )}%`
+                }}
               />
             </div>
           </div>
         ))}
       </div>
+      {evaluation.strengths.length > 0 ? (
+        <div className="mt-5 rounded-3xl border border-teal-300/20 bg-teal-300/10 p-4">
+          <p className="text-sm font-semibold text-teal-50">What worked</p>
+          <ul className="mt-3 space-y-2 text-sm leading-6 text-teal-100">
+            {evaluation.strengths.map((strength) => (
+              <li key={strength}>{strength}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       <div className="mt-5 rounded-3xl border border-slate-800 bg-slate-950/50 p-4">
         <p className="text-sm font-semibold text-slate-100">What to improve</p>
         <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-300">
@@ -573,6 +733,22 @@ function EvaluationPanel({ evaluation }: { evaluation: SystemDesignEvaluation })
           )}
         </ul>
       </div>
+      {evaluation.improvedAnswer ? (
+        <div className="mt-5 rounded-3xl border border-amber-300/20 bg-amber-300/10 p-4">
+          <p className="text-sm font-semibold text-amber-50">AI suggested stronger framing</p>
+          <p className="mt-3 text-sm leading-6 text-amber-100">{evaluation.improvedAnswer}</p>
+        </div>
+      ) : null}
+      {evaluation.followUpQuestions?.length ? (
+        <div className="mt-5 rounded-3xl border border-slate-800 bg-slate-950/50 p-4">
+          <p className="text-sm font-semibold text-slate-100">Follow-up questions</p>
+          <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-300">
+            {evaluation.followUpQuestions.map((question) => (
+              <li key={question}>{question}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </div>
   );
 }

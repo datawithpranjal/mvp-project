@@ -81,6 +81,10 @@ export interface SystemDesignEvaluation {
   verdict: "weak" | "partial" | "good" | "strong";
   strengths: string[];
   gaps: string[];
+  improvedAnswer?: string;
+  followUpQuestions?: string[];
+  mode?: "openai" | "gemini" | "local";
+  model?: string;
   matchedKeywords: string[];
   missingKeywords: string[];
   rubricBreakdown: SystemDesignRubric;

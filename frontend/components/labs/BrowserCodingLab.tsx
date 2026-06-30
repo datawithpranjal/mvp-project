@@ -158,12 +158,12 @@ async function runSqlLab(lab: CodingLab, answer: string): Promise<LabRunResult> 
   };
 }
 
-function buildPythonHarness(lab: CodingLab) {
+function buildPythonHarness(lab: CodingLab, testCases: PythonTestCase[] = lab.testCases ?? []) {
   return `
 import json
 
 _function_name = ${JSON.stringify(lab.functionName)}
-_test_cases = json.loads(${JSON.stringify(JSON.stringify(lab.testCases ?? []))})
+_test_cases = json.loads(${JSON.stringify(JSON.stringify(testCases))})
 
 if _function_name not in globals() or not callable(globals()[_function_name]):
     raise AssertionError(f"Define a function named {_function_name}.")
@@ -189,8 +189,12 @@ json.dumps(_results, default=str)
 `;
 }
 
-async function runPythonLab(lab: CodingLab, answer: string): Promise<LabRunResult> {
-  if (!lab.functionName || !lab.testCases?.length) {
+async function runPythonLab(
+  lab: CodingLab,
+  answer: string,
+  testCases: PythonTestCase[] = lab.testCases ?? []
+): Promise<LabRunResult> {
+  if (!lab.functionName || !testCases.length) {
     return {
       passed: null,
       message: "This lab cannot be validated yet. Please choose another question or contact support."
@@ -198,7 +202,7 @@ async function runPythonLab(lab: CodingLab, answer: string): Promise<LabRunResul
   }
 
   const pyodide = await getPyodide();
-  const raw = await pyodide.runPythonAsync(`${answer}\n\n${buildPythonHarness(lab)}`);
+  const raw = await pyodide.runPythonAsync(`${answer}\n\n${buildPythonHarness(lab, testCases)}`);
   const pythonResults = JSON.parse(String(raw)) as PythonTestResult[];
   const passed = pythonResults.every((result) => result.passed);
 
@@ -419,7 +423,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
       ? activeLabQueue[currentQueueIndex + 1] ?? null
       : activeLabQueue[0] ?? null;
 
-  async function runLab() {
+  async function submitLab() {
     if (!selectedLab) return;
     const currentUser = getCurrentUser();
     const guestQuestionKey = `coding:${selectedLab.slug}`;
@@ -468,6 +472,11 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
         passed: nextResult.passed
       });
       if (nextResult.passed) {
+        setWorkspaceMessage(
+          nextLab
+            ? "Correct. Passed full validation and edge-case checks. Moving to the next question..."
+            : "Correct. Passed full validation and edge-case checks."
+        );
         sendUsageEvent("coding_lab_completed", {
           metadata: {
             lab_slug: selectedLab.slug,
@@ -475,6 +484,11 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
           }
         });
         trackEvent("lab_completed", { lab: selectedLab.slug, track: selectedLab.track });
+        if (nextLab) {
+          window.setTimeout(() => {
+            goToNextLab();
+          }, 900);
+        }
       }
     } catch (error) {
       setResult({
@@ -486,51 +500,81 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
     }
   }
 
-  async function runSqlPreview() {
-    if (selectedLab.track !== "sql") return;
+  async function runSampleCheck() {
     try {
       setIsRunning(true);
       setResult(null);
-      if (!selectedLab.expectedSql) {
-        const table = await runReadOnlySql(selectedLab.tables, answer);
+
+      if (selectedLab.track === "sql") {
+        if (!selectedLab.expectedSql) {
+          const table = await runReadOnlySql(selectedLab.tables, answer);
+          setResult({
+            passed: null,
+            message:
+              "Query ran successfully on the visible sample data, but this lab does not yet have an expected result for comparison.",
+            table
+          });
+          return;
+        }
+
+        const validation = await validateSqlOutput(
+          selectedLab.tables,
+          answer,
+          selectedLab.expectedSql
+        );
         setResult({
-          passed: null,
-          message:
-            "Query ran successfully, but this lab does not yet have an expected result for comparison.",
-          table
+          passed: validation.passed,
+          message: validation.passed
+            ? "Sample check passed. Submit your answer to run hidden edge-case validation."
+            : "Wrong answer on the visible sample data. Compare your output with the expected result before submitting.",
+          sqlResults: [
+            {
+              name: "Visible sample data",
+              description:
+                "Run check against only the sample tables and expected output shown in this lab.",
+              passed: validation.passed,
+              actual: validation.actual,
+              expected: validation.expected
+            }
+          ]
         });
         return;
       }
 
-      const validation = await validateSqlOutput(
-        selectedLab.tables,
-        answer,
-        selectedLab.expectedSql
-      );
+      if (selectedLab.track === "python") {
+        const sampleCase = selectedLab.testCases?.[0];
+        if (!sampleCase) {
+          setResult({
+            passed: null,
+            message:
+              "Sample check is unavailable for this lab. Submit the answer for full validation."
+          });
+          return;
+        }
+        const sampleResult = await runPythonLab(selectedLab, answer, [sampleCase]);
+        setResult({
+          ...sampleResult,
+          message: sampleResult.passed
+            ? "Sample check passed. Submit your answer to run the full hidden edge-case validation."
+            : "Wrong answer on the visible sample case. Fix the failing input/output before submitting."
+        });
+        return;
+      }
+
+      const trimmedAnswer = answer.trim();
       setResult({
-        passed: validation.passed,
-        message: validation.passed
-          ? "Correct answer on the visible sample data. Submit your answer to run the hidden edge-case checks."
-          : "Wrong answer. The query ran successfully, but its output does not match the expected result on the visible sample data.",
-        sqlResults: [
-          {
-            name: "Visible sample data",
-            description:
-              "Run-query check against the sample tables and expected output shown in this lab.",
-            passed: validation.passed,
-            actual: validation.actual,
-            expected: validation.expected
-          }
-        ]
+        passed: trimmedAnswer.length >= 80 ? null : false,
+        message:
+          trimmedAnswer.length >= 80
+            ? "Your draft is ready for review. Submit it for the complete production-fix evaluation."
+            : "Add a concrete PySpark fix before submitting. Mention the API change and production trade-off."
       });
-      setProgressMap(recordCodingLabAttempt(selectedLab.slug, selectedLab.track, false));
     } catch (error) {
       setResult({
         passed: false,
         message: error instanceof Error ? error.message : "The query could not run.",
         table: { columns: [], rows: [] }
       });
-      setProgressMap(recordCodingLabAttempt(selectedLab.slug, selectedLab.track, false));
     } finally {
       setIsRunning(false);
     }
@@ -723,7 +767,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
               ))}
             </div>
             <p className="mt-3 px-2 text-xs leading-5 text-slate-500">
-              Attempts are saved automatically after you run or submit a question.
+              Drafts autosave. Completed status updates after a successful submit.
             </p>
           </div>
         </aside>
@@ -813,59 +857,9 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
                   {track === "sql"
                     ? "Write a read-only query that returns the expected result."
                     : track === "python"
-                      ? `Define the function ${selectedLab.functionName ?? ""} and pass the browser tests.`
+                      ? `Define the function ${selectedLab.functionName ?? ""} and pass the sample plus edge-case checks.`
                       : "Fix the PySpark code or write the production-safe approach. Your answer is checked for concepts, APIs, and trade-offs."}
                 </p>
-              </div>
-              <div className="flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={goToNextLab}
-                  disabled={!nextLab}
-                  className="rounded-full border border-teal-300/30 px-5 py-3 text-sm font-bold text-teal-100 transition hover:bg-teal-300/10 disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-500"
-                >
-                  Next question
-                </button>
-                {track === "sql" ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={copySchema}
-                      className="rounded-full border border-slate-700 px-4 py-3 text-sm font-semibold text-slate-300 transition hover:border-teal-300/40"
-                    >
-                      Copy schema
-                    </button>
-                    <button
-                      type="button"
-                      onClick={runSqlPreview}
-                      disabled={isRunning}
-                      className="rounded-full border border-amber-300/35 px-5 py-3 text-sm font-bold text-amber-100 transition hover:bg-amber-300/10 disabled:cursor-wait disabled:opacity-70"
-                    >
-                      {isRunning ? "Running..." : "Run query"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={runLab}
-                      disabled={isRunning}
-                      className="rounded-full bg-amber-300 px-6 py-3 text-sm font-bold text-slate-950 transition hover:bg-amber-200 disabled:cursor-wait disabled:opacity-70"
-                    >
-                      {isRunning ? "Submitting..." : "Submit answer"}
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={runLab}
-                    disabled={isRunning}
-                    className="rounded-full bg-amber-300 px-6 py-3 text-sm font-bold text-slate-950 transition hover:bg-amber-200 disabled:cursor-wait disabled:opacity-70"
-                  >
-                    {isRunning
-                      ? "Running..."
-                      : track === "python"
-                        ? "Run tests"
-                        : "Check fix"}
-                  </button>
-                )}
               </div>
             </div>
             {workspaceMessage ? (
@@ -889,6 +883,54 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
               spellCheck={false}
               className="mt-5 min-h-[360px] w-full resize-y rounded-3xl border border-slate-700 bg-slate-950/80 p-5 font-mono text-sm leading-7 text-teal-50 outline-none transition focus:border-teal-300/70"
             />
+            <div className="mt-5 rounded-3xl border border-slate-800 bg-slate-950/35 p-4">
+              <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    Validation flow
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-slate-300">
+                    Run checks the visible sample only. Submit runs full validation and completes
+                    the question only when every case passes.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  {track === "sql" ? (
+                    <button
+                      type="button"
+                      onClick={copySchema}
+                      className="rounded-full border border-slate-700 px-4 py-3 text-sm font-semibold text-slate-300 transition hover:border-teal-300/40"
+                    >
+                      Copy schema
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={runSampleCheck}
+                    disabled={isRunning}
+                    className="rounded-full border border-amber-300/35 px-6 py-3 text-sm font-bold text-amber-100 transition hover:bg-amber-300/10 disabled:cursor-wait disabled:opacity-70"
+                  >
+                    {isRunning ? "Running..." : "Run"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={submitLab}
+                    disabled={isRunning}
+                    className="rounded-full bg-amber-300 px-7 py-3 text-sm font-bold text-slate-950 transition hover:bg-amber-200 disabled:cursor-wait disabled:opacity-70"
+                  >
+                    {isRunning ? "Submitting..." : "Submit"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={goToNextLab}
+                    disabled={!nextLab}
+                    className="rounded-full border border-teal-300/30 px-5 py-3 text-sm font-bold text-teal-100 transition hover:bg-teal-300/10 disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-500"
+                  >
+                    Next question
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
 
           {result ? <ResultPanel result={result} /> : null}
@@ -1292,7 +1334,7 @@ function PythonExamplesPanel({
         ))}
       </div>
       <p className="mt-3 text-xs leading-5 text-slate-400">
-        The browser tests may also include similar edge cases, so keep your solution general.
+        The full validation may also include similar edge cases, so keep your solution general.
       </p>
     </div>
   );

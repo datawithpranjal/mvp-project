@@ -172,28 +172,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="mt-10">
-        <div className="panel rounded-[2rem] p-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-200">
-            Broken Pipeline Lab
-          </p>
-          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-50">
-            Practice real production failures, not PDF-style Q&A.
-          </h2>
-          <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300">
-            The new scenario lab includes MCQ diagnosis, broken SQL, PySpark fixes, log
-            analysis, output mismatch debugging, hints, model answers, and interview-style
-            evaluation.
-          </p>
-          <Link
-            href="/scenarios"
-            className="mt-6 inline-flex rounded-full bg-amber-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-200"
-          >
-            See Scenario Library
-          </Link>
-        </div>
-      </section>
-
     </main>
   );
 }

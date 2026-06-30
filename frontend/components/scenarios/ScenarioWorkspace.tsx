@@ -321,6 +321,27 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
         passed,
         evaluation_mode: nextEvaluation.mode
       });
+      if (passed) {
+        setDraftMessage(
+          nextScenario
+            ? "Correct. This scenario is completed. Moving to the next scenario..."
+            : "Correct. This scenario is completed."
+        );
+        sendUsageEvent("scenario_completed", {
+          metadata: {
+            scenario_slug: scenario.slug,
+            scenario_type: scenario.scenarioType,
+            domain: scenario.domain
+          }
+        });
+        trackEvent("lab_completed", { scenario: scenario.slug });
+        if (nextScenario) {
+          window.setTimeout(() => {
+            router.push(`/scenarios/${nextScenario.slug}`);
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }, 1000);
+        }
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : "The query checker could not run this answer.";
       const nextProgress = recordScenarioAttempt(scenario.slug, {
@@ -341,7 +362,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
     }
   }
 
-  async function runSqlPreview() {
+  async function runSampleCheck() {
     if (!canRunSql || !scenario.sampleTables || !scenario.expectedSql) return;
     setIsChecking(true);
     setSqlExecution(null);
@@ -483,7 +504,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
               </p>
               <p className="mt-3 text-sm leading-6 text-slate-400">
                 Use these small tables to reason about the bug before writing the fix.
-                This data is used to validate your result when you click Check Answer.
+                This data is used for the visible sample check when you click Run.
               </p>
               <div className="mt-5 grid min-w-0 gap-5">
                 {scenario.sampleTables.map((table) => (
@@ -532,11 +553,11 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
                     </button>
                     <button
                       type="button"
-                      onClick={runSqlPreview}
+                      onClick={runSampleCheck}
                       disabled={isChecking}
                       className="rounded-full border border-teal-300/35 px-5 py-3 text-sm font-semibold text-teal-100 transition hover:bg-teal-300/10 disabled:opacity-60"
                     >
-                      Run query
+                      Run
                     </button>
                   </>
                 ) : null}
