@@ -1,6 +1,11 @@
 import codingLabData from "../data/coding-labs.generated.json";
 import { pysparkLabData } from "../data/pyspark-labs.generated";
 import publicSqlPracticeData from "../data/public-sql-practice.generated.json";
+import {
+  filterLaunchReady,
+  isLaunchReadyCodingLab,
+  type LaunchReadyFilterOptions
+} from "./launch-ready-content";
 
 export type CodingLabTrack = "sql" | "python" | "pyspark";
 export type CodingLabDifficulty = "beginner" | "intermediate" | "advanced";
@@ -49,6 +54,7 @@ export interface CodingLab {
   testCases?: PythonTestCase[];
   validationKeywords?: string[];
   commonMistakes?: string[];
+  launchReady?: boolean;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -142,11 +148,12 @@ function normalizeLab(value: unknown): CodingLab | null {
     functionName: stringValue(value.functionName) || undefined,
     testCases: testCaseArray(value.testCases),
     validationKeywords: stringArray(value.validationKeywords),
-    commonMistakes: stringArray(value.commonMistakes)
+    commonMistakes: stringArray(value.commonMistakes),
+    launchReady: isLaunchReadyCodingLab(slug)
   };
 }
 
-export const CODING_LABS = [
+export const ALL_CODING_LABS = [
   ...(codingLabData as unknown[]),
   ...(pysparkLabData as unknown[]),
   ...(publicSqlPracticeData as unknown[])
@@ -154,12 +161,21 @@ export const CODING_LABS = [
   .map(normalizeLab)
   .filter((lab): lab is CodingLab => Boolean(lab));
 
-export function getCodingLabs(track?: CodingLabTrack): CodingLab[] {
-  return track ? CODING_LABS.filter((lab) => lab.track === track) : CODING_LABS;
+export const CODING_LABS = filterLaunchReady(ALL_CODING_LABS);
+
+export function getCodingLabs(
+  track?: CodingLabTrack,
+  options: LaunchReadyFilterOptions = {}
+): CodingLab[] {
+  const labs = filterLaunchReady(ALL_CODING_LABS, options);
+  return track ? labs.filter((lab) => lab.track === track) : labs;
 }
 
-export function getCodingLabBySlug(slug: string): CodingLab | undefined {
-  return CODING_LABS.find((lab) => lab.slug === slug);
+export function getCodingLabBySlug(
+  slug: string,
+  options: LaunchReadyFilterOptions = {}
+): CodingLab | undefined {
+  return filterLaunchReady(ALL_CODING_LABS, options).find((lab) => lab.slug === slug);
 }
 
 export function getCodingLabStats(track: CodingLabTrack) {

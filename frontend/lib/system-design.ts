@@ -1,3 +1,9 @@
+import {
+  filterLaunchReady,
+  isLaunchReadySystemDesign,
+  type LaunchReadyFilterOptions
+} from "./launch-ready-content";
+
 export type SystemDesignDifficulty = "beginner" | "intermediate" | "advanced";
 export type SystemDesignDomain =
   | "batch"
@@ -58,6 +64,7 @@ export interface SystemDesignCase {
   evaluationKeywords: string[];
   rubric: SystemDesignRubric;
   followUps: string[];
+  launchReady?: boolean;
 }
 
 export interface SystemDesignProgress {
@@ -79,7 +86,7 @@ export interface SystemDesignEvaluation {
   rubricBreakdown: SystemDesignRubric;
 }
 
-export const SYSTEM_DESIGN_CASES: SystemDesignCase[] = [
+const SYSTEM_DESIGN_CASE_DATA: SystemDesignCase[] = [
   {
     id: "system-design-001",
     slug: "ecommerce-orders-data-platform",
@@ -1176,6 +1183,19 @@ export const SYSTEM_DESIGN_CASES: SystemDesignCase[] = [
   }
 ];
 
+function withSystemDesignLaunchReady(item: SystemDesignCase): SystemDesignCase {
+  return {
+    ...item,
+    launchReady: isLaunchReadySystemDesign(item.slug)
+  };
+}
+
+export const ALL_SYSTEM_DESIGN_CASES = SYSTEM_DESIGN_CASE_DATA.map(
+  withSystemDesignLaunchReady
+);
+
+export const SYSTEM_DESIGN_CASES = filterLaunchReady(ALL_SYSTEM_DESIGN_CASES);
+
 export const SYSTEM_DESIGN_DOMAINS: Array<"All" | SystemDesignDomain> = [
   "All",
   "batch",
@@ -1200,8 +1220,11 @@ export function formatSystemDesignDomain(domain: SystemDesignDomain): string {
     .join(" ");
 }
 
-export function getSystemDesignCaseBySlug(slug: string): SystemDesignCase | undefined {
-  return SYSTEM_DESIGN_CASES.find((item) => item.slug === slug);
+export function getSystemDesignCaseBySlug(
+  slug: string,
+  options: LaunchReadyFilterOptions = {}
+): SystemDesignCase | undefined {
+  return filterLaunchReady(ALL_SYSTEM_DESIGN_CASES, options).find((item) => item.slug === slug);
 }
 
 export function evaluateSystemDesignAnswer(

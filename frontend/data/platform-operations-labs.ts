@@ -1,3 +1,9 @@
+import {
+  filterLaunchReady,
+  isLaunchReadyOperationsLab,
+  type LaunchReadyFilterOptions
+} from "../lib/launch-ready-content";
+
 export type OperationsLabTrack = "airflow" | "aws";
 
 export interface OperationsLabOption {
@@ -30,6 +36,7 @@ export interface OperationsLab {
     tradeoffs: string;
     monitoring: string;
   };
+  launchReady?: boolean;
 }
 
 const airflowLabs: OperationsLab[] = [
@@ -1490,8 +1497,22 @@ source: S3 lake`,
   }
 ];
 
-export const OPERATIONS_LABS: OperationsLab[] = [...airflowLabs, ...awsLabs];
+function withOperationsLaunchReady(lab: OperationsLab): OperationsLab {
+  return {
+    ...lab,
+    launchReady: isLaunchReadyOperationsLab(lab.slug)
+  };
+}
 
-export function getOperationsLabs(track: OperationsLabTrack): OperationsLab[] {
-  return OPERATIONS_LABS.filter((lab) => lab.track === track);
+export const ALL_OPERATIONS_LABS: OperationsLab[] = [...airflowLabs, ...awsLabs].map(
+  withOperationsLaunchReady
+);
+
+export const OPERATIONS_LABS: OperationsLab[] = filterLaunchReady(ALL_OPERATIONS_LABS);
+
+export function getOperationsLabs(
+  track: OperationsLabTrack,
+  options: LaunchReadyFilterOptions = {}
+): OperationsLab[] {
+  return filterLaunchReady(ALL_OPERATIONS_LABS, options).filter((lab) => lab.track === track);
 }

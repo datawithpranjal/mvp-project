@@ -8,7 +8,7 @@
     "section": "Windows",
     "isFree": true,
     "estimatedMinutes": 12,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample employees table.\nSELECT *\nFROM employees\nLIMIT 5;",
     "hints": [
       "Use distinct salary values conceptually; duplicate top earners should not become the second salary.",
       "Find the max salary first, then find the max salary below it.",
@@ -168,7 +168,7 @@
     "section": "Windows",
     "isFree": true,
     "estimatedMinutes": 12,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample employees table.\nSELECT *\nFROM employees\nLIMIT 5;",
     "hints": [
       "Use DENSE_RANK or DISTINCT before ranking so duplicate salaries share a rank.",
       "Sort salaries descending because rank 1 is the highest salary.",
@@ -328,7 +328,7 @@
     "section": "Windows",
     "isFree": true,
     "estimatedMinutes": 12,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample employees table.\nSELECT *\nFROM employees\nLIMIT 5;",
     "hints": [
       "Partition the ranking by department.",
       "Use DENSE_RANK if salary ties should be included.",
@@ -488,7 +488,7 @@
     "section": "Windows",
     "isFree": true,
     "estimatedMinutes": 12,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
     "hints": [
       "Rank orders inside each customer_id.",
       "Order by order_date descending, then order_id descending to break ties.",
@@ -711,7 +711,7 @@
     "section": "Windows",
     "isFree": true,
     "estimatedMinutes": 12,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
     "hints": [
       "Group by customer_id.",
       "Use MIN(order_date) and MAX(order_date).",
@@ -934,7 +934,7 @@
     "section": "Windows",
     "isFree": true,
     "estimatedMinutes": 12,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample daily_sales table.\nSELECT *\nFROM daily_sales\nLIMIT 5;",
     "hints": [
       "Aggregate revenue at sale_date grain first.",
       "Use a window SUM over ordered dates for the running total.",
@@ -1087,7 +1087,7 @@
     "section": "Windows",
     "isFree": true,
     "estimatedMinutes": 12,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample daily_sales table.\nSELECT *\nFROM daily_sales\nLIMIT 5;",
     "hints": [
       "Build daily revenue first.",
       "Use ROWS BETWEEN 2 PRECEDING AND CURRENT ROW for a 3-day window.",
@@ -1240,7 +1240,7 @@
     "section": "Windows",
     "isFree": true,
     "estimatedMinutes": 12,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample daily_sales table.\nSELECT *\nFROM daily_sales\nLIMIT 5;",
     "hints": [
       "Convert sale_date to a month key first.",
       "Aggregate monthly revenue before applying LAG.",
@@ -1393,7 +1393,7 @@
     "section": "Windows",
     "isFree": true,
     "estimatedMinutes": 12,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample daily_sales table.\nSELECT *\nFROM daily_sales\nLIMIT 5;",
     "hints": [
       "Aggregate revenue per city before ranking.",
       "Rank cities by revenue descending.",
@@ -1546,7 +1546,7 @@
     "section": "Windows",
     "isFree": true,
     "estimatedMinutes": 12,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
     "hints": [
       "Filter to successful orders before aggregating revenue.",
       "Exclude NULL customer_id records because they cannot be assigned to a customer.",
@@ -1769,7 +1769,7 @@
     "section": "Joins",
     "isFree": true,
     "estimatedMinutes": 12,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
     "hints": [
       "Start from customers because every output row is a customer.",
       "Use NOT EXISTS or a LEFT JOIN anti-join pattern.",
@@ -1993,7 +1993,7 @@
     "section": "Joins",
     "isFree": true,
     "estimatedMinutes": 12,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample employees table.\nSELECT *\nFROM employees\nLIMIT 5;",
     "hints": [
       "Compute department averages before filtering employees.",
       "Join employees back to their department average.",
@@ -2153,7 +2153,7 @@
     "section": "Joins",
     "isFree": false,
     "estimatedMinutes": 12,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
     "hints": [
       "Start from orders and left join to customers.",
       "A NULL customer_id is a different data quality issue; do not flag it as a missing dimension key here.",
@@ -2376,7 +2376,7 @@
     "section": "Joins",
     "isFree": false,
     "estimatedMinutes": 12,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample events table.\nSELECT *\nFROM events\nLIMIT 5;",
     "hints": [
       "Use LAG(event_ts) per user to find the previous event.",
       "The first event for a user starts a session.",
@@ -2514,7 +2514,7 @@
     "section": "Joins",
     "isFree": false,
     "estimatedMinutes": 12,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
     "hints": [
       "Filter to successful orders before aggregating revenue.",
       "Exclude NULL customer_id records because they cannot be assigned to a customer.",
@@ -2737,7 +2737,7 @@
     "section": "Joins",
     "isFree": false,
     "estimatedMinutes": 18,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
     "hints": [
       "Filter to successful orders before aggregating revenue.",
       "Exclude NULL customer_id records because they cannot be assigned to a customer.",
@@ -2960,7 +2960,7 @@
     "section": "Joins",
     "isFree": false,
     "estimatedMinutes": 18,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
     "hints": [
       "Use LAG to compare each order with the previous order for the same customer.",
       "Calculate date difference between current and previous order dates.",
@@ -3183,7 +3183,7 @@
     "section": "Joins",
     "isFree": false,
     "estimatedMinutes": 18,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
     "hints": [
       "Rank orders inside each customer_id.",
       "Order by order_date descending, then order_id descending to break ties.",
@@ -3406,7 +3406,7 @@
     "section": "Joins",
     "isFree": false,
     "estimatedMinutes": 18,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
     "hints": [
       "Filter to successful orders before aggregating revenue.",
       "Exclude NULL customer_id records because they cannot be assigned to a customer.",
@@ -3629,7 +3629,7 @@
     "section": "Joins",
     "isFree": false,
     "estimatedMinutes": 18,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
     "hints": [
       "Use LAG to compare each order with the previous order for the same customer.",
       "Calculate date difference between current and previous order dates.",
@@ -3852,7 +3852,7 @@
     "section": "Advanced SQL",
     "isFree": false,
     "estimatedMinutes": 18,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample employees table.\nSELECT *\nFROM employees\nLIMIT 5;",
     "hints": [
       "Anchor the recursive CTE at employees with no manager.",
       "Join employees to the previous org level using manager_id.",
@@ -4012,7 +4012,7 @@
     "section": "Advanced SQL",
     "isFree": false,
     "estimatedMinutes": 18,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample employees table.\nSELECT *\nFROM employees\nLIMIT 5;",
     "hints": [
       "Anchor the recursive CTE at employees with no manager.",
       "Join employees to the previous org level using manager_id.",
@@ -4172,7 +4172,7 @@
     "section": "Advanced SQL",
     "isFree": false,
     "estimatedMinutes": 18,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
     "hints": [
       "Use LAG to compare each order with the previous order for the same customer.",
       "Calculate date difference between current and previous order dates.",
@@ -4395,7 +4395,7 @@
     "section": "Advanced SQL",
     "isFree": false,
     "estimatedMinutes": 18,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample daily_sales table.\nSELECT *\nFROM daily_sales\nLIMIT 5;",
     "hints": [
       "Build daily revenue first.",
       "Use ROWS BETWEEN 2 PRECEDING AND CURRENT ROW for a 3-day window.",
@@ -4548,7 +4548,7 @@
     "section": "Advanced SQL",
     "isFree": false,
     "estimatedMinutes": 18,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
     "hints": [
       "Start from customers because every output row is a customer.",
       "Use NOT EXISTS or a LEFT JOIN anti-join pattern.",
@@ -4772,7 +4772,7 @@
     "section": "Advanced SQL",
     "isFree": false,
     "estimatedMinutes": 18,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
     "hints": [
       "Use LAG to compare each order with the previous order for the same customer.",
       "Calculate date difference between current and previous order dates.",
@@ -4995,7 +4995,7 @@
     "section": "Advanced SQL",
     "isFree": false,
     "estimatedMinutes": 18,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
     "hints": [
       "Use LAG to compare each order with the previous order for the same customer.",
       "Calculate date difference between current and previous order dates.",
@@ -5218,7 +5218,7 @@
     "section": "Advanced SQL",
     "isFree": false,
     "estimatedMinutes": 18,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
     "hints": [
       "Use LAG to compare each order with the previous order for the same customer.",
       "Calculate date difference between current and previous order dates.",
@@ -5441,7 +5441,7 @@
     "section": "Advanced SQL",
     "isFree": false,
     "estimatedMinutes": 18,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample employees table.\nSELECT *\nFROM employees\nLIMIT 5;",
     "hints": [
       "Sort salaries and number the rows.",
       "For odd counts, the middle row is the median; for even counts, average the two middle rows.",
@@ -5601,7 +5601,7 @@
     "section": "Advanced SQL",
     "isFree": false,
     "estimatedMinutes": 18,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
     "hints": [
       "Filter to successful orders before aggregating revenue.",
       "Exclude NULL customer_id records because they cannot be assigned to a customer.",
@@ -5824,7 +5824,7 @@
     "section": "Warehouse",
     "isFree": false,
     "estimatedMinutes": 18,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
     "hints": [
       "Filter to successful orders before aggregating revenue.",
       "Exclude NULL customer_id records because they cannot be assigned to a customer.",
@@ -6047,7 +6047,7 @@
     "section": "Warehouse",
     "isFree": false,
     "estimatedMinutes": 18,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample customer_dim table.\nSELECT *\nFROM customer_dim\nLIMIT 5;",
     "hints": [
       "Compare incoming updates with the current active dimension row only.",
       "A new customer has no active dimension row and should be returned.",
@@ -6214,7 +6214,7 @@
     "section": "Warehouse",
     "isFree": false,
     "estimatedMinutes": 18,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample customer_dim table.\nSELECT *\nFROM customer_dim\nLIMIT 5;",
     "hints": [
       "Compare incoming updates with the current active dimension row only.",
       "A new customer has no active dimension row and should be returned.",
@@ -6381,7 +6381,7 @@
     "section": "Warehouse",
     "isFree": false,
     "estimatedMinutes": 18,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample customer_dim table.\nSELECT *\nFROM customer_dim\nLIMIT 5;",
     "hints": [
       "Filter updates using updated_at greater than the watermark.",
       "Rows exactly equal to this watermark are not included in this simplified lab.",
@@ -6548,7 +6548,7 @@
     "section": "Warehouse",
     "isFree": false,
     "estimatedMinutes": 18,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample customer_dim table.\nSELECT *\nFROM customer_dim\nLIMIT 5;",
     "hints": [
       "Filter updates using updated_at greater than the watermark.",
       "Rows exactly equal to this watermark are not included in this simplified lab.",
@@ -6715,7 +6715,7 @@
     "section": "Warehouse",
     "isFree": false,
     "estimatedMinutes": 18,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample customer_dim table.\nSELECT *\nFROM customer_dim\nLIMIT 5;",
     "hints": [
       "Filter updates using updated_at greater than the watermark.",
       "Rows exactly equal to this watermark are not included in this simplified lab.",
@@ -6882,7 +6882,7 @@
     "section": "Warehouse",
     "isFree": false,
     "estimatedMinutes": 18,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
     "hints": [
       "Filter to successful orders before aggregating revenue.",
       "Exclude NULL customer_id records because they cannot be assigned to a customer.",
@@ -7105,7 +7105,7 @@
     "section": "Warehouse",
     "isFree": false,
     "estimatedMinutes": 18,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample customer_dim table.\nSELECT *\nFROM customer_dim\nLIMIT 5;",
     "hints": [
       "Filter updates using updated_at greater than the watermark.",
       "Rows exactly equal to this watermark are not included in this simplified lab.",
@@ -7272,7 +7272,7 @@
     "section": "Warehouse",
     "isFree": false,
     "estimatedMinutes": 18,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
     "hints": [
       "Start from orders and left join to customers.",
       "A NULL customer_id is a different data quality issue; do not flag it as a missing dimension key here.",
@@ -7495,7 +7495,7 @@
     "section": "Warehouse",
     "isFree": false,
     "estimatedMinutes": 18,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample customer_dim table.\nSELECT *\nFROM customer_dim\nLIMIT 5;",
     "hints": [
       "Compare incoming updates with the current active dimension row only.",
       "A new customer has no active dimension row and should be returned.",
@@ -7662,7 +7662,7 @@
     "section": "Performance",
     "isFree": false,
     "estimatedMinutes": 18,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
     "hints": [
       "Filter to successful orders before aggregating revenue.",
       "Exclude NULL customer_id records because they cannot be assigned to a customer.",
@@ -7885,7 +7885,7 @@
     "section": "Performance",
     "isFree": false,
     "estimatedMinutes": 18,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
     "hints": [
       "Start from customers because every output row is a customer.",
       "Use NOT EXISTS or a LEFT JOIN anti-join pattern.",
@@ -8109,7 +8109,7 @@
     "section": "Performance",
     "isFree": false,
     "estimatedMinutes": 18,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
     "hints": [
       "Rank orders inside each customer_id.",
       "Order by order_date descending, then order_id descending to break ties.",
@@ -8332,7 +8332,7 @@
     "section": "Performance",
     "isFree": false,
     "estimatedMinutes": 18,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
     "hints": [
       "Filter to successful orders before aggregating revenue.",
       "Exclude NULL customer_id records because they cannot be assigned to a customer.",
@@ -8555,7 +8555,7 @@
     "section": "Performance",
     "isFree": false,
     "estimatedMinutes": 18,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
     "hints": [
       "Filter to successful orders before aggregating revenue.",
       "Exclude NULL customer_id records because they cannot be assigned to a customer.",
@@ -8778,7 +8778,7 @@
     "section": "Performance",
     "isFree": false,
     "estimatedMinutes": 18,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample daily_sales table.\nSELECT *\nFROM daily_sales\nLIMIT 5;",
     "hints": [
       "Group by sale_date.",
       "Use SUM(CASE WHEN region = ... THEN amount ELSE 0 END).",
@@ -8931,7 +8931,7 @@
     "section": "Performance",
     "isFree": false,
     "estimatedMinutes": 18,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample daily_sales table.\nSELECT *\nFROM daily_sales\nLIMIT 5;",
     "hints": [
       "Group by sale_date.",
       "Use SUM(CASE WHEN region = ... THEN amount ELSE 0 END).",
@@ -9084,7 +9084,7 @@
     "section": "Performance",
     "isFree": false,
     "estimatedMinutes": 18,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
     "hints": [
       "Filter to successful orders before aggregating revenue.",
       "Exclude NULL customer_id records because they cannot be assigned to a customer.",
@@ -9307,7 +9307,7 @@
     "section": "Performance",
     "isFree": false,
     "estimatedMinutes": 18,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
     "hints": [
       "Filter to successful orders before aggregating revenue.",
       "Exclude NULL customer_id records because they cannot be assigned to a customer.",
@@ -9530,7 +9530,7 @@
     "section": "Performance",
     "isFree": false,
     "estimatedMinutes": 18,
-    "starterCode": "-- Write a read-only SELECT query.\nSELECT *\nFROM employees\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
     "hints": [
       "Filter to successful orders before aggregating revenue.",
       "Exclude NULL customer_id records because they cannot be assigned to a customer.",

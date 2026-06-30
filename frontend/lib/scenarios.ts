@@ -1,4 +1,9 @@
 import generatedScenarioData from "../data/scenarios.generated.json";
+import {
+  filterLaunchReady,
+  isLaunchReadyScenario,
+  type LaunchReadyFilterOptions
+} from "./launch-ready-content";
 
 export type ScenarioDomain =
   | "sql"
@@ -75,6 +80,7 @@ export interface Scenario {
   evaluationRubric: EvaluationRubric;
   followUps: string[];
   relatedProjectMissionId?: string;
+  launchReady?: boolean;
 }
 
 export const DOMAIN_LABELS: Record<ScenarioDomain, string> = {
@@ -973,7 +979,8 @@ function normalizeGeneratedScenario(value: unknown): Scenario | null {
     commonMistakes: normalizeStringArray(value.commonMistakes),
     evaluationRubric: normalizeRubric(value.evaluationRubric),
     followUps: normalizeStringArray(value.followUps),
-    relatedProjectMissionId: normalizeString(value.relatedProjectMissionId) || undefined
+    relatedProjectMissionId: normalizeString(value.relatedProjectMissionId) || undefined,
+    launchReady: isLaunchReadyScenario(slug)
   };
 }
 
@@ -990,30 +997,42 @@ const GENERATED_SCENARIOS = (generatedScenarioData as unknown[])
   .map(normalizeGeneratedScenario)
   .filter((scenario): scenario is Scenario => Boolean(scenario));
 
+function withScenarioLaunchReady(scenario: Scenario): Scenario {
+  return {
+    ...scenario,
+    launchReady: isLaunchReadyScenario(scenario.slug)
+  };
+}
+
 export const ALL_SCENARIOS = uniqueBySlug([
   ...BROKEN_PIPELINE_SCENARIOS,
   ...GENERATED_SCENARIOS
-]);
+]).map(withScenarioLaunchReady);
+
+export const SCENARIOS = filterLaunchReady(ALL_SCENARIOS);
 
 export const DOMAIN_FILTERS = ["All", ...Object.values(DOMAIN_LABELS)];
 export const DIFFICULTY_FILTERS = ["All", "beginner", "intermediate", "advanced"];
 export const TYPE_FILTERS = ["All", ...Object.values(SCENARIO_TYPE_LABELS)];
 export const ACCESS_FILTERS = ["All", "Free", "Premium"];
 
-export function getScenarios(): Scenario[] {
-  return ALL_SCENARIOS;
+export function getScenarios(options: LaunchReadyFilterOptions = {}): Scenario[] {
+  return filterLaunchReady(ALL_SCENARIOS, options);
 }
 
-export function getScenarioBySlug(slug: string): Scenario | undefined {
-  return ALL_SCENARIOS.find((scenario) => scenario.slug === slug);
+export function getScenarioBySlug(
+  slug: string,
+  options: LaunchReadyFilterOptions = {}
+): Scenario | undefined {
+  return filterLaunchReady(ALL_SCENARIOS, options).find((scenario) => scenario.slug === slug);
 }
 
 export function getFreeScenarios(): Scenario[] {
-  return ALL_SCENARIOS.filter((scenario) => scenario.isFree);
+  return getScenarios().filter((scenario) => scenario.isFree);
 }
 
 export function getRecommendedScenarioSlug(): string {
-  return getFreeScenarios()[0]?.slug ?? ALL_SCENARIOS[0]?.slug ?? "scenarios";
+  return getFreeScenarios()[0]?.slug ?? getScenarios()[0]?.slug ?? "scenarios";
 }
 
 export function formatDomain(domain: ScenarioDomain): string {
