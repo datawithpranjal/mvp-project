@@ -9,7 +9,7 @@ import {
   BRAND,
   PRODUCT_PREVIEW_STEPS
 } from "../lib/product";
-import { getScenarios } from "../lib/scenarios";
+import { getRecommendedScenarioSlug, getScenarios } from "../lib/scenarios";
 import { SYSTEM_DESIGN_CASES } from "../lib/system-design";
 
 export default function HomePage() {
@@ -25,6 +25,7 @@ export default function HomePage() {
     scenarios.filter((scenario) => scenario.isFree).length +
     OPERATIONS_LABS.filter((lab) => lab.isFree).length +
     SYSTEM_DESIGN_CASES.filter((item) => item.isFree).length;
+  const firstFreeScenarioHref = `/scenarios/${getRecommendedScenarioSlug()}`;
   const homepageStats = [
     {
       value: `${totalQuestionCount.toLocaleString("en-IN")}+`,
@@ -70,8 +71,9 @@ export default function HomePage() {
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <TrackedLink
-                href="/onboarding"
+                href={firstFreeScenarioHref}
                 event="homepage_start_clicked"
+                eventPayload={{ destination: "first_free_scenario" }}
                 className="rounded-full bg-amber-300 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-200"
               >
                 Start Free Practice
