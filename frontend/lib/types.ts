@@ -278,3 +278,80 @@ export interface AiScenarioEvaluationResponse {
   mode: "openai" | "gemini";
   model: string;
 }
+
+export type ContentAuditSeverity = "critical" | "warning" | "suggestion";
+export type ContentAuditIssueStatus = "open" | "fixed" | "ignored";
+
+export interface ContentAuditItem {
+  content_id: string;
+  content_type: string;
+  title?: string | null;
+  slug?: string | null;
+  topic?: string | null;
+  difficulty?: string | null;
+  tags: string[];
+  problem_statement?: string | null;
+  expected_output?: string | null;
+  solution?: string | null;
+  explanation?: string | null;
+  body?: string | null;
+  internal_links: string[];
+  prerequisites: string[];
+  estimated_minutes?: number | null;
+  updated_at?: string | null;
+  metadata: Record<string, unknown>;
+}
+
+export interface ContentAuditIssue {
+  id: string;
+  run_id: string;
+  content_id: string;
+  severity: ContentAuditSeverity;
+  category: string;
+  issue: string;
+  suggestion: string;
+  status: ContentAuditIssueStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ContentAuditRun {
+  id: string;
+  content_id: string;
+  content_type: string;
+  title: string;
+  slug: string;
+  topic: string;
+  difficulty: string;
+  tags: string[];
+  audit_score: number;
+  issue_counts: Record<ContentAuditSeverity, number>;
+  content_hash: string;
+  audited_at: string;
+  source_updated_at?: string | null;
+}
+
+export interface ContentAuditSummaryResponse {
+  storage_backend: "postgres" | "file";
+  table_exists: boolean;
+  total_audited_content: number;
+  average_audit_score: number;
+  critical_issues: number;
+  warning_issues: number;
+  suggestion_issues: number;
+  items: ContentAuditRun[];
+}
+
+export interface ContentAuditDetailResponse {
+  storage_backend: "postgres" | "file";
+  table_exists: boolean;
+  run: ContentAuditRun | null;
+  issues: ContentAuditIssue[];
+}
+
+export interface ContentAuditBulkResponse {
+  audited: number;
+  failed: number;
+  items: ContentAuditRun[];
+  errors: string[];
+}

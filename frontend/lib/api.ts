@@ -8,6 +8,11 @@ import type {
   AuthSessionResponse,
   AuthUserProfile,
   AuthVerifyOtpRequest,
+  ContentAuditBulkResponse,
+  ContentAuditDetailResponse,
+  ContentAuditIssueStatus,
+  ContentAuditItem,
+  ContentAuditSummaryResponse,
   EmailCaptureRequest,
   EmailCaptureResponse,
   GoogleAuthStartUrlResponse,
@@ -230,4 +235,65 @@ export function verifyRazorpayPayment(
     authToken: token,
     body: JSON.stringify(payload)
   });
+}
+
+export function getContentAuditSummary(
+  adminToken: string
+): Promise<ContentAuditSummaryResponse> {
+  return apiFetch<ContentAuditSummaryResponse>("/api/v1/admin/content-audit", {
+    headers: { "X-Admin-Token": adminToken }
+  });
+}
+
+export function getContentAuditDetail(
+  adminToken: string,
+  contentId: string
+): Promise<ContentAuditDetailResponse> {
+  return apiFetch<ContentAuditDetailResponse>(
+    `/api/v1/admin/content-audit/${encodeURIComponent(contentId)}`,
+    {
+      headers: { "X-Admin-Token": adminToken }
+    }
+  );
+}
+
+export function auditContentItem(
+  adminToken: string,
+  item: ContentAuditItem
+): Promise<ContentAuditDetailResponse> {
+  return apiFetch<ContentAuditDetailResponse>(
+    `/api/v1/admin/content-audit/${encodeURIComponent(item.content_id)}`,
+    {
+      method: "POST",
+      headers: { "X-Admin-Token": adminToken },
+      body: JSON.stringify(item)
+    }
+  );
+}
+
+export function auditContentItems(
+  adminToken: string,
+  items: ContentAuditItem[]
+): Promise<ContentAuditBulkResponse> {
+  return apiFetch<ContentAuditBulkResponse>("/api/v1/admin/content-audit/run", {
+    method: "POST",
+    headers: { "X-Admin-Token": adminToken },
+    body: JSON.stringify({ items })
+  });
+}
+
+export function updateContentAuditIssueStatus(
+  adminToken: string,
+  contentId: string,
+  issueId: string,
+  status: ContentAuditIssueStatus
+): Promise<ContentAuditDetailResponse> {
+  return apiFetch<ContentAuditDetailResponse>(
+    `/api/v1/admin/content-audit/${encodeURIComponent(contentId)}/issues/${encodeURIComponent(issueId)}`,
+    {
+      method: "PATCH",
+      headers: { "X-Admin-Token": adminToken },
+      body: JSON.stringify({ status })
+    }
+  );
 }
