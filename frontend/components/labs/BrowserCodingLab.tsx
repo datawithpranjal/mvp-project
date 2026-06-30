@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   runReadOnlySql,
@@ -9,6 +9,7 @@ import {
 } from "../../lib/browser-sql";
 import { trackEvent } from "../../lib/analytics";
 import { getCurrentUser } from "../../lib/auth";
+import { getGuestSubmissionStatus, recordGuestSubmission } from "../../lib/guest-submissions";
 import { sendUsageEvent } from "../../lib/usage";
 import {
   formatTrackLabel,
@@ -239,9 +240,13 @@ function evaluateCodeReviewLab(lab: CodingLab, answer: string): LabRunResult {
 
 export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
   const labs = useMemo(() => getCodingLabs(track), [track]);
+  const workspaceRef = useRef<HTMLElement | null>(null);
+  const questionListRef = useRef<HTMLDivElement | null>(null);
+  const activeQuestionRef = useRef<HTMLDivElement | null>(null);
   const [selectedSlug, setSelectedSlug] = useState(labs[0]?.slug ?? "");
   const selectedLab = labs.find((lab) => lab.slug === selectedSlug) ?? labs[0];
   const [isLibraryMode, setIsLibraryMode] = useState(true);
+  const [workspaceFocusNonce, setWorkspaceFocusNonce] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [hintCount, setHintCount] = useState(0);
   const [showSolution, setShowSolution] = useState(false);
@@ -299,6 +304,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
       (progressFilter === "Not started" && attemptCount === 0 && !hasDraft);
     return topicMatches && difficultyMatches && progressMatches;
   });
+  const filteredLabSignature = filteredLabs.map((lab) => lab.slug).join("|");
 
   useEffect(() => {
     let cancelled = false;
@@ -370,6 +376,31 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
     return () => window.clearTimeout(timer);
   }, [answers, draftsLoaded, selectedLab]);
 
+  useEffect(() => {
+    if (isLibraryMode || workspaceFocusNonce === 0) return;
+
+    window.requestAnimationFrame(() => {
+      workspaceRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, [isLibraryMode, workspaceFocusNonce]);
+
+  useEffect(() => {
+    if (isLibraryMode) return;
+
+    window.requestAnimationFrame(() => {
+      const questionList = questionListRef.current;
+      const activeQuestion = activeQuestionRef.current;
+      if (!questionList || !activeQuestion) return;
+
+      const centeredTop =
+        activeQuestion.offsetTop - questionList.clientHeight / 2 + activeQuestion.clientHeight / 2;
+      questionList.scrollTo({
+        top: Math.max(0, centeredTop),
+        behavior: "smooth"
+      });
+    });
+  }, [filteredLabSignature, isLibraryMode, selectedSlug]);
+
   if (!selectedLab) {
     return (
       <main className="mx-auto min-h-screen max-w-7xl px-6 py-10 sm:px-10">
@@ -390,8 +421,13 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
 
   async function runLab() {
     if (!selectedLab) return;
-    if (!getCurrentUser()) {
-      setWorkspaceMessage("Log in or create an account to submit your answer and save progress.");
+    const currentUser = getCurrentUser();
+    const guestQuestionKey = `coding:${selectedLab.slug}`;
+    const guestStatus = getGuestSubmissionStatus(guestQuestionKey);
+    if (!currentUser && !guestStatus.canSubmit) {
+      setWorkspaceMessage(
+        "You have used your 3 free guest questions. Log in or create an account to continue."
+      );
       setIsAuthOpen(true);
       trackEvent("signup_started", { source: "coding_lab_submit", lab: selectedLab.slug });
       return;
@@ -410,6 +446,14 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
       setProgressMap(
         recordCodingLabAttempt(selectedLab.slug, selectedLab.track, nextResult.passed === true)
       );
+      if (!currentUser) {
+        const nextGuestStatus = recordGuestSubmission(guestQuestionKey);
+        setWorkspaceMessage(
+          nextGuestStatus.remaining > 0
+            ? `${nextGuestStatus.remaining} free guest question${nextGuestStatus.remaining === 1 ? "" : "s"} left in this session.`
+            : "You have used your 3 free guest questions. Log in to continue practicing."
+        );
+      }
       sendUsageEvent("coding_lab_submitted", {
         metadata: {
           lab_slug: selectedLab.slug,
@@ -507,6 +551,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
   function switchLab(slug: string) {
     setSelectedSlug(slug);
     setIsLibraryMode(false);
+    setWorkspaceFocusNonce((count) => count + 1);
     setHintCount(0);
     setShowSolution(false);
     setResult(null);
@@ -516,7 +561,6 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
   function goToNextLab() {
     if (!nextLab) return;
     switchLab(nextLab.slug);
-    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function returnToLibrary() {
@@ -574,7 +618,10 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
       ) : (
         <>
 
-      <section className="mt-6 grid gap-6 md:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)] 2xl:grid-cols-[320px_minmax(0,1fr)_320px]">
+      <section
+        ref={workspaceRef}
+        className="mt-6 scroll-mt-28 grid gap-6 md:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)] 2xl:grid-cols-[320px_minmax(0,1fr)_320px]"
+      >
         <aside className="panel h-fit rounded-[2rem] p-5 md:sticky md:top-24 md:max-h-[calc(100vh-7rem)] md:overflow-hidden">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -593,18 +640,25 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
               All cards
             </button>
           </div>
-          <div className="mt-4 max-h-[420px] space-y-3 overflow-y-auto pr-1 md:max-h-[calc(100vh-18rem)]">
+          <div
+            ref={questionListRef}
+            className="mt-4 max-h-[420px] space-y-3 overflow-y-auto pr-1 md:max-h-[calc(100vh-18rem)]"
+          >
             {filteredLabs.length > 0 ? (
-              filteredLabs.map((lab) => (
-                <LabListButton
-                  key={lab.slug}
-                  lab={lab}
-                  active={lab.slug === selectedLab.slug}
-                  progress={progressMap[lab.slug]}
-                  hasDraft={Boolean(answers[lab.slug])}
-                  onSelect={() => switchLab(lab.slug)}
-                />
-              ))
+              filteredLabs.map((lab) => {
+                const isActive = lab.slug === selectedLab.slug;
+                return (
+                  <div key={lab.slug} ref={isActive ? activeQuestionRef : null}>
+                    <LabListButton
+                      lab={lab}
+                      active={isActive}
+                      progress={progressMap[lab.slug]}
+                      hasDraft={Boolean(answers[lab.slug])}
+                      onSelect={() => switchLab(lab.slug)}
+                    />
+                  </div>
+                );
+              })
             ) : (
               <div className="rounded-3xl border border-slate-800 bg-slate-950/30 p-4">
                 <p className="text-sm font-semibold text-slate-200">No questions found.</p>
@@ -1060,8 +1114,9 @@ function LabLibraryCard({
   hasDraft: boolean;
   onSelect: () => void;
 }) {
+  const isCompleted = Boolean(progress?.completed);
   const status =
-    progress?.completed
+    isCompleted
       ? "Completed"
       : (progress?.attemptCount ?? 0) > 0
         ? "Attempted"
@@ -1076,12 +1131,15 @@ function LabLibraryCard({
         : status === "Draft saved"
           ? "border border-sky-300/40 text-sky-100"
           : "border border-slate-700 text-slate-400";
+  const cardClass = isCompleted
+    ? "group flex min-h-[280px] flex-col rounded-[2rem] border border-teal-300/55 bg-teal-300/10 p-5 text-left shadow-[0_0_0_1px_rgba(94,234,212,0.12),0_22px_80px_rgba(20,184,166,0.12)] transition hover:-translate-y-1 hover:border-teal-200/70 hover:bg-teal-300/15"
+    : "group flex min-h-[280px] flex-col rounded-[2rem] border border-slate-800 bg-slate-950/45 p-5 text-left transition hover:-translate-y-1 hover:border-amber-300/50 hover:bg-slate-950/70";
 
   return (
     <button
       type="button"
       onClick={onSelect}
-      className="group flex min-h-[280px] flex-col rounded-[2rem] border border-slate-800 bg-slate-950/45 p-5 text-left transition hover:-translate-y-1 hover:border-amber-300/50 hover:bg-slate-950/70"
+      className={cardClass}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="rounded-full border border-slate-700 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
@@ -1112,8 +1170,14 @@ function LabLibraryCard({
         ))}
       </div>
       <div className="mt-auto pt-6">
-        <span className="inline-flex rounded-full bg-amber-300 px-5 py-3 text-sm font-bold text-slate-950 transition group-hover:bg-amber-200">
-          Start this lab
+        <span
+          className={`inline-flex rounded-full px-5 py-3 text-sm font-bold text-slate-950 transition ${
+            isCompleted
+              ? "bg-teal-300 group-hover:bg-teal-200"
+              : "bg-amber-300 group-hover:bg-amber-200"
+          }`}
+        >
+          {isCompleted ? "Review completed lab" : "Start this lab"}
         </span>
       </div>
     </button>
@@ -1133,8 +1197,9 @@ function LabListButton({
   hasDraft: boolean;
   onSelect: () => void;
 }) {
+  const isCompleted = Boolean(progress?.completed);
   const status =
-    progress?.completed
+    isCompleted
       ? "Completed"
       : (progress?.attemptCount ?? 0) > 0
         ? "Attempted"
@@ -1156,8 +1221,10 @@ function LabListButton({
       onClick={onSelect}
       className={`w-full rounded-3xl border p-4 text-left transition ${
         active
-          ? "border-teal-300/60 bg-teal-300/10"
-          : "border-slate-800 bg-slate-950/30 hover:border-teal-300/30"
+          ? "border-teal-300/70 bg-teal-300/15 shadow-[0_0_0_1px_rgba(94,234,212,0.12)]"
+          : isCompleted
+            ? "border-teal-300/45 bg-teal-300/10 hover:border-teal-200/60 hover:bg-teal-300/15"
+            : "border-slate-800 bg-slate-950/30 hover:border-teal-300/30"
       }`}
     >
       <div className="flex items-center justify-between gap-3">

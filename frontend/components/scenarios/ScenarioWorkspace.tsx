@@ -28,6 +28,7 @@ import {
   type ScenarioProgressSummary
 } from "../../lib/progress";
 import { evaluateScenarioAnswer, type ScenarioEvaluationResult } from "../../lib/scenarioEvaluator";
+import { getGuestSubmissionStatus, recordGuestSubmission } from "../../lib/guest-submissions";
 import { sendUsageEvent } from "../../lib/usage";
 import {
   formatDifficulty,
@@ -175,8 +176,13 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
 
   async function checkAnswer() {
     const authToken = getAuthToken();
-    if (!authToken || !getCurrentUser()) {
-      setDraftMessage("Log in or create an account to submit your answer and save progress.");
+    const currentAuthUser = getCurrentUser();
+    const guestQuestionKey = `scenario:${scenario.slug}`;
+    const guestStatus = getGuestSubmissionStatus(guestQuestionKey);
+    if ((!authToken || !currentAuthUser) && !guestStatus.canSubmit) {
+      setDraftMessage(
+        "You have used your 3 free guest questions. Log in or create an account to continue."
+      );
       setIsAuthOpen(true);
       trackEvent("signup_started", { source: "scenario_submit", scenario: scenario.slug });
       return;
@@ -290,6 +296,14 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
       });
       setEvaluation(nextEvaluation);
       setProgress(summarizeScenarioProgress(nextProgress, scenario.slug));
+      if (!authToken || !currentAuthUser) {
+        const nextGuestStatus = recordGuestSubmission(guestQuestionKey);
+        setEvaluationNotice(
+          nextGuestStatus.remaining > 0
+            ? `Guest attempt saved. ${nextGuestStatus.remaining} free guest question${nextGuestStatus.remaining === 1 ? "" : "s"} left in this session. Sign in anytime for AI evaluation and saved progress.`
+            : "Guest attempt saved. You have used your 3 free guest questions. Log in to continue practicing."
+        );
+      }
       setDraftMessage(aiFallbackMessage);
       sendUsageEvent("scenario_submitted", {
         metadata: {
