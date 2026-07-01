@@ -17,7 +17,6 @@ import {
   type Scenario
 } from "../../lib/scenarios";
 import { GUIDED_SCENARIO_PATHS } from "../../lib/product";
-import { PremiumUpgradePanel } from "../premium-upgrade-panel";
 import { ScenarioCard } from "./ScenarioCard";
 import { ScenarioFilters, type ScenarioFilterState } from "./ScenarioFilters";
 
@@ -237,13 +236,6 @@ export function BrokenPipelineLab() {
       <div className="hidden lg:block">
         <ScenarioFilters value={filters} onChange={setFilters} />
       </div>
-
-      {!premiumAccess ? (
-        <PremiumUpgradePanel
-          title="Unlock the full debugging library"
-          description="Free labs are open now. Premium cards still show the skill and production failure, and access is activated after UPI verification."
-        />
-      ) : null}
 
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
         <div>
