@@ -202,7 +202,7 @@ target.write \
       "Partitioning by hour can create many tiny partitions when volume is low. Use coarser partitions, control writer parallelism, and compact files after ingestion.",
     hints: [
       "Count files per partition, not just total data size.",
-      "Do not partition by a high-cardinality or low-volume column unless queries need it.",
+      "Choose partition columns from common query filters and stable business grain.",
       "A compaction job is part of operating a lakehouse, not a nice-to-have."
     ],
     tables: [
@@ -450,7 +450,7 @@ invalid_facts.write.mode("append").parquet("s3://quality/quarantine/missing_prod
     explanation:
       "NULL/default keys are both quality and performance signals. Route bad records explicitly so the main join remains predictable and operations can alert on invalid-key spikes.",
     hints: [
-      "Do not hide invalid product_id by filling every NULL with the same default too early.",
+      "Route invalid product_id values before the normal enrichment join.",
       "Separate data quality handling from normal dimension enrichment.",
       "The quarantine count should become a monitored metric."
     ],

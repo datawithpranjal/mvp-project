@@ -1548,11 +1548,11 @@
     "estimatedMinutes": 12,
     "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
     "hints": [
-      "Filter to successful orders before aggregating revenue.",
-      "Exclude NULL customer_id records because they cannot be assigned to a customer.",
-      "Group by customer_id and sort by revenue descending."
+      "Aggregate successful order revenue at customer grain first.",
+      "Use ROW_NUMBER plus COUNT to calculate the top decile after aggregation.",
+      "For small datasets, return at least one customer instead of returning an empty result."
     ],
-    "explanation": "The strong interview answer explains the grain, why the pattern is safe, and which edge cases are covered.",
+    "explanation": "This lab tests whether you can choose the correct output grain before writing SQL. A production-safe answer filters or ranks at the right stage, handles ties deterministically, ignores NULL business keys where required, and returns only the columns in the contract. The common mistake is to write a query that works on the visible rows but changes grain or duplicates revenue when edge-case rows appear.",
     "topicTags": [
       "SQL",
       "Metrics"
@@ -1658,9 +1658,9 @@
         ]
       }
     ],
-    "expectedSql": "SELECT customer_id, SUM(CAST(amount AS REAL)) AS total_revenue\nFROM orders\nWHERE status = 'SUCCESS'\n  AND customer_id IS NOT NULL\nGROUP BY customer_id\nORDER BY total_revenue DESC;",
-    "solutionCode": "SELECT customer_id, SUM(CAST(amount AS REAL)) AS total_revenue\nFROM orders\nWHERE status = 'SUCCESS'\n  AND customer_id IS NOT NULL\nGROUP BY customer_id\nORDER BY total_revenue DESC;",
-    "expectedOutcome": "Columns: customer_id, total_revenue.\nGrain: one row per customer with successful orders.\nBusiness rule: include SUCCESS orders only and ignore NULL customer_id values.",
+    "expectedSql": "WITH spend AS (\n  SELECT customer_id, SUM(CAST(amount AS REAL)) AS total_revenue\n  FROM orders\n  WHERE status = 'SUCCESS'\n    AND customer_id IS NOT NULL\n  GROUP BY customer_id\n), ranked AS (\n  SELECT customer_id, total_revenue,\n         ROW_NUMBER() OVER (ORDER BY total_revenue DESC, customer_id) AS rn,\n         COUNT(*) OVER () AS customer_count\n  FROM spend\n)\nSELECT customer_id, total_revenue\nFROM ranked\nWHERE rn <= MAX(1, CAST((customer_count + 9) / 10 AS INTEGER))\nORDER BY total_revenue DESC, customer_id;",
+    "solutionCode": "WITH spend AS (\n  SELECT customer_id, SUM(CAST(amount AS REAL)) AS total_revenue\n  FROM orders\n  WHERE status = 'SUCCESS'\n    AND customer_id IS NOT NULL\n  GROUP BY customer_id\n), ranked AS (\n  SELECT customer_id, total_revenue,\n         ROW_NUMBER() OVER (ORDER BY total_revenue DESC, customer_id) AS rn,\n         COUNT(*) OVER () AS customer_count\n  FROM spend\n)\nSELECT customer_id, total_revenue\nFROM ranked\nWHERE rn <= MAX(1, CAST((customer_count + 9) / 10 AS INTEGER))\nORDER BY total_revenue DESC, customer_id;",
+    "expectedOutcome": "Columns: customer_id, total_revenue.\nGrain: one row per customer in the top decile by successful order revenue.\nBusiness rule: aggregate SUCCESS orders first, rank customers by revenue, and return at least one customer for small datasets.",
     "sqlTestCases": [
       {
         "name": "Successful revenue only",
@@ -1756,7 +1756,7 @@
             ]
           }
         ],
-        "expectedSql": "SELECT customer_id, SUM(CAST(amount AS REAL)) AS total_revenue\nFROM orders\nWHERE status = 'SUCCESS'\n  AND customer_id IS NOT NULL\nGROUP BY customer_id\nORDER BY total_revenue DESC;"
+        "expectedSql": "WITH spend AS (\n  SELECT customer_id, SUM(CAST(amount AS REAL)) AS total_revenue\n  FROM orders\n  WHERE status = 'SUCCESS'\n    AND customer_id IS NOT NULL\n  GROUP BY customer_id\n), ranked AS (\n  SELECT customer_id, total_revenue,\n         ROW_NUMBER() OVER (ORDER BY total_revenue DESC, customer_id) AS rn,\n         COUNT(*) OVER () AS customer_count\n  FROM spend\n)\nSELECT customer_id, total_revenue\nFROM ranked\nWHERE rn <= MAX(1, CAST((customer_count + 9) / 10 AS INTEGER))\nORDER BY total_revenue DESC, customer_id;"
       }
     ]
   },
@@ -2156,7 +2156,7 @@
     "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
     "hints": [
       "Start from orders and left join to customers.",
-      "A NULL customer_id is a different data quality issue; do not flag it as a missing dimension key here.",
+      "Treat NULL customer_id rows as a separate data-quality bucket outside this foreign-key check.",
       "Rows where the joined customer is NULL are the broken foreign keys."
     ],
     "explanation": "The strong interview answer explains the grain, why the pattern is safe, and which edge cases are covered.",
@@ -2962,11 +2962,11 @@
     "estimatedMinutes": 18,
     "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
     "hints": [
-      "Use LAG to compare each order with the previous order for the same customer.",
-      "Calculate date difference between current and previous order dates.",
-      "Keep only repeat orders where the gap is seven days or less."
+      "Filter to successful orders before counting repeat purchases.",
+      "Group by both customer_id and order_date because the grain is customer-day.",
+      "Use HAVING COUNT(*) > 1 to keep only repeated same-day orders."
     ],
-    "explanation": "The strong interview answer explains the grain, why the pattern is safe, and which edge cases are covered.",
+    "explanation": "This lab tests whether you can choose the correct output grain before writing SQL. A production-safe answer filters or ranks at the right stage, handles ties deterministically, ignores NULL business keys where required, and returns only the columns in the contract. The common mistake is to write a query that works on the visible rows but changes grain or duplicates revenue when edge-case rows appear.",
     "topicTags": [
       "SQL",
       "Retention"
@@ -3072,9 +3072,9 @@
         ]
       }
     ],
-    "expectedSql": "WITH ordered AS (\n  SELECT customer_id, order_id, order_date,\n         LAG(order_date) OVER (PARTITION BY customer_id ORDER BY order_date) AS previous_order_date\n  FROM orders\n  WHERE customer_id IS NOT NULL\n)\nSELECT customer_id, order_id, order_date, previous_order_date\nFROM ordered\nWHERE previous_order_date IS NOT NULL\n  AND julianday(order_date) - julianday(previous_order_date) <= 7;",
-    "solutionCode": "WITH ordered AS (\n  SELECT customer_id, order_id, order_date,\n         LAG(order_date) OVER (PARTITION BY customer_id ORDER BY order_date) AS previous_order_date\n  FROM orders\n  WHERE customer_id IS NOT NULL\n)\nSELECT customer_id, order_id, order_date, previous_order_date\nFROM ordered\nWHERE previous_order_date IS NOT NULL\n  AND julianday(order_date) - julianday(previous_order_date) <= 7;",
-    "expectedOutcome": "Columns: customer_id, order_id, order_date, previous_order_date.\nGrain: one row per repeat order within seven days of the previous order.\nBusiness rule: compare each order with the previous order for the same customer.",
+    "expectedSql": "SELECT customer_id, order_date, COUNT(*) AS order_count\nFROM orders\nWHERE status = 'SUCCESS'\n  AND customer_id IS NOT NULL\nGROUP BY customer_id, order_date\nHAVING COUNT(*) > 1\nORDER BY customer_id, order_date;",
+    "solutionCode": "SELECT customer_id, order_date, COUNT(*) AS order_count\nFROM orders\nWHERE status = 'SUCCESS'\n  AND customer_id IS NOT NULL\nGROUP BY customer_id, order_date\nHAVING COUNT(*) > 1\nORDER BY customer_id, order_date;",
+    "expectedOutcome": "Columns: customer_id, order_date, order_count.\nGrain: one row per customer and order date with more than one successful order.\nBusiness rule: identify same-day repeat purchasing after filtering to valid customer_id values.",
     "sqlTestCases": [
       {
         "name": "Repeat within seven days",
@@ -3170,7 +3170,7 @@
             ]
           }
         ],
-        "expectedSql": "WITH ordered AS (\n  SELECT customer_id, order_id, order_date,\n         LAG(order_date) OVER (PARTITION BY customer_id ORDER BY order_date) AS previous_order_date\n  FROM orders\n  WHERE customer_id IS NOT NULL\n)\nSELECT customer_id, order_id, order_date, previous_order_date\nFROM ordered\nWHERE previous_order_date IS NOT NULL\n  AND julianday(order_date) - julianday(previous_order_date) <= 7;"
+        "expectedSql": "SELECT customer_id, order_date, COUNT(*) AS order_count\nFROM orders\nWHERE status = 'SUCCESS'\n  AND customer_id IS NOT NULL\nGROUP BY customer_id, order_date\nHAVING COUNT(*) > 1\nORDER BY customer_id, order_date;"
       }
     ]
   },
@@ -3185,11 +3185,11 @@
     "estimatedMinutes": 18,
     "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
     "hints": [
-      "Rank orders inside each customer_id.",
-      "Order by order_date descending, then order_id descending to break ties.",
-      "Filter to row number 1."
+      "Use LAG inside each customer_id partition.",
+      "Order by order_date and order_id so same-day orders are deterministic.",
+      "Keep only rows where a previous_order_date exists."
     ],
-    "explanation": "The strong interview answer explains the grain, why the pattern is safe, and which edge cases are covered.",
+    "explanation": "This lab tests practical window-function thinking. The safe pattern is to order records inside the correct business partition, calculate the previous or ranked row, then filter after the window value is available. Edge cases include duplicate dates, same-day activity, NULL keys, and deterministic tie-breaking.",
     "topicTags": [
       "SQL",
       "Window Functions"
@@ -3295,9 +3295,9 @@
         ]
       }
     ],
-    "expectedSql": "WITH ranked AS (\n  SELECT order_id, customer_id, order_date, amount,\n         ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY order_date DESC, order_id DESC) AS rn\n  FROM orders\n  WHERE customer_id IS NOT NULL\n)\nSELECT customer_id, order_id, order_date, amount\nFROM ranked\nWHERE rn = 1;",
-    "solutionCode": "WITH ranked AS (\n  SELECT order_id, customer_id, order_date, amount,\n         ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY order_date DESC, order_id DESC) AS rn\n  FROM orders\n  WHERE customer_id IS NOT NULL\n)\nSELECT customer_id, order_id, order_date, amount\nFROM ranked\nWHERE rn = 1;",
-    "expectedOutcome": "Columns: customer_id, order_id, order_date, amount.\nGrain: one latest order per customer.\nBusiness rule: break ties deterministically using the newest date and highest order_id.",
+    "expectedSql": "WITH ordered AS (\n  SELECT customer_id, order_id, order_date,\n         LAG(order_date) OVER (PARTITION BY customer_id ORDER BY order_date, order_id) AS previous_order_date\n  FROM orders\n  WHERE customer_id IS NOT NULL\n)\nSELECT customer_id, order_id, order_date, previous_order_date\nFROM ordered\nWHERE previous_order_date IS NOT NULL\nORDER BY customer_id, order_date, order_id;",
+    "solutionCode": "WITH ordered AS (\n  SELECT customer_id, order_id, order_date,\n         LAG(order_date) OVER (PARTITION BY customer_id ORDER BY order_date, order_id) AS previous_order_date\n  FROM orders\n  WHERE customer_id IS NOT NULL\n)\nSELECT customer_id, order_id, order_date, previous_order_date\nFROM ordered\nWHERE previous_order_date IS NOT NULL\nORDER BY customer_id, order_date, order_id;",
+    "expectedOutcome": "Columns: customer_id, order_id, order_date, previous_order_date.\nGrain: one row per order that has a previous order for the same customer.\nBusiness rule: use order_date and order_id for deterministic ordering before applying LAG.",
     "sqlTestCases": [
       {
         "name": "Latest order tie-break",
@@ -3393,7 +3393,7 @@
             ]
           }
         ],
-        "expectedSql": "WITH ranked AS (\n  SELECT order_id, customer_id, order_date, amount,\n         ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY order_date DESC, order_id DESC) AS rn\n  FROM orders\n  WHERE customer_id IS NOT NULL\n)\nSELECT customer_id, order_id, order_date, amount\nFROM ranked\nWHERE rn = 1;"
+        "expectedSql": "WITH ordered AS (\n  SELECT customer_id, order_id, order_date,\n         LAG(order_date) OVER (PARTITION BY customer_id ORDER BY order_date, order_id) AS previous_order_date\n  FROM orders\n  WHERE customer_id IS NOT NULL\n)\nSELECT customer_id, order_id, order_date, previous_order_date\nFROM ordered\nWHERE previous_order_date IS NOT NULL\nORDER BY customer_id, order_date, order_id;"
       }
     ]
   },
@@ -3408,11 +3408,11 @@
     "estimatedMinutes": 18,
     "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
     "hints": [
-      "Filter to successful orders before aggregating revenue.",
-      "Exclude NULL customer_id records because they cannot be assigned to a customer.",
-      "Group by customer_id and sort by revenue descending."
+      "Define the business key before searching for duplicates.",
+      "Group by the full business key: customer_id and order_date.",
+      "Use HAVING COUNT(*) > 1 to keep only duplicate keys."
     ],
-    "explanation": "The strong interview answer explains the grain, why the pattern is safe, and which edge cases are covered.",
+    "explanation": "This lab tests whether you can choose the correct output grain before writing SQL. A production-safe answer filters or ranks at the right stage, handles ties deterministically, ignores NULL business keys where required, and returns only the columns in the contract. The common mistake is to write a query that works on the visible rows but changes grain or duplicates revenue when edge-case rows appear.",
     "topicTags": [
       "SQL",
       "Metrics"
@@ -3518,9 +3518,9 @@
         ]
       }
     ],
-    "expectedSql": "SELECT customer_id, SUM(CAST(amount AS REAL)) AS total_revenue\nFROM orders\nWHERE status = 'SUCCESS'\n  AND customer_id IS NOT NULL\nGROUP BY customer_id\nORDER BY total_revenue DESC;",
-    "solutionCode": "SELECT customer_id, SUM(CAST(amount AS REAL)) AS total_revenue\nFROM orders\nWHERE status = 'SUCCESS'\n  AND customer_id IS NOT NULL\nGROUP BY customer_id\nORDER BY total_revenue DESC;",
-    "expectedOutcome": "Columns: customer_id, total_revenue.\nGrain: one row per customer with successful orders.\nBusiness rule: include SUCCESS orders only and ignore NULL customer_id values.",
+    "expectedSql": "SELECT customer_id, order_date, COUNT(*) AS duplicate_count\nFROM orders\nWHERE customer_id IS NOT NULL\nGROUP BY customer_id, order_date\nHAVING COUNT(*) > 1\nORDER BY customer_id, order_date;",
+    "solutionCode": "SELECT customer_id, order_date, COUNT(*) AS duplicate_count\nFROM orders\nWHERE customer_id IS NOT NULL\nGROUP BY customer_id, order_date\nHAVING COUNT(*) > 1\nORDER BY customer_id, order_date;",
+    "expectedOutcome": "Columns: customer_id, order_date, duplicate_count.\nGrain: one row per duplicated customer-date business key.\nBusiness rule: treat customer_id plus order_date as the business key and ignore NULL customer_id values.",
     "sqlTestCases": [
       {
         "name": "Successful revenue only",
@@ -3616,7 +3616,7 @@
             ]
           }
         ],
-        "expectedSql": "SELECT customer_id, SUM(CAST(amount AS REAL)) AS total_revenue\nFROM orders\nWHERE status = 'SUCCESS'\n  AND customer_id IS NOT NULL\nGROUP BY customer_id\nORDER BY total_revenue DESC;"
+        "expectedSql": "SELECT customer_id, order_date, COUNT(*) AS duplicate_count\nFROM orders\nWHERE customer_id IS NOT NULL\nGROUP BY customer_id, order_date\nHAVING COUNT(*) > 1\nORDER BY customer_id, order_date;"
       }
     ]
   },
@@ -3631,11 +3631,11 @@
     "estimatedMinutes": 18,
     "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
     "hints": [
-      "Use LAG to compare each order with the previous order for the same customer.",
-      "Calculate date difference between current and previous order dates.",
-      "Keep only repeat orders where the gap is seven days or less."
+      "Collapse orders to distinct customer-month pairs first.",
+      "Use LAG to compare each active month with the previous active month.",
+      "Convert year/month to a month number so December-to-January boundaries work."
     ],
-    "explanation": "The strong interview answer explains the grain, why the pattern is safe, and which edge cases are covered.",
+    "explanation": "This lab tests practical window-function thinking. The safe pattern is to order records inside the correct business partition, calculate the previous or ranked row, then filter after the window value is available. Edge cases include duplicate dates, same-day activity, NULL keys, and deterministic tie-breaking.",
     "topicTags": [
       "SQL",
       "Retention"
@@ -3741,9 +3741,9 @@
         ]
       }
     ],
-    "expectedSql": "WITH ordered AS (\n  SELECT customer_id, order_id, order_date,\n         LAG(order_date) OVER (PARTITION BY customer_id ORDER BY order_date) AS previous_order_date\n  FROM orders\n  WHERE customer_id IS NOT NULL\n)\nSELECT customer_id, order_id, order_date, previous_order_date\nFROM ordered\nWHERE previous_order_date IS NOT NULL\n  AND julianday(order_date) - julianday(previous_order_date) <= 7;",
-    "solutionCode": "WITH ordered AS (\n  SELECT customer_id, order_id, order_date,\n         LAG(order_date) OVER (PARTITION BY customer_id ORDER BY order_date) AS previous_order_date\n  FROM orders\n  WHERE customer_id IS NOT NULL\n)\nSELECT customer_id, order_id, order_date, previous_order_date\nFROM ordered\nWHERE previous_order_date IS NOT NULL\n  AND julianday(order_date) - julianday(previous_order_date) <= 7;",
-    "expectedOutcome": "Columns: customer_id, order_id, order_date, previous_order_date.\nGrain: one row per repeat order within seven days of the previous order.\nBusiness rule: compare each order with the previous order for the same customer.",
+    "expectedSql": "WITH customer_months AS (\n  SELECT DISTINCT customer_id, substr(order_date, 1, 7) AS order_month\n  FROM orders\n  WHERE status = 'SUCCESS'\n    AND customer_id IS NOT NULL\n), ordered AS (\n  SELECT customer_id, order_month,\n         LAG(order_month) OVER (PARTITION BY customer_id ORDER BY order_month) AS previous_order_month\n  FROM customer_months\n)\nSELECT customer_id, order_month, previous_order_month\nFROM ordered\nWHERE previous_order_month IS NOT NULL\n  AND ((CAST(substr(order_month, 1, 4) AS INTEGER) * 12 + CAST(substr(order_month, 6, 2) AS INTEGER))\n     - (CAST(substr(previous_order_month, 1, 4) AS INTEGER) * 12 + CAST(substr(previous_order_month, 6, 2) AS INTEGER))) = 1\nORDER BY customer_id, order_month;",
+    "solutionCode": "WITH customer_months AS (\n  SELECT DISTINCT customer_id, substr(order_date, 1, 7) AS order_month\n  FROM orders\n  WHERE status = 'SUCCESS'\n    AND customer_id IS NOT NULL\n), ordered AS (\n  SELECT customer_id, order_month,\n         LAG(order_month) OVER (PARTITION BY customer_id ORDER BY order_month) AS previous_order_month\n  FROM customer_months\n)\nSELECT customer_id, order_month, previous_order_month\nFROM ordered\nWHERE previous_order_month IS NOT NULL\n  AND ((CAST(substr(order_month, 1, 4) AS INTEGER) * 12 + CAST(substr(order_month, 6, 2) AS INTEGER))\n     - (CAST(substr(previous_order_month, 1, 4) AS INTEGER) * 12 + CAST(substr(previous_order_month, 6, 2) AS INTEGER))) = 1\nORDER BY customer_id, order_month;",
+    "expectedOutcome": "Columns: customer_id, order_month, previous_order_month.\nGrain: one row per customer-month that follows the customer previous active month.\nBusiness rule: deduplicate customer-months before checking consecutive month activity.",
     "sqlTestCases": [
       {
         "name": "Repeat within seven days",
@@ -3839,7 +3839,7 @@
             ]
           }
         ],
-        "expectedSql": "WITH ordered AS (\n  SELECT customer_id, order_id, order_date,\n         LAG(order_date) OVER (PARTITION BY customer_id ORDER BY order_date) AS previous_order_date\n  FROM orders\n  WHERE customer_id IS NOT NULL\n)\nSELECT customer_id, order_id, order_date, previous_order_date\nFROM ordered\nWHERE previous_order_date IS NOT NULL\n  AND julianday(order_date) - julianday(previous_order_date) <= 7;"
+        "expectedSql": "WITH customer_months AS (\n  SELECT DISTINCT customer_id, substr(order_date, 1, 7) AS order_month\n  FROM orders\n  WHERE status = 'SUCCESS'\n    AND customer_id IS NOT NULL\n), ordered AS (\n  SELECT customer_id, order_month,\n         LAG(order_month) OVER (PARTITION BY customer_id ORDER BY order_month) AS previous_order_month\n  FROM customer_months\n)\nSELECT customer_id, order_month, previous_order_month\nFROM ordered\nWHERE previous_order_month IS NOT NULL\n  AND ((CAST(substr(order_month, 1, 4) AS INTEGER) * 12 + CAST(substr(order_month, 6, 2) AS INTEGER))\n     - (CAST(substr(previous_order_month, 1, 4) AS INTEGER) * 12 + CAST(substr(previous_order_month, 6, 2) AS INTEGER))) = 1\nORDER BY customer_id, order_month;"
       }
     ]
   },
@@ -3854,11 +3854,11 @@
     "estimatedMinutes": 18,
     "starterCode": "-- Inspect the sample employees table.\nSELECT *\nFROM employees\nLIMIT 5;",
     "hints": [
-      "Anchor the recursive CTE at employees with no manager.",
+      "Anchor the recursive CTE at employees with manager_id IS NULL.",
       "Join employees to the previous org level using manager_id.",
-      "Build path and depth as the recursion expands."
+      "Carry depth so the reporting level is visible in the output."
     ],
-    "explanation": "The strong interview answer explains the grain, why the pattern is safe, and which edge cases are covered.",
+    "explanation": "This lab tests recursive CTE fundamentals for hierarchy data. The safe answer uses a clear anchor, a recursive join from manager to direct report, and a depth column so the tree can be audited. Common mistakes include starting from every employee or joining manager_id in the wrong direction.",
     "topicTags": [
       "SQL",
       "Recursive CTE"
@@ -3929,9 +3929,9 @@
         ]
       }
     ],
-    "expectedSql": "WITH RECURSIVE org AS (\n  SELECT emp_id, emp_name, manager_id, emp_name AS path, 0 AS depth\n  FROM employees\n  WHERE manager_id IS NULL\n  UNION ALL\n  SELECT e.emp_id, e.emp_name, e.manager_id, org.path || ' > ' || e.emp_name, org.depth + 1\n  FROM employees e\n  JOIN org ON e.manager_id = org.emp_id\n)\nSELECT emp_id, emp_name, path, depth\nFROM org;",
-    "solutionCode": "WITH RECURSIVE org AS (\n  SELECT emp_id, emp_name, manager_id, emp_name AS path, 0 AS depth\n  FROM employees\n  WHERE manager_id IS NULL\n  UNION ALL\n  SELECT e.emp_id, e.emp_name, e.manager_id, org.path || ' > ' || e.emp_name, org.depth + 1\n  FROM employees e\n  JOIN org ON e.manager_id = org.emp_id\n)\nSELECT emp_id, emp_name, path, depth\nFROM org;",
-    "expectedOutcome": "Columns: emp_id, emp_name, path, depth.\nGrain: one row per employee in the org tree.\nBusiness rule: start at top-level managers and recursively walk reports.",
+    "expectedSql": "WITH RECURSIVE org AS (\n  SELECT emp_id, emp_name, manager_id, 0 AS depth\n  FROM employees\n  WHERE manager_id IS NULL\n  UNION ALL\n  SELECT e.emp_id, e.emp_name, e.manager_id, org.depth + 1 AS depth\n  FROM employees e\n  JOIN org ON e.manager_id = org.emp_id\n)\nSELECT emp_id, emp_name, manager_id, depth\nFROM org\nORDER BY depth, emp_id;",
+    "solutionCode": "WITH RECURSIVE org AS (\n  SELECT emp_id, emp_name, manager_id, 0 AS depth\n  FROM employees\n  WHERE manager_id IS NULL\n  UNION ALL\n  SELECT e.emp_id, e.emp_name, e.manager_id, org.depth + 1 AS depth\n  FROM employees e\n  JOIN org ON e.manager_id = org.emp_id\n)\nSELECT emp_id, emp_name, manager_id, depth\nFROM org\nORDER BY depth, emp_id;",
+    "expectedOutcome": "Columns: emp_id, emp_name, manager_id, depth.\nGrain: one row per employee reachable from a top-level manager.\nBusiness rule: start from employees with no manager and recursively walk direct reports.",
     "sqlTestCases": [
       {
         "name": "Deeper org tree",
@@ -3999,7 +3999,7 @@
             ]
           }
         ],
-        "expectedSql": "WITH RECURSIVE org AS (\n  SELECT emp_id, emp_name, manager_id, emp_name AS path, 0 AS depth\n  FROM employees\n  WHERE manager_id IS NULL\n  UNION ALL\n  SELECT e.emp_id, e.emp_name, e.manager_id, org.path || ' > ' || e.emp_name, org.depth + 1\n  FROM employees e\n  JOIN org ON e.manager_id = org.emp_id\n)\nSELECT emp_id, emp_name, path, depth\nFROM org;"
+        "expectedSql": "WITH RECURSIVE org AS (\n  SELECT emp_id, emp_name, manager_id, 0 AS depth\n  FROM employees\n  WHERE manager_id IS NULL\n  UNION ALL\n  SELECT e.emp_id, e.emp_name, e.manager_id, org.depth + 1 AS depth\n  FROM employees e\n  JOIN org ON e.manager_id = org.emp_id\n)\nSELECT emp_id, emp_name, manager_id, depth\nFROM org\nORDER BY depth, emp_id;"
       }
     ]
   },
@@ -4172,13 +4172,13 @@
     "section": "Advanced SQL",
     "isFree": false,
     "estimatedMinutes": 18,
-    "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample events table.\nSELECT * FROM events LIMIT 5;",
     "hints": [
-      "Use LAG to compare each order with the previous order for the same customer.",
-      "Calculate date difference between current and previous order dates.",
-      "Keep only repeat orders where the gap is seven days or less."
+      "Use LAG(event_ts) per user to find the previous event.",
+      "The first event for each user starts a session.",
+      "Compare timestamps in seconds and flag gaps greater than 30 minutes."
     ],
-    "explanation": "The strong interview answer explains the grain, why the pattern is safe, and which edge cases are covered.",
+    "explanation": "This lab tests practical window-function thinking. The safe pattern is to order records inside the correct business partition, calculate the previous or ranked row, then filter after the window value is available. Edge cases include duplicate dates, same-day activity, NULL keys, and deterministic tie-breaking.",
     "topicTags": [
       "SQL",
       "Retention"
@@ -4188,201 +4188,122 @@
     "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
-        "name": "customers",
+        "name": "events",
         "columns": [
-          "customer_id",
-          "customer_name",
-          "signup_date"
+          "user_id",
+          "event_ts",
+          "event_date",
+          "event_type"
         ],
         "rows": [
           [
             1,
-            "Asha",
-            "2026-01-02"
+            "2026-05-01 09:00:00",
+            "2026-05-01",
+            "login"
+          ],
+          [
+            1,
+            "2026-05-01 09:20:00",
+            "2026-05-01",
+            "click"
+          ],
+          [
+            1,
+            "2026-05-01 10:10:00",
+            "2026-05-01",
+            "click"
           ],
           [
             2,
-            "Ben",
-            "2026-01-05"
+            "2026-05-01 12:00:00",
+            "2026-05-01",
+            "login"
+          ],
+          [
+            2,
+            "2026-05-02 12:00:00",
+            "2026-05-02",
+            "login"
+          ],
+          [
+            2,
+            "2026-05-03 12:00:00",
+            "2026-05-03",
+            "login"
           ],
           [
             3,
-            "Chen",
-            "2026-02-01"
-          ],
-          [
-            4,
-            "Diya",
-            "2026-02-11"
-          ],
-          [
-            5,
-            "Evan",
-            "2026-03-10"
-          ]
-        ]
-      },
-      {
-        "name": "orders",
-        "columns": [
-          "order_id",
-          "customer_id",
-          "order_date",
-          "amount",
-          "status"
-        ],
-        "rows": [
-          [
-            101,
-            1,
-            "2026-04-01",
-            120,
-            "SUCCESS"
-          ],
-          [
-            102,
-            1,
-            "2026-04-01",
-            80,
-            "SUCCESS"
-          ],
-          [
-            103,
-            2,
-            "2026-04-03",
-            220,
-            "SUCCESS"
-          ],
-          [
-            104,
-            2,
-            "2026-05-06",
-            180,
-            "SUCCESS"
-          ],
-          [
-            105,
-            3,
-            "2026-05-08",
-            75,
-            "FAILED"
-          ],
-          [
-            106,
-            99,
-            "2026-05-09",
-            300,
-            "SUCCESS"
-          ],
-          [
-            107,
-            null,
-            "2026-05-10",
-            60,
-            "SUCCESS"
+            "2026-05-07 15:00:00",
+            "2026-05-07",
+            "login"
           ]
         ]
       }
     ],
-    "expectedSql": "WITH ordered AS (\n  SELECT customer_id, order_id, order_date,\n         LAG(order_date) OVER (PARTITION BY customer_id ORDER BY order_date) AS previous_order_date\n  FROM orders\n  WHERE customer_id IS NOT NULL\n)\nSELECT customer_id, order_id, order_date, previous_order_date\nFROM ordered\nWHERE previous_order_date IS NOT NULL\n  AND julianday(order_date) - julianday(previous_order_date) <= 7;",
-    "solutionCode": "WITH ordered AS (\n  SELECT customer_id, order_id, order_date,\n         LAG(order_date) OVER (PARTITION BY customer_id ORDER BY order_date) AS previous_order_date\n  FROM orders\n  WHERE customer_id IS NOT NULL\n)\nSELECT customer_id, order_id, order_date, previous_order_date\nFROM ordered\nWHERE previous_order_date IS NOT NULL\n  AND julianday(order_date) - julianday(previous_order_date) <= 7;",
-    "expectedOutcome": "Columns: customer_id, order_id, order_date, previous_order_date.\nGrain: one row per repeat order within seven days of the previous order.\nBusiness rule: compare each order with the previous order for the same customer.",
+    "expectedSql": "WITH ordered AS (\n  SELECT user_id, event_ts,\n         LAG(event_ts) OVER (PARTITION BY user_id ORDER BY event_ts) AS previous_event_ts\n  FROM events\n), flagged AS (\n  SELECT user_id, event_ts,\n         CASE\n           WHEN previous_event_ts IS NULL THEN 1\n           WHEN (strftime('%s', event_ts) - strftime('%s', previous_event_ts)) > 30 * 60 THEN 1\n           ELSE 0\n         END AS starts_new_session\n  FROM ordered\n)\nSELECT user_id, event_ts, starts_new_session\nFROM flagged\nORDER BY user_id, event_ts;",
+    "solutionCode": "WITH ordered AS (\n  SELECT user_id, event_ts,\n         LAG(event_ts) OVER (PARTITION BY user_id ORDER BY event_ts) AS previous_event_ts\n  FROM events\n), flagged AS (\n  SELECT user_id, event_ts,\n         CASE\n           WHEN previous_event_ts IS NULL THEN 1\n           WHEN (strftime('%s', event_ts) - strftime('%s', previous_event_ts)) > 30 * 60 THEN 1\n           ELSE 0\n         END AS starts_new_session\n  FROM ordered\n)\nSELECT user_id, event_ts, starts_new_session\nFROM flagged\nORDER BY user_id, event_ts;",
+    "expectedOutcome": "Columns: user_id, event_ts, starts_new_session.\nGrain: one row per event.\nBusiness rule: the first event for a user starts a session; a gap greater than 30 minutes starts a new session.",
     "sqlTestCases": [
       {
         "name": "Repeat within seven days",
         "description": "Ensures only close repeat orders are returned.",
         "tables": [
           {
-            "name": "customers",
+            "name": "events",
             "columns": [
-              "customer_id",
-              "customer_name",
-              "signup_date"
+              "user_id",
+              "event_ts",
+              "event_date",
+              "event_type"
             ],
             "rows": [
               [
                 1,
-                "Alpha Foods",
-                "2026-01-01"
+                "2026-05-01 09:00:00",
+                "2026-05-01",
+                "login"
+              ],
+              [
+                1,
+                "2026-05-01 09:20:00",
+                "2026-05-01",
+                "click"
+              ],
+              [
+                1,
+                "2026-05-01 10:10:00",
+                "2026-05-01",
+                "click"
               ],
               [
                 2,
-                "Beta Retail",
-                "2026-01-02"
+                "2026-05-01 12:00:00",
+                "2026-05-01",
+                "login"
+              ],
+              [
+                2,
+                "2026-05-02 12:00:00",
+                "2026-05-02",
+                "login"
+              ],
+              [
+                2,
+                "2026-05-03 12:00:00",
+                "2026-05-03",
+                "login"
               ],
               [
                 3,
-                "Gamma Labs",
-                "2026-01-03"
-              ],
-              [
-                4,
-                "Delta Health",
-                "2026-01-04"
-              ],
-              [
-                5,
-                "Echo Market",
-                "2026-01-05"
-              ]
-            ]
-          },
-          {
-            "name": "orders",
-            "columns": [
-              "order_id",
-              "customer_id",
-              "order_date",
-              "amount",
-              "status"
-            ],
-            "rows": [
-              [
-                201,
-                1,
-                "2026-05-01",
-                100,
-                "SUCCESS"
-              ],
-              [
-                202,
-                1,
-                "2026-05-03",
-                150,
-                "SUCCESS"
-              ],
-              [
-                203,
-                2,
-                "2026-05-12",
-                220,
-                "FAILED"
-              ],
-              [
-                204,
-                2,
-                "2026-05-20",
-                80,
-                "SUCCESS"
-              ],
-              [
-                205,
-                99,
-                "2026-05-21",
-                300,
-                "SUCCESS"
-              ],
-              [
-                206,
-                null,
-                "2026-05-22",
-                50,
-                "SUCCESS"
+                "2026-05-07 15:00:00",
+                "2026-05-07",
+                "login"
               ]
             ]
           }
         ],
-        "expectedSql": "WITH ordered AS (\n  SELECT customer_id, order_id, order_date,\n         LAG(order_date) OVER (PARTITION BY customer_id ORDER BY order_date) AS previous_order_date\n  FROM orders\n  WHERE customer_id IS NOT NULL\n)\nSELECT customer_id, order_id, order_date, previous_order_date\nFROM ordered\nWHERE previous_order_date IS NOT NULL\n  AND julianday(order_date) - julianday(previous_order_date) <= 7;"
+        "expectedSql": "WITH ordered AS (\n  SELECT user_id, event_ts,\n         LAG(event_ts) OVER (PARTITION BY user_id ORDER BY event_ts) AS previous_event_ts\n  FROM events\n), flagged AS (\n  SELECT user_id, event_ts,\n         CASE\n           WHEN previous_event_ts IS NULL THEN 1\n           WHEN (strftime('%s', event_ts) - strftime('%s', previous_event_ts)) > 30 * 60 THEN 1\n           ELSE 0\n         END AS starts_new_session\n  FROM ordered\n)\nSELECT user_id, event_ts, starts_new_session\nFROM flagged\nORDER BY user_id, event_ts;"
       }
     ]
   },
@@ -4550,11 +4471,11 @@
     "estimatedMinutes": 18,
     "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
     "hints": [
-      "Start from customers because every output row is a customer.",
-      "Use NOT EXISTS or a LEFT JOIN anti-join pattern.",
-      "Be careful with NULLs if you are tempted to use NOT IN."
+      "Use customers as the driving table because churn is measured per customer.",
+      "Check for absence of successful orders since 2026-04-01.",
+      "Prefer NOT EXISTS so NULL customer_id values in orders do not poison the result."
     ],
-    "explanation": "The strong interview answer explains the grain, why the pattern is safe, and which edge cases are covered.",
+    "explanation": "This lab tests whether you can choose the correct output grain before writing SQL. A production-safe answer filters or ranks at the right stage, handles ties deterministically, ignores NULL business keys where required, and returns only the columns in the contract. The common mistake is to write a query that works on the visible rows but changes grain or duplicates revenue when edge-case rows appear.",
     "topicTags": [
       "SQL",
       "Anti Join",
@@ -4661,9 +4582,9 @@
         ]
       }
     ],
-    "expectedSql": "SELECT c.customer_id, c.customer_name\nFROM customers c\nWHERE NOT EXISTS (\n  SELECT 1\n  FROM orders o\n  WHERE o.customer_id = c.customer_id\n);",
-    "solutionCode": "SELECT c.customer_id, c.customer_name\nFROM customers c\nWHERE NOT EXISTS (\n  SELECT 1\n  FROM orders o\n  WHERE o.customer_id = c.customer_id\n);",
-    "expectedOutcome": "Columns: customer_id, customer_name.\nGrain: one row per customer with no matching order.\nBusiness rule: preserve customers and exclude only those with at least one order.",
+    "expectedSql": "SELECT c.customer_id, c.customer_name\nFROM customers c\nWHERE NOT EXISTS (\n  SELECT 1\n  FROM orders o\n  WHERE o.customer_id = c.customer_id\n    AND o.status = 'SUCCESS'\n    AND o.order_date >= '2026-04-01'\n)\nORDER BY c.customer_id;",
+    "solutionCode": "SELECT c.customer_id, c.customer_name\nFROM customers c\nWHERE NOT EXISTS (\n  SELECT 1\n  FROM orders o\n  WHERE o.customer_id = c.customer_id\n    AND o.status = 'SUCCESS'\n    AND o.order_date >= '2026-04-01'\n)\nORDER BY c.customer_id;",
+    "expectedOutcome": "Columns: customer_id, customer_name.\nGrain: one row per customer with no successful order in the last 90 days from 2026-06-30.\nBusiness rule: preserve customers and use NOT EXISTS so NULL customer_id rows do not break the anti-join.",
     "sqlTestCases": [
       {
         "name": "Customers with no rows",
@@ -4759,7 +4680,7 @@
             ]
           }
         ],
-        "expectedSql": "SELECT c.customer_id, c.customer_name\nFROM customers c\nWHERE NOT EXISTS (\n  SELECT 1\n  FROM orders o\n  WHERE o.customer_id = c.customer_id\n);"
+        "expectedSql": "SELECT c.customer_id, c.customer_name\nFROM customers c\nWHERE NOT EXISTS (\n  SELECT 1\n  FROM orders o\n  WHERE o.customer_id = c.customer_id\n    AND o.status = 'SUCCESS'\n    AND o.order_date >= '2026-04-01'\n)\nORDER BY c.customer_id;"
       }
     ]
   },
@@ -4995,13 +4916,13 @@
     "section": "Advanced SQL",
     "isFree": false,
     "estimatedMinutes": 18,
-    "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
+    "starterCode": "-- Inspect the sample events table.\nSELECT * FROM events LIMIT 5;",
     "hints": [
-      "Use LAG to compare each order with the previous order for the same customer.",
-      "Calculate date difference between current and previous order dates.",
-      "Keep only repeat orders where the gap is seven days or less."
+      "Deduplicate login days before calculating streaks.",
+      "Use ROW_NUMBER and date arithmetic to group consecutive days.",
+      "Return only streak groups with more than one login day."
     ],
-    "explanation": "The strong interview answer explains the grain, why the pattern is safe, and which edge cases are covered.",
+    "explanation": "This lab tests practical window-function thinking. The safe pattern is to order records inside the correct business partition, calculate the previous or ranked row, then filter after the window value is available. Edge cases include duplicate dates, same-day activity, NULL keys, and deterministic tie-breaking.",
     "topicTags": [
       "SQL",
       "Retention"
@@ -5011,201 +4932,122 @@
     "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
     "tables": [
       {
-        "name": "customers",
+        "name": "events",
         "columns": [
-          "customer_id",
-          "customer_name",
-          "signup_date"
+          "user_id",
+          "event_ts",
+          "event_date",
+          "event_type"
         ],
         "rows": [
           [
             1,
-            "Asha",
-            "2026-01-02"
+            "2026-05-01 09:00:00",
+            "2026-05-01",
+            "login"
+          ],
+          [
+            1,
+            "2026-05-01 09:20:00",
+            "2026-05-01",
+            "click"
+          ],
+          [
+            1,
+            "2026-05-01 10:10:00",
+            "2026-05-01",
+            "click"
           ],
           [
             2,
-            "Ben",
-            "2026-01-05"
+            "2026-05-01 12:00:00",
+            "2026-05-01",
+            "login"
+          ],
+          [
+            2,
+            "2026-05-02 12:00:00",
+            "2026-05-02",
+            "login"
+          ],
+          [
+            2,
+            "2026-05-03 12:00:00",
+            "2026-05-03",
+            "login"
           ],
           [
             3,
-            "Chen",
-            "2026-02-01"
-          ],
-          [
-            4,
-            "Diya",
-            "2026-02-11"
-          ],
-          [
-            5,
-            "Evan",
-            "2026-03-10"
-          ]
-        ]
-      },
-      {
-        "name": "orders",
-        "columns": [
-          "order_id",
-          "customer_id",
-          "order_date",
-          "amount",
-          "status"
-        ],
-        "rows": [
-          [
-            101,
-            1,
-            "2026-04-01",
-            120,
-            "SUCCESS"
-          ],
-          [
-            102,
-            1,
-            "2026-04-01",
-            80,
-            "SUCCESS"
-          ],
-          [
-            103,
-            2,
-            "2026-04-03",
-            220,
-            "SUCCESS"
-          ],
-          [
-            104,
-            2,
-            "2026-05-06",
-            180,
-            "SUCCESS"
-          ],
-          [
-            105,
-            3,
-            "2026-05-08",
-            75,
-            "FAILED"
-          ],
-          [
-            106,
-            99,
-            "2026-05-09",
-            300,
-            "SUCCESS"
-          ],
-          [
-            107,
-            null,
-            "2026-05-10",
-            60,
-            "SUCCESS"
+            "2026-05-07 15:00:00",
+            "2026-05-07",
+            "login"
           ]
         ]
       }
     ],
-    "expectedSql": "WITH ordered AS (\n  SELECT customer_id, order_id, order_date,\n         LAG(order_date) OVER (PARTITION BY customer_id ORDER BY order_date) AS previous_order_date\n  FROM orders\n  WHERE customer_id IS NOT NULL\n)\nSELECT customer_id, order_id, order_date, previous_order_date\nFROM ordered\nWHERE previous_order_date IS NOT NULL\n  AND julianday(order_date) - julianday(previous_order_date) <= 7;",
-    "solutionCode": "WITH ordered AS (\n  SELECT customer_id, order_id, order_date,\n         LAG(order_date) OVER (PARTITION BY customer_id ORDER BY order_date) AS previous_order_date\n  FROM orders\n  WHERE customer_id IS NOT NULL\n)\nSELECT customer_id, order_id, order_date, previous_order_date\nFROM ordered\nWHERE previous_order_date IS NOT NULL\n  AND julianday(order_date) - julianday(previous_order_date) <= 7;",
-    "expectedOutcome": "Columns: customer_id, order_id, order_date, previous_order_date.\nGrain: one row per repeat order within seven days of the previous order.\nBusiness rule: compare each order with the previous order for the same customer.",
+    "expectedSql": "WITH login_days AS (\n  SELECT DISTINCT user_id, event_date\n  FROM events\n  WHERE event_type = 'login'\n), numbered AS (\n  SELECT user_id, event_date,\n         ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY event_date) AS rn\n  FROM login_days\n), grouped AS (\n  SELECT user_id, event_date,\n         date(event_date, '-' || rn || ' days') AS streak_group\n  FROM numbered\n)\nSELECT user_id,\n       MIN(event_date) AS streak_start_date,\n       MAX(event_date) AS streak_end_date,\n       COUNT(*) AS streak_days\nFROM grouped\nGROUP BY user_id, streak_group\nHAVING COUNT(*) > 1\nORDER BY user_id, streak_start_date;",
+    "solutionCode": "WITH login_days AS (\n  SELECT DISTINCT user_id, event_date\n  FROM events\n  WHERE event_type = 'login'\n), numbered AS (\n  SELECT user_id, event_date,\n         ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY event_date) AS rn\n  FROM login_days\n), grouped AS (\n  SELECT user_id, event_date,\n         date(event_date, '-' || rn || ' days') AS streak_group\n  FROM numbered\n)\nSELECT user_id,\n       MIN(event_date) AS streak_start_date,\n       MAX(event_date) AS streak_end_date,\n       COUNT(*) AS streak_days\nFROM grouped\nGROUP BY user_id, streak_group\nHAVING COUNT(*) > 1\nORDER BY user_id, streak_start_date;",
+    "expectedOutcome": "Columns: user_id, streak_start_date, streak_end_date, streak_days.\nGrain: one row per consecutive daily login streak longer than one day.\nBusiness rule: deduplicate user login days before grouping consecutive dates.",
     "sqlTestCases": [
       {
         "name": "Repeat within seven days",
         "description": "Ensures only close repeat orders are returned.",
         "tables": [
           {
-            "name": "customers",
+            "name": "events",
             "columns": [
-              "customer_id",
-              "customer_name",
-              "signup_date"
+              "user_id",
+              "event_ts",
+              "event_date",
+              "event_type"
             ],
             "rows": [
               [
                 1,
-                "Alpha Foods",
-                "2026-01-01"
+                "2026-05-01 09:00:00",
+                "2026-05-01",
+                "login"
+              ],
+              [
+                1,
+                "2026-05-01 09:20:00",
+                "2026-05-01",
+                "click"
+              ],
+              [
+                1,
+                "2026-05-01 10:10:00",
+                "2026-05-01",
+                "click"
               ],
               [
                 2,
-                "Beta Retail",
-                "2026-01-02"
+                "2026-05-01 12:00:00",
+                "2026-05-01",
+                "login"
+              ],
+              [
+                2,
+                "2026-05-02 12:00:00",
+                "2026-05-02",
+                "login"
+              ],
+              [
+                2,
+                "2026-05-03 12:00:00",
+                "2026-05-03",
+                "login"
               ],
               [
                 3,
-                "Gamma Labs",
-                "2026-01-03"
-              ],
-              [
-                4,
-                "Delta Health",
-                "2026-01-04"
-              ],
-              [
-                5,
-                "Echo Market",
-                "2026-01-05"
-              ]
-            ]
-          },
-          {
-            "name": "orders",
-            "columns": [
-              "order_id",
-              "customer_id",
-              "order_date",
-              "amount",
-              "status"
-            ],
-            "rows": [
-              [
-                201,
-                1,
-                "2026-05-01",
-                100,
-                "SUCCESS"
-              ],
-              [
-                202,
-                1,
-                "2026-05-03",
-                150,
-                "SUCCESS"
-              ],
-              [
-                203,
-                2,
-                "2026-05-12",
-                220,
-                "FAILED"
-              ],
-              [
-                204,
-                2,
-                "2026-05-20",
-                80,
-                "SUCCESS"
-              ],
-              [
-                205,
-                99,
-                "2026-05-21",
-                300,
-                "SUCCESS"
-              ],
-              [
-                206,
-                null,
-                "2026-05-22",
-                50,
-                "SUCCESS"
+                "2026-05-07 15:00:00",
+                "2026-05-07",
+                "login"
               ]
             ]
           }
         ],
-        "expectedSql": "WITH ordered AS (\n  SELECT customer_id, order_id, order_date,\n         LAG(order_date) OVER (PARTITION BY customer_id ORDER BY order_date) AS previous_order_date\n  FROM orders\n  WHERE customer_id IS NOT NULL\n)\nSELECT customer_id, order_id, order_date, previous_order_date\nFROM ordered\nWHERE previous_order_date IS NOT NULL\n  AND julianday(order_date) - julianday(previous_order_date) <= 7;"
+        "expectedSql": "WITH login_days AS (\n  SELECT DISTINCT user_id, event_date\n  FROM events\n  WHERE event_type = 'login'\n), numbered AS (\n  SELECT user_id, event_date,\n         ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY event_date) AS rn\n  FROM login_days\n), grouped AS (\n  SELECT user_id, event_date,\n         date(event_date, '-' || rn || ' days') AS streak_group\n  FROM numbered\n)\nSELECT user_id,\n       MIN(event_date) AS streak_start_date,\n       MAX(event_date) AS streak_end_date,\n       COUNT(*) AS streak_days\nFROM grouped\nGROUP BY user_id, streak_group\nHAVING COUNT(*) > 1\nORDER BY user_id, streak_start_date;"
       }
     ]
   },
@@ -5220,11 +5062,11 @@
     "estimatedMinutes": 18,
     "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
     "hints": [
-      "Use LAG to compare each order with the previous order for the same customer.",
-      "Calculate date difference between current and previous order dates.",
-      "Keep only repeat orders where the gap is seven days or less."
+      "Use LAG to get the previous order date for each customer.",
+      "Calculate the date difference after the previous order is available.",
+      "Filter for gaps strictly greater than 30 days."
     ],
-    "explanation": "The strong interview answer explains the grain, why the pattern is safe, and which edge cases are covered.",
+    "explanation": "This lab tests practical window-function thinking. The safe pattern is to order records inside the correct business partition, calculate the previous or ranked row, then filter after the window value is available. Edge cases include duplicate dates, same-day activity, NULL keys, and deterministic tie-breaking.",
     "topicTags": [
       "SQL",
       "Retention"
@@ -5330,9 +5172,9 @@
         ]
       }
     ],
-    "expectedSql": "WITH ordered AS (\n  SELECT customer_id, order_id, order_date,\n         LAG(order_date) OVER (PARTITION BY customer_id ORDER BY order_date) AS previous_order_date\n  FROM orders\n  WHERE customer_id IS NOT NULL\n)\nSELECT customer_id, order_id, order_date, previous_order_date\nFROM ordered\nWHERE previous_order_date IS NOT NULL\n  AND julianday(order_date) - julianday(previous_order_date) <= 7;",
-    "solutionCode": "WITH ordered AS (\n  SELECT customer_id, order_id, order_date,\n         LAG(order_date) OVER (PARTITION BY customer_id ORDER BY order_date) AS previous_order_date\n  FROM orders\n  WHERE customer_id IS NOT NULL\n)\nSELECT customer_id, order_id, order_date, previous_order_date\nFROM ordered\nWHERE previous_order_date IS NOT NULL\n  AND julianday(order_date) - julianday(previous_order_date) <= 7;",
-    "expectedOutcome": "Columns: customer_id, order_id, order_date, previous_order_date.\nGrain: one row per repeat order within seven days of the previous order.\nBusiness rule: compare each order with the previous order for the same customer.",
+    "expectedSql": "WITH ordered AS (\n  SELECT customer_id, order_id, order_date,\n         LAG(order_date) OVER (PARTITION BY customer_id ORDER BY order_date, order_id) AS previous_order_date\n  FROM orders\n  WHERE customer_id IS NOT NULL\n), gaps AS (\n  SELECT customer_id, order_id, order_date, previous_order_date,\n         CAST(julianday(order_date) - julianday(previous_order_date) AS INTEGER) AS gap_days\n  FROM ordered\n  WHERE previous_order_date IS NOT NULL\n)\nSELECT customer_id, order_id, order_date, previous_order_date, gap_days\nFROM gaps\nWHERE gap_days > 30\nORDER BY customer_id, order_date, order_id;",
+    "solutionCode": "WITH ordered AS (\n  SELECT customer_id, order_id, order_date,\n         LAG(order_date) OVER (PARTITION BY customer_id ORDER BY order_date, order_id) AS previous_order_date\n  FROM orders\n  WHERE customer_id IS NOT NULL\n), gaps AS (\n  SELECT customer_id, order_id, order_date, previous_order_date,\n         CAST(julianday(order_date) - julianday(previous_order_date) AS INTEGER) AS gap_days\n  FROM ordered\n  WHERE previous_order_date IS NOT NULL\n)\nSELECT customer_id, order_id, order_date, previous_order_date, gap_days\nFROM gaps\nWHERE gap_days > 30\nORDER BY customer_id, order_date, order_id;",
+    "expectedOutcome": "Columns: customer_id, order_id, order_date, previous_order_date, gap_days.\nGrain: one row per order where the gap from the previous customer order is greater than 30 days.\nBusiness rule: compare orders within each customer using deterministic order_date and order_id sorting.",
     "sqlTestCases": [
       {
         "name": "Repeat within seven days",
@@ -5428,7 +5270,7 @@
             ]
           }
         ],
-        "expectedSql": "WITH ordered AS (\n  SELECT customer_id, order_id, order_date,\n         LAG(order_date) OVER (PARTITION BY customer_id ORDER BY order_date) AS previous_order_date\n  FROM orders\n  WHERE customer_id IS NOT NULL\n)\nSELECT customer_id, order_id, order_date, previous_order_date\nFROM ordered\nWHERE previous_order_date IS NOT NULL\n  AND julianday(order_date) - julianday(previous_order_date) <= 7;"
+        "expectedSql": "WITH ordered AS (\n  SELECT customer_id, order_id, order_date,\n         LAG(order_date) OVER (PARTITION BY customer_id ORDER BY order_date, order_id) AS previous_order_date\n  FROM orders\n  WHERE customer_id IS NOT NULL\n), gaps AS (\n  SELECT customer_id, order_id, order_date, previous_order_date,\n         CAST(julianday(order_date) - julianday(previous_order_date) AS INTEGER) AS gap_days\n  FROM ordered\n  WHERE previous_order_date IS NOT NULL\n)\nSELECT customer_id, order_id, order_date, previous_order_date, gap_days\nFROM gaps\nWHERE gap_days > 30\nORDER BY customer_id, order_date, order_id;"
       }
     ]
   },
@@ -5603,11 +5445,11 @@
     "estimatedMinutes": 18,
     "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
     "hints": [
-      "Filter to successful orders before aggregating revenue.",
-      "Exclude NULL customer_id records because they cannot be assigned to a customer.",
-      "Group by customer_id and sort by revenue descending."
+      "Aggregate successful revenue per customer before calculating Pareto contribution.",
+      "Use a cumulative SUM ordered by customer revenue descending.",
+      "Include customers until the cumulative share crosses 80%."
     ],
-    "explanation": "The strong interview answer explains the grain, why the pattern is safe, and which edge cases are covered.",
+    "explanation": "This lab tests whether you can choose the correct output grain before writing SQL. A production-safe answer filters or ranks at the right stage, handles ties deterministically, ignores NULL business keys where required, and returns only the columns in the contract. The common mistake is to write a query that works on the visible rows but changes grain or duplicates revenue when edge-case rows appear.",
     "topicTags": [
       "SQL",
       "Metrics"
@@ -5713,9 +5555,9 @@
         ]
       }
     ],
-    "expectedSql": "SELECT customer_id, SUM(CAST(amount AS REAL)) AS total_revenue\nFROM orders\nWHERE status = 'SUCCESS'\n  AND customer_id IS NOT NULL\nGROUP BY customer_id\nORDER BY total_revenue DESC;",
-    "solutionCode": "SELECT customer_id, SUM(CAST(amount AS REAL)) AS total_revenue\nFROM orders\nWHERE status = 'SUCCESS'\n  AND customer_id IS NOT NULL\nGROUP BY customer_id\nORDER BY total_revenue DESC;",
-    "expectedOutcome": "Columns: customer_id, total_revenue.\nGrain: one row per customer with successful orders.\nBusiness rule: include SUCCESS orders only and ignore NULL customer_id values.",
+    "expectedSql": "WITH spend AS (\n  SELECT customer_id, SUM(CAST(amount AS REAL)) AS total_revenue\n  FROM orders\n  WHERE status = 'SUCCESS'\n    AND customer_id IS NOT NULL\n  GROUP BY customer_id\n), ranked AS (\n  SELECT customer_id, total_revenue,\n         SUM(total_revenue) OVER (ORDER BY total_revenue DESC, customer_id) AS cumulative_revenue,\n         SUM(total_revenue) OVER () AS overall_revenue\n  FROM spend\n), with_previous AS (\n  SELECT customer_id, total_revenue, cumulative_revenue, overall_revenue,\n         LAG(cumulative_revenue, 1, 0) OVER (ORDER BY total_revenue DESC, customer_id) AS previous_cumulative_revenue\n  FROM ranked\n)\nSELECT customer_id, total_revenue, cumulative_revenue,\n       ROUND(cumulative_revenue / overall_revenue, 4) AS revenue_share\nFROM with_previous\nWHERE previous_cumulative_revenue / overall_revenue < 0.8\nORDER BY total_revenue DESC, customer_id;",
+    "solutionCode": "WITH spend AS (\n  SELECT customer_id, SUM(CAST(amount AS REAL)) AS total_revenue\n  FROM orders\n  WHERE status = 'SUCCESS'\n    AND customer_id IS NOT NULL\n  GROUP BY customer_id\n), ranked AS (\n  SELECT customer_id, total_revenue,\n         SUM(total_revenue) OVER (ORDER BY total_revenue DESC, customer_id) AS cumulative_revenue,\n         SUM(total_revenue) OVER () AS overall_revenue\n  FROM spend\n), with_previous AS (\n  SELECT customer_id, total_revenue, cumulative_revenue, overall_revenue,\n         LAG(cumulative_revenue, 1, 0) OVER (ORDER BY total_revenue DESC, customer_id) AS previous_cumulative_revenue\n  FROM ranked\n)\nSELECT customer_id, total_revenue, cumulative_revenue,\n       ROUND(cumulative_revenue / overall_revenue, 4) AS revenue_share\nFROM with_previous\nWHERE previous_cumulative_revenue / overall_revenue < 0.8\nORDER BY total_revenue DESC, customer_id;",
+    "expectedOutcome": "Columns: customer_id, total_revenue, cumulative_revenue, revenue_share.\nGrain: one row per customer included in the cumulative revenue contribution up to roughly 80%.\nBusiness rule: aggregate revenue first, calculate cumulative revenue by customer spend, and include the row that crosses the 80% threshold.",
     "sqlTestCases": [
       {
         "name": "Successful revenue only",
@@ -5811,7 +5653,7 @@
             ]
           }
         ],
-        "expectedSql": "SELECT customer_id, SUM(CAST(amount AS REAL)) AS total_revenue\nFROM orders\nWHERE status = 'SUCCESS'\n  AND customer_id IS NOT NULL\nGROUP BY customer_id\nORDER BY total_revenue DESC;"
+        "expectedSql": "WITH spend AS (\n  SELECT customer_id, SUM(CAST(amount AS REAL)) AS total_revenue\n  FROM orders\n  WHERE status = 'SUCCESS'\n    AND customer_id IS NOT NULL\n  GROUP BY customer_id\n), ranked AS (\n  SELECT customer_id, total_revenue,\n         SUM(total_revenue) OVER (ORDER BY total_revenue DESC, customer_id) AS cumulative_revenue,\n         SUM(total_revenue) OVER () AS overall_revenue\n  FROM spend\n), with_previous AS (\n  SELECT customer_id, total_revenue, cumulative_revenue, overall_revenue,\n         LAG(cumulative_revenue, 1, 0) OVER (ORDER BY total_revenue DESC, customer_id) AS previous_cumulative_revenue\n  FROM ranked\n)\nSELECT customer_id, total_revenue, cumulative_revenue,\n       ROUND(cumulative_revenue / overall_revenue, 4) AS revenue_share\nFROM with_previous\nWHERE previous_cumulative_revenue / overall_revenue < 0.8\nORDER BY total_revenue DESC, customer_id;"
       }
     ]
   },
@@ -5826,11 +5668,11 @@
     "estimatedMinutes": 18,
     "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
     "hints": [
-      "Filter to successful orders before aggregating revenue.",
-      "Exclude NULL customer_id records because they cannot be assigned to a customer.",
-      "Group by customer_id and sort by revenue descending."
+      "Define the duplicate business key as customer_id plus order_date.",
+      "Use ROW_NUMBER over that key and order by order_id descending.",
+      "Keep rn = 1 so each customer-date has one survivor."
     ],
-    "explanation": "The strong interview answer explains the grain, why the pattern is safe, and which edge cases are covered.",
+    "explanation": "This lab tests whether you can choose the correct output grain before writing SQL. A production-safe answer filters or ranks at the right stage, handles ties deterministically, ignores NULL business keys where required, and returns only the columns in the contract. The common mistake is to write a query that works on the visible rows but changes grain or duplicates revenue when edge-case rows appear.",
     "topicTags": [
       "SQL",
       "Metrics"
@@ -5936,9 +5778,9 @@
         ]
       }
     ],
-    "expectedSql": "SELECT customer_id, SUM(CAST(amount AS REAL)) AS total_revenue\nFROM orders\nWHERE status = 'SUCCESS'\n  AND customer_id IS NOT NULL\nGROUP BY customer_id\nORDER BY total_revenue DESC;",
-    "solutionCode": "SELECT customer_id, SUM(CAST(amount AS REAL)) AS total_revenue\nFROM orders\nWHERE status = 'SUCCESS'\n  AND customer_id IS NOT NULL\nGROUP BY customer_id\nORDER BY total_revenue DESC;",
-    "expectedOutcome": "Columns: customer_id, total_revenue.\nGrain: one row per customer with successful orders.\nBusiness rule: include SUCCESS orders only and ignore NULL customer_id values.",
+    "expectedSql": "WITH ranked AS (\n  SELECT customer_id, order_date, order_id, amount, status,\n         ROW_NUMBER() OVER (PARTITION BY customer_id, order_date ORDER BY order_id DESC) AS rn\n  FROM orders\n  WHERE customer_id IS NOT NULL\n)\nSELECT customer_id, order_date, order_id, amount, status\nFROM ranked\nWHERE rn = 1\nORDER BY customer_id, order_date;",
+    "solutionCode": "WITH ranked AS (\n  SELECT customer_id, order_date, order_id, amount, status,\n         ROW_NUMBER() OVER (PARTITION BY customer_id, order_date ORDER BY order_id DESC) AS rn\n  FROM orders\n  WHERE customer_id IS NOT NULL\n)\nSELECT customer_id, order_date, order_id, amount, status\nFROM ranked\nWHERE rn = 1\nORDER BY customer_id, order_date;",
+    "expectedOutcome": "Columns: customer_id, order_date, order_id, amount, status.\nGrain: one latest order row per customer-date business key.\nBusiness rule: for duplicate customer-date rows, keep the highest order_id as the latest arrival.",
     "sqlTestCases": [
       {
         "name": "Successful revenue only",
@@ -6034,7 +5876,7 @@
             ]
           }
         ],
-        "expectedSql": "SELECT customer_id, SUM(CAST(amount AS REAL)) AS total_revenue\nFROM orders\nWHERE status = 'SUCCESS'\n  AND customer_id IS NOT NULL\nGROUP BY customer_id\nORDER BY total_revenue DESC;"
+        "expectedSql": "WITH ranked AS (\n  SELECT customer_id, order_date, order_id, amount, status,\n         ROW_NUMBER() OVER (PARTITION BY customer_id, order_date ORDER BY order_id DESC) AS rn\n  FROM orders\n  WHERE customer_id IS NOT NULL\n)\nSELECT customer_id, order_date, order_id, amount, status\nFROM ranked\nWHERE rn = 1\nORDER BY customer_id, order_date;"
       }
     ]
   },
@@ -6050,8 +5892,8 @@
     "starterCode": "-- Inspect the sample customer_dim table.\nSELECT *\nFROM customer_dim\nLIMIT 5;",
     "hints": [
       "Compare incoming updates with the current active dimension row only.",
-      "A new customer has no active dimension row and should be returned.",
-      "A city change should be returned; unchanged rows should not."
+      "New customers are returned when the active dimension join is missing.",
+      "A city change should be returned; unchanged rows should be filtered out."
     ],
     "explanation": "The strong interview answer explains the grain, why the pattern is safe, and which edge cases are covered.",
     "topicTags": [
@@ -6216,11 +6058,11 @@
     "estimatedMinutes": 18,
     "starterCode": "-- Inspect the sample customer_dim table.\nSELECT *\nFROM customer_dim\nLIMIT 5;",
     "hints": [
-      "Compare incoming updates with the current active dimension row only.",
-      "A new customer has no active dimension row and should be returned.",
-      "A city change should be returned; unchanged rows should not."
+      "First isolate changed and new incoming customer rows.",
+      "Changed existing customers need two actions: expire old and insert new.",
+      "New customers only need an INSERT_NEW action."
     ],
-    "explanation": "The strong interview answer explains the grain, why the pattern is safe, and which edge cases are covered.",
+    "explanation": "This lab tests production dimension-table logic. A safe answer compares incoming rows against the current active dimension row, separates unchanged, changed, and new business keys, and returns a deterministic action set that can be reviewed before a merge. Common mistakes include comparing against expired rows or treating new customers as unchanged.",
     "topicTags": [
       "SQL",
       "SCD Type 2"
@@ -6292,9 +6134,9 @@
         ]
       }
     ],
-    "expectedSql": "SELECT u.customer_id, d.city AS old_city, u.city AS new_city, u.updated_at\nFROM customer_updates u\nLEFT JOIN customer_dim d\n  ON u.customer_id = d.customer_id\n AND d.current_flag = 1\nWHERE d.customer_id IS NULL OR COALESCE(d.city, '') <> COALESCE(u.city, '');",
-    "solutionCode": "SELECT u.customer_id, d.city AS old_city, u.city AS new_city, u.updated_at\nFROM customer_updates u\nLEFT JOIN customer_dim d\n  ON u.customer_id = d.customer_id\n AND d.current_flag = 1\nWHERE d.customer_id IS NULL OR COALESCE(d.city, '') <> COALESCE(u.city, '');",
-    "expectedOutcome": "Columns: customer_id, old_city, new_city, updated_at.\nGrain: one row per changed or new incoming customer.\nBusiness rule: compare incoming updates with the current active dimension row.",
+    "expectedSql": "WITH changes AS (\n  SELECT u.customer_id,\n         d.city AS old_city,\n         u.city AS new_city,\n         substr(u.updated_at, 1, 10) AS effective_start_date,\n         d.customer_id AS existing_customer_id\n  FROM customer_updates u\n  LEFT JOIN customer_dim d\n    ON u.customer_id = d.customer_id\n   AND d.current_flag = 1\n  WHERE d.customer_id IS NULL OR COALESCE(d.city, '') <> COALESCE(u.city, '')\n)\nSELECT 'EXPIRE_OLD' AS action_type, customer_id, old_city, new_city,\n       NULL AS effective_start_date, date(effective_start_date, '-1 day') AS effective_end_date, 0 AS current_flag\nFROM changes\nWHERE existing_customer_id IS NOT NULL\nUNION ALL\nSELECT 'INSERT_NEW' AS action_type, customer_id, old_city, new_city,\n       effective_start_date, NULL AS effective_end_date, 1 AS current_flag\nFROM changes\nORDER BY customer_id, action_type;",
+    "solutionCode": "WITH changes AS (\n  SELECT u.customer_id,\n         d.city AS old_city,\n         u.city AS new_city,\n         substr(u.updated_at, 1, 10) AS effective_start_date,\n         d.customer_id AS existing_customer_id\n  FROM customer_updates u\n  LEFT JOIN customer_dim d\n    ON u.customer_id = d.customer_id\n   AND d.current_flag = 1\n  WHERE d.customer_id IS NULL OR COALESCE(d.city, '') <> COALESCE(u.city, '')\n)\nSELECT 'EXPIRE_OLD' AS action_type, customer_id, old_city, new_city,\n       NULL AS effective_start_date, date(effective_start_date, '-1 day') AS effective_end_date, 0 AS current_flag\nFROM changes\nWHERE existing_customer_id IS NOT NULL\nUNION ALL\nSELECT 'INSERT_NEW' AS action_type, customer_id, old_city, new_city,\n       effective_start_date, NULL AS effective_end_date, 1 AS current_flag\nFROM changes\nORDER BY customer_id, action_type;",
+    "expectedOutcome": "Columns: action_type, customer_id, old_city, new_city, effective_start_date, effective_end_date, current_flag.\nGrain: one action row for each changed or new incoming customer row.\nBusiness rule: changed current rows need an EXPIRE_OLD action and every changed/new customer needs an INSERT_NEW action.",
     "sqlTestCases": [
       {
         "name": "New and changed customers",
@@ -6368,7 +6210,7 @@
             ]
           }
         ],
-        "expectedSql": "SELECT u.customer_id, d.city AS old_city, u.city AS new_city, u.updated_at\nFROM customer_updates u\nLEFT JOIN customer_dim d\n  ON u.customer_id = d.customer_id\n AND d.current_flag = 1\nWHERE d.customer_id IS NULL OR COALESCE(d.city, '') <> COALESCE(u.city, '');"
+        "expectedSql": "WITH changes AS (\n  SELECT u.customer_id,\n         d.city AS old_city,\n         u.city AS new_city,\n         substr(u.updated_at, 1, 10) AS effective_start_date,\n         d.customer_id AS existing_customer_id\n  FROM customer_updates u\n  LEFT JOIN customer_dim d\n    ON u.customer_id = d.customer_id\n   AND d.current_flag = 1\n  WHERE d.customer_id IS NULL OR COALESCE(d.city, '') <> COALESCE(u.city, '')\n)\nSELECT 'EXPIRE_OLD' AS action_type, customer_id, old_city, new_city,\n       NULL AS effective_start_date, date(effective_start_date, '-1 day') AS effective_end_date, 0 AS current_flag\nFROM changes\nWHERE existing_customer_id IS NOT NULL\nUNION ALL\nSELECT 'INSERT_NEW' AS action_type, customer_id, old_city, new_city,\n       effective_start_date, NULL AS effective_end_date, 1 AS current_flag\nFROM changes\nORDER BY customer_id, action_type;"
       }
     ]
   },
@@ -6550,11 +6392,11 @@
     "estimatedMinutes": 18,
     "starterCode": "-- Inspect the sample customer_dim table.\nSELECT *\nFROM customer_dim\nLIMIT 5;",
     "hints": [
-      "Filter updates using updated_at greater than the watermark.",
-      "Rows exactly equal to this watermark are not included in this simplified lab.",
-      "Order by updated_at and customer_id for deterministic output."
+      "Join staging updates to the current active target row by customer_id.",
+      "Missing target rows are INSERT actions.",
+      "Existing rows with changed attributes are UPDATE actions; unchanged rows are NO_CHANGE."
     ],
-    "explanation": "The strong interview answer explains the grain, why the pattern is safe, and which edge cases are covered.",
+    "explanation": "This lab tests production dimension-table logic. A safe answer compares incoming rows against the current active dimension row, separates unchanged, changed, and new business keys, and returns a deterministic action set that can be reviewed before a merge. Common mistakes include comparing against expired rows or treating new customers as unchanged.",
     "topicTags": [
       "SQL",
       "Incremental Loads"
@@ -6626,9 +6468,9 @@
         ]
       }
     ],
-    "expectedSql": "SELECT u.customer_id, u.city, u.updated_at\nFROM customer_updates u\nWHERE u.updated_at > '2026-05-01 10:30:00'\nORDER BY u.updated_at, u.customer_id;",
-    "solutionCode": "SELECT u.customer_id, u.city, u.updated_at\nFROM customer_updates u\nWHERE u.updated_at > '2026-05-01 10:30:00'\nORDER BY u.updated_at, u.customer_id;",
-    "expectedOutcome": "Columns: customer_id, city, updated_at.\nGrain: one incoming update row after the watermark.\nBusiness rule: return updates strictly newer than the configured timestamp.",
+    "expectedSql": "SELECT CASE\n         WHEN d.customer_id IS NULL THEN 'INSERT'\n         WHEN COALESCE(d.city, '') <> COALESCE(u.city, '') THEN 'UPDATE'\n         ELSE 'NO_CHANGE'\n       END AS merge_action,\n       u.customer_id,\n       d.city AS target_city,\n       u.city AS incoming_city,\n       u.updated_at\nFROM customer_updates u\nLEFT JOIN customer_dim d\n  ON u.customer_id = d.customer_id\n AND d.current_flag = 1\nORDER BY u.customer_id;",
+    "solutionCode": "SELECT CASE\n         WHEN d.customer_id IS NULL THEN 'INSERT'\n         WHEN COALESCE(d.city, '') <> COALESCE(u.city, '') THEN 'UPDATE'\n         ELSE 'NO_CHANGE'\n       END AS merge_action,\n       u.customer_id,\n       d.city AS target_city,\n       u.city AS incoming_city,\n       u.updated_at\nFROM customer_updates u\nLEFT JOIN customer_dim d\n  ON u.customer_id = d.customer_id\n AND d.current_flag = 1\nORDER BY u.customer_id;",
+    "expectedOutcome": "Columns: merge_action, customer_id, target_city, incoming_city, updated_at.\nGrain: one row per incoming customer update with the action a MERGE should take.\nBusiness rule: classify incoming rows as INSERT, UPDATE, or NO_CHANGE against the current active dimension row.",
     "sqlTestCases": [
       {
         "name": "Watermark boundary",
@@ -6702,7 +6544,7 @@
             ]
           }
         ],
-        "expectedSql": "SELECT u.customer_id, u.city, u.updated_at\nFROM customer_updates u\nWHERE u.updated_at > '2026-05-01 10:30:00'\nORDER BY u.updated_at, u.customer_id;"
+        "expectedSql": "SELECT CASE\n         WHEN d.customer_id IS NULL THEN 'INSERT'\n         WHEN COALESCE(d.city, '') <> COALESCE(u.city, '') THEN 'UPDATE'\n         ELSE 'NO_CHANGE'\n       END AS merge_action,\n       u.customer_id,\n       d.city AS target_city,\n       u.city AS incoming_city,\n       u.updated_at\nFROM customer_updates u\nLEFT JOIN customer_dim d\n  ON u.customer_id = d.customer_id\n AND d.current_flag = 1\nORDER BY u.customer_id;"
       }
     ]
   },
@@ -7107,11 +6949,11 @@
     "estimatedMinutes": 18,
     "starterCode": "-- Inspect the sample customer_dim table.\nSELECT *\nFROM customer_dim\nLIMIT 5;",
     "hints": [
-      "Filter updates using updated_at greater than the watermark.",
-      "Rows exactly equal to this watermark are not included in this simplified lab.",
-      "Order by updated_at and customer_id for deterministic output."
+      "Treat customer_updates as the new snapshot and active customer_dim as the old snapshot.",
+      "Use a LEFT JOIN so new keys are preserved.",
+      "Compare attributes null-safely before labeling rows as NEW or CHANGED."
     ],
-    "explanation": "The strong interview answer explains the grain, why the pattern is safe, and which edge cases are covered.",
+    "explanation": "This lab tests production dimension-table logic. A safe answer compares incoming rows against the current active dimension row, separates unchanged, changed, and new business keys, and returns a deterministic action set that can be reviewed before a merge. Common mistakes include comparing against expired rows or treating new customers as unchanged.",
     "topicTags": [
       "SQL",
       "Incremental Loads"
@@ -7183,9 +7025,9 @@
         ]
       }
     ],
-    "expectedSql": "SELECT u.customer_id, u.city, u.updated_at\nFROM customer_updates u\nWHERE u.updated_at > '2026-05-01 10:30:00'\nORDER BY u.updated_at, u.customer_id;",
-    "solutionCode": "SELECT u.customer_id, u.city, u.updated_at\nFROM customer_updates u\nWHERE u.updated_at > '2026-05-01 10:30:00'\nORDER BY u.updated_at, u.customer_id;",
-    "expectedOutcome": "Columns: customer_id, city, updated_at.\nGrain: one incoming update row after the watermark.\nBusiness rule: return updates strictly newer than the configured timestamp.",
+    "expectedSql": "SELECT u.customer_id,\n       d.city AS previous_city,\n       u.city AS current_city,\n       CASE WHEN d.customer_id IS NULL THEN 'NEW' ELSE 'CHANGED' END AS change_type\nFROM customer_updates u\nLEFT JOIN customer_dim d\n  ON u.customer_id = d.customer_id\n AND d.current_flag = 1\nWHERE d.customer_id IS NULL\n   OR COALESCE(d.city, '') <> COALESCE(u.city, '')\nORDER BY u.customer_id;",
+    "solutionCode": "SELECT u.customer_id,\n       d.city AS previous_city,\n       u.city AS current_city,\n       CASE WHEN d.customer_id IS NULL THEN 'NEW' ELSE 'CHANGED' END AS change_type\nFROM customer_updates u\nLEFT JOIN customer_dim d\n  ON u.customer_id = d.customer_id\n AND d.current_flag = 1\nWHERE d.customer_id IS NULL\n   OR COALESCE(d.city, '') <> COALESCE(u.city, '')\nORDER BY u.customer_id;",
+    "expectedOutcome": "Columns: customer_id, previous_city, current_city, change_type.\nGrain: one row per new or changed customer key between the current dimension snapshot and incoming update snapshot.\nBusiness rule: compare values null-safely and classify NEW versus CHANGED rows.",
     "sqlTestCases": [
       {
         "name": "Watermark boundary",
@@ -7259,7 +7101,7 @@
             ]
           }
         ],
-        "expectedSql": "SELECT u.customer_id, u.city, u.updated_at\nFROM customer_updates u\nWHERE u.updated_at > '2026-05-01 10:30:00'\nORDER BY u.updated_at, u.customer_id;"
+        "expectedSql": "SELECT u.customer_id,\n       d.city AS previous_city,\n       u.city AS current_city,\n       CASE WHEN d.customer_id IS NULL THEN 'NEW' ELSE 'CHANGED' END AS change_type\nFROM customer_updates u\nLEFT JOIN customer_dim d\n  ON u.customer_id = d.customer_id\n AND d.current_flag = 1\nWHERE d.customer_id IS NULL\n   OR COALESCE(d.city, '') <> COALESCE(u.city, '')\nORDER BY u.customer_id;"
       }
     ]
   },
@@ -7275,7 +7117,7 @@
     "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
     "hints": [
       "Start from orders and left join to customers.",
-      "A NULL customer_id is a different data quality issue; do not flag it as a missing dimension key here.",
+      "Treat NULL customer_id rows as a separate data-quality bucket outside this foreign-key check.",
       "Rows where the joined customer is NULL are the broken foreign keys."
     ],
     "explanation": "The strong interview answer explains the grain, why the pattern is safe, and which edge cases are covered.",
@@ -7497,11 +7339,11 @@
     "estimatedMinutes": 18,
     "starterCode": "-- Inspect the sample customer_dim table.\nSELECT *\nFROM customer_dim\nLIMIT 5;",
     "hints": [
-      "Compare incoming updates with the current active dimension row only.",
-      "A new customer has no active dimension row and should be returned.",
-      "A city change should be returned; unchanged rows should not."
+      "Use the dimension table, not the incoming update table.",
+      "Filter to current_flag = 1 to remove expired history.",
+      "Return one active business row per customer_id."
     ],
-    "explanation": "The strong interview answer explains the grain, why the pattern is safe, and which edge cases are covered.",
+    "explanation": "This lab tests production dimension-table logic. A safe answer compares incoming rows against the current active dimension row, separates unchanged, changed, and new business keys, and returns a deterministic action set that can be reviewed before a merge. Common mistakes include comparing against expired rows or treating new customers as unchanged.",
     "topicTags": [
       "SQL",
       "SCD Type 2"
@@ -7573,9 +7415,9 @@
         ]
       }
     ],
-    "expectedSql": "SELECT u.customer_id, d.city AS old_city, u.city AS new_city, u.updated_at\nFROM customer_updates u\nLEFT JOIN customer_dim d\n  ON u.customer_id = d.customer_id\n AND d.current_flag = 1\nWHERE d.customer_id IS NULL OR COALESCE(d.city, '') <> COALESCE(u.city, '');",
-    "solutionCode": "SELECT u.customer_id, d.city AS old_city, u.city AS new_city, u.updated_at\nFROM customer_updates u\nLEFT JOIN customer_dim d\n  ON u.customer_id = d.customer_id\n AND d.current_flag = 1\nWHERE d.customer_id IS NULL OR COALESCE(d.city, '') <> COALESCE(u.city, '');",
-    "expectedOutcome": "Columns: customer_id, old_city, new_city, updated_at.\nGrain: one row per changed or new incoming customer.\nBusiness rule: compare incoming updates with the current active dimension row.",
+    "expectedSql": "SELECT customer_id, city, effective_start_date\nFROM customer_dim\nWHERE current_flag = 1\nORDER BY customer_id;",
+    "solutionCode": "SELECT customer_id, city, effective_start_date\nFROM customer_dim\nWHERE current_flag = 1\nORDER BY customer_id;",
+    "expectedOutcome": "Columns: customer_id, city, effective_start_date.\nGrain: one current active dimension row per customer.\nBusiness rule: return only rows where current_flag = 1 and ignore expired historical rows.",
     "sqlTestCases": [
       {
         "name": "New and changed customers",
@@ -7649,7 +7491,7 @@
             ]
           }
         ],
-        "expectedSql": "SELECT u.customer_id, d.city AS old_city, u.city AS new_city, u.updated_at\nFROM customer_updates u\nLEFT JOIN customer_dim d\n  ON u.customer_id = d.customer_id\n AND d.current_flag = 1\nWHERE d.customer_id IS NULL OR COALESCE(d.city, '') <> COALESCE(u.city, '');"
+        "expectedSql": "SELECT customer_id, city, effective_start_date\nFROM customer_dim\nWHERE current_flag = 1\nORDER BY customer_id;"
       }
     ]
   },

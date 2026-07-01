@@ -200,7 +200,7 @@ FileSensor(
         isCorrect: false
       }
     ],
-    hints: ["Low CPU plus no free workers points to idle slot consumption.", "Modern Airflow can move waiting to the triggerer."],
+    hints: ["Low CPU plus occupied workers points to idle slot consumption.", "Modern Airflow can move waiting to the triggerer."],
     expectedKeywords: ["deferrable", "reschedule", "triggerer", "worker slot", "polling", "event"],
     modelAnswer: {
       diagnosis:

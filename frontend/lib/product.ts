@@ -33,6 +33,13 @@ export const CORE_LABS = [
     status: "available"
   },
   {
+    title: "Python Lab",
+    description:
+      "Practice data engineering Python with lists, dictionaries, files, JSON, CSV parsing, and ETL-style logic.",
+    href: "/labs/python",
+    status: "available"
+  },
+  {
     title: "PySpark Lab",
     description: "Practice performance, partitioning, UDF replacement, skew, and DataFrame reasoning.",
     href: "/labs/pyspark",
