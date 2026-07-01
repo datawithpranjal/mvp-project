@@ -8295,9 +8295,9 @@
     "expectedOutput": "A strong response should define the contract, rank likely causes, propose a safe fix, and prove correctness with monitoring and reconciliation.",
     "logs": "[Production review] Scenario 150: The No-Primary-Key Table\nObserved symptom: A critical source table has no stable key, but the business still needs incremental ingestion. What would you investigate, how would you fix it safely, and how would you prove the issue is resolved?\nCore contract at risk: change detection without keys.\nEvidence to collect: Track adoption, delivery lead time, incident recurrence, migration mismatch rate, cutover readiness, capacity headroom, and action-item closure. Add architecture game days and operational-readiness reviews. Run consumer value and actual usage, not only platform output.",
     "hints": [
-      "Whether you can reason about change detection without keys from symptoms, define the relevant correctness and operational contract, and propose a safe solution with evidence rather than jumping to a tool or configuration.",
+      "Whether you can reason about keyless change detection from symptoms, define the relevant correctness and operational contract, and propose a safe solution with evidence rather than jumping to a tool or configuration.",
       "The proposed architecture optimizes technology before clarifying business value and failure modes.",
-      "Make change detection without keys an explicit contract, implement the smallest reversible change, and validate it with production-like failure evidence."
+      "Make keyless change detection an explicit contract, implement the smallest reversible change, and validate it with production-like failure evidence."
     ],
     "tasks": [
       "State the affected correctness, latency, security, cost, or ownership contract.",

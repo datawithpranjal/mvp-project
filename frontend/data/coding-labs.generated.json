@@ -2373,136 +2373,171 @@
     "track": "sql",
     "title": "SQL 14: Intersection of Active Users Across Two Months",
     "difficulty": "beginner",
-    "section": "Joins",
+    "section": "Set Logic",
     "isFree": false,
     "estimatedMinutes": 12,
-    "starterCode": "-- Inspect the sample events table.\nSELECT *\nFROM events\nLIMIT 5;",
+    "starterCode": "-- Inspect monthly activity snapshots.\nSELECT *\nFROM monthly_active_users\nORDER BY activity_month, user_id;",
     "hints": [
-      "Use LAG(event_ts) per user to find the previous event.",
-      "The first event for a user starts a session.",
-      "A gap greater than 30 minutes starts a new session."
+      "First create the distinct non-null user set for May.",
+      "Create the same kind of distinct set for June.",
+      "Inner join the two sets on user_id to return only users present in both."
     ],
-    "explanation": "The strong interview answer explains the grain, why the pattern is safe, and which edge cases are covered.",
+    "explanation": "This tests set intersection on warehouse snapshots. Build one distinct user set for each month, remove NULL identifiers, and join the sets. The DISTINCT step is important because activity tables often contain multiple rows per user per month; skipping it can duplicate retained users.",
     "topicTags": [
       "SQL",
-      "Sessionization"
+      "Set Logic",
+      "Retention"
     ],
-    "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
-    "problemStatement": "Solve this SQL interview task using the seeded tables: Intersection of Active Users Across Two Months. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
+    "businessContext": "The growth team is checking user retention between two monthly active-user snapshots before sending the numbers to leadership. The warehouse table can contain duplicate activity rows for the same user in a month, so the query must compare distinct active users safely.",
+    "problemStatement": "Find users who were active in both May 2026 and June 2026. A user is considered active for a month if they have at least one row in monthly_active_users for that month. Ignore NULL user_id rows and return each retained user only once.",
+    "studentTask": "Write a query that returns the intersection of active users across the two months. Your answer should not be affected by duplicate activity rows.",
     "tables": [
       {
-        "name": "events",
+        "name": "monthly_active_users",
         "columns": [
           "user_id",
-          "event_ts",
-          "event_date",
-          "event_type"
+          "activity_month",
+          "active_days",
+          "last_active_at"
         ],
         "rows": [
           [
             1,
-            "2026-05-01 09:00:00",
-            "2026-05-01",
-            "login"
+            "2026-05",
+            4,
+            "2026-05-28"
           ],
           [
             1,
-            "2026-05-01 09:20:00",
-            "2026-05-01",
-            "click"
-          ],
-          [
-            1,
-            "2026-05-01 10:10:00",
-            "2026-05-01",
-            "click"
+            "2026-06",
+            3,
+            "2026-06-20"
           ],
           [
             2,
-            "2026-05-01 12:00:00",
-            "2026-05-01",
-            "login"
-          ],
-          [
+            "2026-05",
             2,
-            "2026-05-02 12:00:00",
-            "2026-05-02",
-            "login"
-          ],
-          [
-            2,
-            "2026-05-03 12:00:00",
-            "2026-05-03",
-            "login"
+            "2026-05-19"
           ],
           [
             3,
-            "2026-05-07 15:00:00",
-            "2026-05-07",
-            "login"
+            "2026-06",
+            5,
+            "2026-06-21"
+          ],
+          [
+            4,
+            "2026-05",
+            1,
+            "2026-05-02"
+          ],
+          [
+            4,
+            "2026-06",
+            1,
+            "2026-06-03"
+          ],
+          [
+            5,
+            "2026-05",
+            2,
+            "2026-05-11"
+          ],
+          [
+            5,
+            "2026-05",
+            3,
+            "2026-05-22"
+          ],
+          [
+            null,
+            "2026-06",
+            1,
+            "2026-06-10"
           ]
         ]
       }
     ],
-    "expectedSql": "WITH ordered AS (\n  SELECT user_id, event_ts,\n         LAG(event_ts) OVER (PARTITION BY user_id ORDER BY event_ts) AS previous_event_ts\n  FROM events\n)\nSELECT user_id, event_ts,\n       CASE WHEN previous_event_ts IS NULL OR (julianday(event_ts) - julianday(previous_event_ts)) * 24 * 60 > 30 THEN 1 ELSE 0 END AS starts_new_session\nFROM ordered;",
-    "solutionCode": "WITH ordered AS (\n  SELECT user_id, event_ts,\n         LAG(event_ts) OVER (PARTITION BY user_id ORDER BY event_ts) AS previous_event_ts\n  FROM events\n)\nSELECT user_id, event_ts,\n       CASE WHEN previous_event_ts IS NULL OR (julianday(event_ts) - julianday(previous_event_ts)) * 24 * 60 > 30 THEN 1 ELSE 0 END AS starts_new_session\nFROM ordered;",
-    "expectedOutcome": "Columns: user_id, event_ts, starts_new_session.\nGrain: one row per event.\nBusiness rule: start a new session for the first event or when the gap from the previous event is more than 30 minutes.",
+    "expectedSql": "WITH may_users AS (\n  SELECT DISTINCT user_id\n  FROM monthly_active_users\n  WHERE activity_month = '2026-05'\n    AND user_id IS NOT NULL\n),\njune_users AS (\n  SELECT DISTINCT user_id\n  FROM monthly_active_users\n  WHERE activity_month = '2026-06'\n    AND user_id IS NOT NULL\n)\nSELECT may_users.user_id\nFROM may_users\nINNER JOIN june_users ON may_users.user_id = june_users.user_id\nORDER BY may_users.user_id",
+    "solutionCode": "WITH may_users AS (\n  SELECT DISTINCT user_id\n  FROM monthly_active_users\n  WHERE activity_month = '2026-05'\n    AND user_id IS NOT NULL\n),\njune_users AS (\n  SELECT DISTINCT user_id\n  FROM monthly_active_users\n  WHERE activity_month = '2026-06'\n    AND user_id IS NOT NULL\n)\nSELECT may_users.user_id\nFROM may_users\nINNER JOIN june_users ON may_users.user_id = june_users.user_id\nORDER BY may_users.user_id",
+    "expectedOutcome": "Columns: user_id.\nGrain: one row per distinct user who is active in both months.\nBusiness rule: compare distinct non-null users from 2026-05 and 2026-06.",
     "sqlTestCases": [
       {
-        "name": "Thirty-minute session boundary",
-        "description": "Ensures gaps over 30 minutes start a new session.",
+        "name": "Duplicates and one-month-only users",
+        "description": "Only distinct users present in both months should be returned.",
         "tables": [
           {
-            "name": "events",
+            "name": "monthly_active_users",
             "columns": [
               "user_id",
-              "event_ts",
-              "event_date",
-              "event_type"
+              "activity_month",
+              "active_days",
+              "last_active_at"
             ],
             "rows": [
               [
-                1,
-                "2026-06-01 09:00:00",
-                "2026-06-01",
-                "login"
-              ],
-              [
-                1,
-                "2026-06-01 09:20:00",
-                "2026-06-01",
-                "click"
-              ],
-              [
-                1,
-                "2026-06-01 10:00:00",
-                "2026-06-01",
-                "click"
-              ],
-              [
+                10,
+                "2026-05",
                 2,
-                "2026-06-01 11:00:00",
-                "2026-06-01",
-                "login"
+                "2026-05-10"
               ],
               [
-                2,
-                "2026-06-01 11:45:00",
-                "2026-06-01",
-                "click"
-              ],
-              [
+                10,
+                "2026-05",
                 3,
-                "2026-06-02 08:00:00",
-                "2026-06-02",
-                "login"
+                "2026-05-18"
+              ],
+              [
+                10,
+                "2026-06",
+                1,
+                "2026-06-01"
+              ],
+              [
+                11,
+                "2026-05",
+                1,
+                "2026-05-11"
+              ],
+              [
+                12,
+                "2026-06",
+                2,
+                "2026-06-09"
+              ],
+              [
+                13,
+                "2026-05",
+                1,
+                "2026-05-14"
+              ],
+              [
+                13,
+                "2026-06",
+                2,
+                "2026-06-15"
+              ],
+              [
+                null,
+                "2026-05",
+                1,
+                "2026-05-01"
               ]
             ]
           }
         ],
-        "expectedSql": "WITH ordered AS (\n  SELECT user_id, event_ts,\n         LAG(event_ts) OVER (PARTITION BY user_id ORDER BY event_ts) AS previous_event_ts\n  FROM events\n)\nSELECT user_id, event_ts,\n       CASE WHEN previous_event_ts IS NULL OR (julianday(event_ts) - julianday(previous_event_ts)) * 24 * 60 > 30 THEN 1 ELSE 0 END AS starts_new_session\nFROM ordered;"
+        "expectedSql": "WITH may_users AS (\n  SELECT DISTINCT user_id\n  FROM monthly_active_users\n  WHERE activity_month = '2026-05'\n    AND user_id IS NOT NULL\n),\njune_users AS (\n  SELECT DISTINCT user_id\n  FROM monthly_active_users\n  WHERE activity_month = '2026-06'\n    AND user_id IS NOT NULL\n)\nSELECT may_users.user_id\nFROM may_users\nINNER JOIN june_users ON may_users.user_id = june_users.user_id\nORDER BY may_users.user_id"
       }
+    ],
+    "commonMistakes": [
+      "Joining the raw table to itself without DISTINCT, which duplicates users with multiple activity rows.",
+      "Including NULL user_id rows in the retained-user result.",
+      "Using OR between months, which returns users active in either month instead of both."
+    ],
+    "validationKeywords": [
+      "distinct",
+      "inner join",
+      "activity_month"
     ]
   },
   {
@@ -2514,218 +2549,316 @@
     "section": "Joins",
     "isFree": false,
     "estimatedMinutes": 12,
-    "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
+    "starterCode": "-- Inspect category products and purchases.\nSELECT * FROM products ORDER BY product_id;\n\nSELECT * FROM order_items ORDER BY customer_id, product_id;",
     "hints": [
-      "Filter to successful orders before aggregating revenue.",
-      "Exclude NULL customer_id records because they cannot be assigned to a customer.",
-      "Group by customer_id and sort by revenue descending."
+      "Build the list of products in the target category first.",
+      "Count distinct successful category products per customer.",
+      "Use HAVING to compare the customer count with the total category product count."
     ],
-    "explanation": "The strong interview answer explains the grain, why the pattern is safe, and which edge cases are covered.",
+    "explanation": "This is a relational-division problem. Count the distinct successful category products per customer and compare that count to the total number of products in the category. DISTINCT protects the answer from duplicate purchases, and filtering order_status before the count keeps cancelled items out.",
     "topicTags": [
       "SQL",
-      "Metrics"
+      "HAVING",
+      "Relational Division"
     ],
-    "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
-    "problemStatement": "Solve this SQL interview task using the seeded tables: Customers Who Bought Every Product in a Category. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
+    "businessContext": "The product team wants to identify customers who fully adopted every product in the Analytics category. In production, order_items can contain duplicates, cancelled orders, and products from other categories, so the query must count distinct successful category purchases.",
+    "problemStatement": "Return customers who bought every product in the 'Analytics' category at least once through a SUCCESS order. Ignore cancelled orders and products outside the category.",
+    "studentTask": "Write a query that finds customers who completed the full Analytics category. Your answer should survive duplicate order item rows and cancelled orders.",
     "tables": [
       {
         "name": "customers",
         "columns": [
           "customer_id",
-          "customer_name",
-          "signup_date"
+          "customer_name"
         ],
         "rows": [
           [
             1,
-            "Asha",
-            "2026-01-02"
+            "Asha"
           ],
           [
             2,
-            "Ben",
-            "2026-01-05"
+            "Ben"
           ],
           [
             3,
-            "Chen",
-            "2026-02-01"
+            "Chen"
           ],
           [
             4,
-            "Diya",
-            "2026-02-11"
-          ],
-          [
-            5,
-            "Evan",
-            "2026-03-10"
+            "Diya"
           ]
         ]
       },
       {
-        "name": "orders",
+        "name": "products",
         "columns": [
-          "order_id",
-          "customer_id",
-          "order_date",
-          "amount",
-          "status"
+          "product_id",
+          "product_name",
+          "category"
         ],
         "rows": [
           [
-            101,
+            10,
+            "Dashboard Starter",
+            "Analytics"
+          ],
+          [
+            11,
+            "Warehouse Monitor",
+            "Analytics"
+          ],
+          [
+            12,
+            "Quality Guard",
+            "Analytics"
+          ],
+          [
+            20,
+            "Security Scanner",
+            "Security"
+          ]
+        ]
+      },
+      {
+        "name": "order_items",
+        "columns": [
+          "order_id",
+          "customer_id",
+          "product_id",
+          "order_status"
+        ],
+        "rows": [
+          [
+            1001,
             1,
-            "2026-04-01",
-            120,
+            10,
             "SUCCESS"
           ],
           [
-            102,
+            1002,
             1,
-            "2026-04-01",
-            80,
+            11,
             "SUCCESS"
           ],
           [
-            103,
+            1003,
+            1,
+            12,
+            "SUCCESS"
+          ],
+          [
+            1004,
+            1,
+            12,
+            "SUCCESS"
+          ],
+          [
+            1005,
             2,
-            "2026-04-03",
-            220,
+            10,
             "SUCCESS"
           ],
           [
-            104,
+            1006,
             2,
-            "2026-05-06",
-            180,
+            11,
             "SUCCESS"
           ],
           [
-            105,
+            1007,
             3,
-            "2026-05-08",
-            75,
-            "FAILED"
-          ],
-          [
-            106,
-            99,
-            "2026-05-09",
-            300,
+            10,
             "SUCCESS"
           ],
           [
-            107,
-            null,
-            "2026-05-10",
-            60,
+            1008,
+            3,
+            11,
+            "SUCCESS"
+          ],
+          [
+            1009,
+            3,
+            12,
+            "CANCELLED"
+          ],
+          [
+            1010,
+            4,
+            10,
+            "SUCCESS"
+          ],
+          [
+            1011,
+            4,
+            11,
+            "SUCCESS"
+          ],
+          [
+            1012,
+            4,
+            12,
+            "SUCCESS"
+          ],
+          [
+            1013,
+            4,
+            20,
             "SUCCESS"
           ]
         ]
       }
     ],
-    "expectedSql": "SELECT customer_id, SUM(CAST(amount AS REAL)) AS total_revenue\nFROM orders\nWHERE status = 'SUCCESS'\n  AND customer_id IS NOT NULL\nGROUP BY customer_id\nORDER BY total_revenue DESC;",
-    "solutionCode": "SELECT customer_id, SUM(CAST(amount AS REAL)) AS total_revenue\nFROM orders\nWHERE status = 'SUCCESS'\n  AND customer_id IS NOT NULL\nGROUP BY customer_id\nORDER BY total_revenue DESC;",
-    "expectedOutcome": "Columns: customer_id, total_revenue.\nGrain: one row per customer with successful orders.\nBusiness rule: include SUCCESS orders only and ignore NULL customer_id values.",
+    "expectedSql": "WITH category_products AS (\n  SELECT product_id\n  FROM products\n  WHERE category = 'Analytics'\n),\ncustomer_category_products AS (\n  SELECT oi.customer_id, oi.product_id\n  FROM order_items oi\n  INNER JOIN category_products cp ON oi.product_id = cp.product_id\n  WHERE oi.order_status = 'SUCCESS'\n  GROUP BY oi.customer_id, oi.product_id\n),\ncategory_count AS (\n  SELECT COUNT(*) AS product_count\n  FROM category_products\n)\nSELECT c.customer_id, c.customer_name\nFROM customers c\nINNER JOIN customer_category_products ccp ON c.customer_id = ccp.customer_id\nCROSS JOIN category_count cc\nGROUP BY c.customer_id, c.customer_name, cc.product_count\nHAVING COUNT(DISTINCT ccp.product_id) = cc.product_count\nORDER BY c.customer_id",
+    "solutionCode": "WITH category_products AS (\n  SELECT product_id\n  FROM products\n  WHERE category = 'Analytics'\n),\ncustomer_category_products AS (\n  SELECT oi.customer_id, oi.product_id\n  FROM order_items oi\n  INNER JOIN category_products cp ON oi.product_id = cp.product_id\n  WHERE oi.order_status = 'SUCCESS'\n  GROUP BY oi.customer_id, oi.product_id\n),\ncategory_count AS (\n  SELECT COUNT(*) AS product_count\n  FROM category_products\n)\nSELECT c.customer_id, c.customer_name\nFROM customers c\nINNER JOIN customer_category_products ccp ON c.customer_id = ccp.customer_id\nCROSS JOIN category_count cc\nGROUP BY c.customer_id, c.customer_name, cc.product_count\nHAVING COUNT(DISTINCT ccp.product_id) = cc.product_count\nORDER BY c.customer_id",
+    "expectedOutcome": "Columns: customer_id, customer_name.\nGrain: one row per customer who purchased all Analytics products.\nBusiness rule: compare each customer's distinct successful Analytics products against the full Analytics product set.",
     "sqlTestCases": [
       {
-        "name": "Successful revenue only",
-        "description": "Ensures failed and NULL-customer orders do not affect customer revenue.",
+        "name": "New category product raises the bar",
+        "description": "A customer must buy every product in the category, not just most of them.",
         "tables": [
           {
             "name": "customers",
             "columns": [
               "customer_id",
-              "customer_name",
-              "signup_date"
+              "customer_name"
             ],
             "rows": [
               [
                 1,
-                "Alpha Foods",
-                "2026-01-01"
+                "Asha"
               ],
               [
                 2,
-                "Beta Retail",
-                "2026-01-02"
+                "Ben"
               ],
               [
                 3,
-                "Gamma Labs",
-                "2026-01-03"
-              ],
-              [
-                4,
-                "Delta Health",
-                "2026-01-04"
-              ],
-              [
-                5,
-                "Echo Market",
-                "2026-01-05"
+                "Chen"
               ]
             ]
           },
           {
-            "name": "orders",
+            "name": "products",
             "columns": [
-              "order_id",
-              "customer_id",
-              "order_date",
-              "amount",
-              "status"
+              "product_id",
+              "product_name",
+              "category"
             ],
             "rows": [
               [
-                201,
+                10,
+                "Dashboard Starter",
+                "Analytics"
+              ],
+              [
+                11,
+                "Warehouse Monitor",
+                "Analytics"
+              ],
+              [
+                12,
+                "Quality Guard",
+                "Analytics"
+              ],
+              [
+                13,
+                "Usage Explorer",
+                "Analytics"
+              ]
+            ]
+          },
+          {
+            "name": "order_items",
+            "columns": [
+              "order_id",
+              "customer_id",
+              "product_id",
+              "order_status"
+            ],
+            "rows": [
+              [
+                2001,
                 1,
-                "2026-05-01",
-                100,
+                10,
                 "SUCCESS"
               ],
               [
-                202,
+                2002,
                 1,
-                "2026-05-03",
-                150,
+                11,
                 "SUCCESS"
               ],
               [
-                203,
+                2003,
+                1,
+                12,
+                "SUCCESS"
+              ],
+              [
+                2004,
+                1,
+                13,
+                "SUCCESS"
+              ],
+              [
+                2005,
                 2,
-                "2026-05-12",
-                220,
-                "FAILED"
+                10,
+                "SUCCESS"
               ],
               [
-                204,
+                2006,
                 2,
-                "2026-05-20",
-                80,
+                11,
                 "SUCCESS"
               ],
               [
-                205,
-                99,
-                "2026-05-21",
-                300,
+                2007,
+                2,
+                12,
                 "SUCCESS"
               ],
               [
-                206,
-                null,
-                "2026-05-22",
-                50,
+                2008,
+                3,
+                10,
+                "SUCCESS"
+              ],
+              [
+                2009,
+                3,
+                11,
+                "CANCELLED"
+              ],
+              [
+                2010,
+                3,
+                12,
+                "SUCCESS"
+              ],
+              [
+                2011,
+                3,
+                13,
                 "SUCCESS"
               ]
             ]
           }
         ],
-        "expectedSql": "SELECT customer_id, SUM(CAST(amount AS REAL)) AS total_revenue\nFROM orders\nWHERE status = 'SUCCESS'\n  AND customer_id IS NOT NULL\nGROUP BY customer_id\nORDER BY total_revenue DESC;"
+        "expectedSql": "WITH category_products AS (\n  SELECT product_id\n  FROM products\n  WHERE category = 'Analytics'\n),\ncustomer_category_products AS (\n  SELECT oi.customer_id, oi.product_id\n  FROM order_items oi\n  INNER JOIN category_products cp ON oi.product_id = cp.product_id\n  WHERE oi.order_status = 'SUCCESS'\n  GROUP BY oi.customer_id, oi.product_id\n),\ncategory_count AS (\n  SELECT COUNT(*) AS product_count\n  FROM category_products\n)\nSELECT c.customer_id, c.customer_name\nFROM customers c\nINNER JOIN customer_category_products ccp ON c.customer_id = ccp.customer_id\nCROSS JOIN category_count cc\nGROUP BY c.customer_id, c.customer_name, cc.product_count\nHAVING COUNT(DISTINCT ccp.product_id) = cc.product_count\nORDER BY c.customer_id"
       }
+    ],
+    "commonMistakes": [
+      "Counting order rows instead of distinct products.",
+      "Including cancelled purchases.",
+      "Hard-coding the number of category products instead of deriving it from products."
+    ],
+    "validationKeywords": [
+      "having",
+      "count distinct",
+      "category"
     ]
   },
   {
@@ -2734,221 +2867,175 @@
     "track": "sql",
     "title": "SQL 16: Compare Two Tables and Find Added Rows",
     "difficulty": "beginner",
-    "section": "Joins",
+    "section": "Data Quality",
     "isFree": false,
     "estimatedMinutes": 18,
-    "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
+    "starterCode": "SELECT * FROM previous_customers_snapshot ORDER BY customer_id;\n\nSELECT * FROM current_customers_snapshot ORDER BY customer_id;",
     "hints": [
-      "Filter to successful orders before aggregating revenue.",
-      "Exclude NULL customer_id records because they cannot be assigned to a customer.",
-      "Group by customer_id and sort by revenue descending."
+      "Use current_customers_snapshot as the driving table.",
+      "Join to previous_customers_snapshot on customer_id only.",
+      "Keep rows where the previous snapshot did not find a matching key."
     ],
-    "explanation": "The strong interview answer explains the grain, why the pattern is safe, and which edge cases are covered.",
+    "explanation": "This tests anti-join logic for snapshot comparison. Start from the current snapshot, join to the previous snapshot on the stable business key, and keep rows where the previous key is missing. Attribute changes for existing keys are a different problem and should not appear here.",
     "topicTags": [
       "SQL",
-      "Metrics"
+      "Snapshots",
+      "Anti-Join"
     ],
-    "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
-    "problemStatement": "Solve this SQL interview task using the seeded tables: Compare Two Tables and Find Added Rows. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
+    "businessContext": "A daily customer dimension snapshot is compared against yesterday's snapshot before downstream jobs consume it. The data engineering task is to identify newly added business keys, not changed attributes for existing keys.",
+    "problemStatement": "Find rows that exist in current_customers_snapshot but did not exist in previous_customers_snapshot by customer_id. Existing customers with changed city/status are not added rows.",
+    "studentTask": "Write an anti-join query that returns only newly added customers from the current snapshot.",
     "tables": [
       {
-        "name": "customers",
+        "name": "previous_customers_snapshot",
         "columns": [
           "customer_id",
           "customer_name",
-          "signup_date"
+          "city",
+          "status"
         ],
         "rows": [
           [
             1,
             "Asha",
-            "2026-01-02"
+            "Mumbai",
+            "active"
           ],
           [
             2,
             "Ben",
-            "2026-01-05"
+            "Delhi",
+            "active"
           ],
           [
             3,
             "Chen",
-            "2026-02-01"
-          ],
-          [
-            4,
-            "Diya",
-            "2026-02-11"
-          ],
-          [
-            5,
-            "Evan",
-            "2026-03-10"
+            "Pune",
+            "inactive"
           ]
         ]
       },
       {
-        "name": "orders",
+        "name": "current_customers_snapshot",
         "columns": [
-          "order_id",
           "customer_id",
-          "order_date",
-          "amount",
+          "customer_name",
+          "city",
           "status"
         ],
         "rows": [
           [
-            101,
             1,
-            "2026-04-01",
-            120,
-            "SUCCESS"
+            "Asha",
+            "Mumbai",
+            "active"
           ],
           [
-            102,
-            1,
-            "2026-04-01",
-            80,
-            "SUCCESS"
-          ],
-          [
-            103,
             2,
-            "2026-04-03",
-            220,
-            "SUCCESS"
+            "Ben",
+            "Bengaluru",
+            "active"
           ],
           [
-            104,
-            2,
-            "2026-05-06",
-            180,
-            "SUCCESS"
-          ],
-          [
-            105,
             3,
-            "2026-05-08",
-            75,
-            "FAILED"
+            "Chen",
+            "Pune",
+            "inactive"
           ],
           [
-            106,
-            99,
-            "2026-05-09",
-            300,
-            "SUCCESS"
+            4,
+            "Diya",
+            "Hyderabad",
+            "active"
           ],
           [
-            107,
+            5,
+            "Evan",
+            "Chennai",
+            "active"
+          ],
+          [
             null,
-            "2026-05-10",
-            60,
-            "SUCCESS"
+            "Unknown",
+            "Unknown",
+            "active"
           ]
         ]
       }
     ],
-    "expectedSql": "SELECT customer_id, SUM(CAST(amount AS REAL)) AS total_revenue\nFROM orders\nWHERE status = 'SUCCESS'\n  AND customer_id IS NOT NULL\nGROUP BY customer_id\nORDER BY total_revenue DESC;",
-    "solutionCode": "SELECT customer_id, SUM(CAST(amount AS REAL)) AS total_revenue\nFROM orders\nWHERE status = 'SUCCESS'\n  AND customer_id IS NOT NULL\nGROUP BY customer_id\nORDER BY total_revenue DESC;",
-    "expectedOutcome": "Columns: customer_id, total_revenue.\nGrain: one row per customer with successful orders.\nBusiness rule: include SUCCESS orders only and ignore NULL customer_id values.",
+    "expectedSql": "SELECT c.customer_id, c.customer_name, c.city, c.status\nFROM current_customers_snapshot c\nLEFT JOIN previous_customers_snapshot p ON c.customer_id = p.customer_id\nWHERE c.customer_id IS NOT NULL\n  AND p.customer_id IS NULL\nORDER BY c.customer_id",
+    "solutionCode": "SELECT c.customer_id, c.customer_name, c.city, c.status\nFROM current_customers_snapshot c\nLEFT JOIN previous_customers_snapshot p ON c.customer_id = p.customer_id\nWHERE c.customer_id IS NOT NULL\n  AND p.customer_id IS NULL\nORDER BY c.customer_id",
+    "expectedOutcome": "Columns: customer_id, customer_name, city, status.\nGrain: one row per newly added customer in the current snapshot.\nBusiness rule: compare by customer_id and ignore rows where customer_id is NULL.",
     "sqlTestCases": [
       {
-        "name": "Successful revenue only",
-        "description": "Ensures failed and NULL-customer orders do not affect customer revenue.",
+        "name": "Changed existing customers are not additions",
+        "description": "Only new customer_id values should be returned.",
         "tables": [
           {
-            "name": "customers",
+            "name": "previous_customers_snapshot",
             "columns": [
               "customer_id",
               "customer_name",
-              "signup_date"
-            ],
-            "rows": [
-              [
-                1,
-                "Alpha Foods",
-                "2026-01-01"
-              ],
-              [
-                2,
-                "Beta Retail",
-                "2026-01-02"
-              ],
-              [
-                3,
-                "Gamma Labs",
-                "2026-01-03"
-              ],
-              [
-                4,
-                "Delta Health",
-                "2026-01-04"
-              ],
-              [
-                5,
-                "Echo Market",
-                "2026-01-05"
-              ]
-            ]
-          },
-          {
-            "name": "orders",
-            "columns": [
-              "order_id",
-              "customer_id",
-              "order_date",
-              "amount",
+              "city",
               "status"
             ],
             "rows": [
               [
-                201,
-                1,
-                "2026-05-01",
-                100,
-                "SUCCESS"
+                10,
+                "Ira",
+                "Mumbai",
+                "active"
               ],
               [
-                202,
-                1,
-                "2026-05-03",
-                150,
-                "SUCCESS"
+                11,
+                "Jai",
+                "Delhi",
+                "active"
+              ]
+            ]
+          },
+          {
+            "name": "current_customers_snapshot",
+            "columns": [
+              "customer_id",
+              "customer_name",
+              "city",
+              "status"
+            ],
+            "rows": [
+              [
+                10,
+                "Ira",
+                "Pune",
+                "active"
               ],
               [
-                203,
-                2,
-                "2026-05-12",
-                220,
-                "FAILED"
+                11,
+                "Jai",
+                "Delhi",
+                "inactive"
               ],
               [
-                204,
-                2,
-                "2026-05-20",
-                80,
-                "SUCCESS"
-              ],
-              [
-                205,
-                99,
-                "2026-05-21",
-                300,
-                "SUCCESS"
-              ],
-              [
-                206,
-                null,
-                "2026-05-22",
-                50,
-                "SUCCESS"
+                12,
+                "Kavya",
+                "Surat",
+                "active"
               ]
             ]
           }
         ],
-        "expectedSql": "SELECT customer_id, SUM(CAST(amount AS REAL)) AS total_revenue\nFROM orders\nWHERE status = 'SUCCESS'\n  AND customer_id IS NOT NULL\nGROUP BY customer_id\nORDER BY total_revenue DESC;"
+        "expectedSql": "SELECT c.customer_id, c.customer_name, c.city, c.status\nFROM current_customers_snapshot c\nLEFT JOIN previous_customers_snapshot p ON c.customer_id = p.customer_id\nWHERE c.customer_id IS NOT NULL\n  AND p.customer_id IS NULL\nORDER BY c.customer_id"
       }
+    ],
+    "commonMistakes": [
+      "Comparing all columns and accidentally treating changed attributes as new rows.",
+      "Starting from the previous snapshot, which finds deleted rows instead.",
+      "Returning NULL business keys as new customers."
+    ],
+    "validationKeywords": [
+      "left join",
+      "is null",
+      "anti join"
     ]
   },
   {
@@ -4316,148 +4403,144 @@
     "section": "Advanced SQL",
     "isFree": false,
     "estimatedMinutes": 18,
-    "starterCode": "-- Inspect the sample daily_sales table.\nSELECT *\nFROM daily_sales\nLIMIT 5;",
+    "starterCode": "SELECT *\nFROM user_events\nORDER BY event_date, event_id;",
     "hints": [
-      "Build daily revenue first.",
-      "Use ROWS BETWEEN 2 PRECEDING AND CURRENT ROW for a 3-day window.",
-      "Early dates use a smaller available window."
+      "Create the list of activity dates first.",
+      "Join each date to events between date(activity_date, -6 day) and activity_date.",
+      "Use COUNT(DISTINCT user_id), not COUNT(*)."
     ],
-    "explanation": "The strong interview answer explains the grain, why the pattern is safe, and which edge cases are covered.",
+    "explanation": "This tests rolling distinct-count logic. Use a date spine from the event dates, join each date to events in its trailing 7-day window, and count distinct users. Counting event rows would inflate the metric whenever one user has multiple events.",
     "topicTags": [
       "SQL",
-      "Window Functions"
+      "Date Windows",
+      "Distinct Counts"
     ],
-    "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
-    "problemStatement": "Solve this SQL interview task using the seeded tables: Rolling 7-Day Active Users. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
+    "businessContext": "The product analytics dashboard shows rolling 7-day active users. Because users can create many events per day, the metric must count distinct users over the trailing date window, not event rows.",
+    "problemStatement": "For each event date present in user_events, calculate the number of distinct non-null users active during that date and the previous six calendar days.",
+    "studentTask": "Write a query that returns rolling 7-day active users for each available activity date.",
     "tables": [
       {
-        "name": "daily_sales",
+        "name": "user_events",
         "columns": [
-          "sale_date",
-          "city",
-          "region",
-          "customer_id",
-          "amount"
+          "event_id",
+          "user_id",
+          "event_date",
+          "event_type"
         ],
         "rows": [
           [
+            1,
+            1,
             "2026-05-01",
-            "Mumbai",
-            "West",
-            1,
-            100
+            "login"
           ],
           [
-            "2026-05-02",
-            "Mumbai",
-            "West",
-            1,
-            150
-          ],
-          [
-            "2026-05-03",
-            "Delhi",
-            "North",
             2,
-            200
+            2,
+            "2026-05-01",
+            "view"
           ],
           [
-            "2026-05-04",
-            "Bengaluru",
-            "South",
             3,
-            130
-          ],
-          [
-            "2026-05-05",
-            "Delhi",
-            "North",
-            2,
-            170
-          ],
-          [
-            "2026-05-06",
-            "Pune",
-            "West",
-            4,
-            90
-          ],
-          [
-            "2026-05-07",
-            "Mumbai",
-            "West",
             1,
-            300
+            "2026-05-02",
+            "click"
+          ],
+          [
+            4,
+            3,
+            "2026-05-04",
+            "login"
+          ],
+          [
+            5,
+            4,
+            "2026-05-07",
+            "login"
+          ],
+          [
+            6,
+            5,
+            "2026-05-08",
+            "login"
+          ],
+          [
+            7,
+            2,
+            "2026-05-08",
+            "click"
+          ],
+          [
+            8,
+            null,
+            "2026-05-08",
+            "system"
           ]
         ]
       }
     ],
-    "expectedSql": "WITH daily AS (\n  SELECT sale_date, SUM(CAST(amount AS REAL)) AS daily_revenue\n  FROM daily_sales\n  GROUP BY sale_date\n)\nSELECT sale_date,\n       daily_revenue,\n       AVG(daily_revenue) OVER (ORDER BY sale_date ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS moving_avg_3_day\nFROM daily;",
-    "solutionCode": "WITH daily AS (\n  SELECT sale_date, SUM(CAST(amount AS REAL)) AS daily_revenue\n  FROM daily_sales\n  GROUP BY sale_date\n)\nSELECT sale_date,\n       daily_revenue,\n       AVG(daily_revenue) OVER (ORDER BY sale_date ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS moving_avg_3_day\nFROM daily;",
-    "expectedOutcome": "Columns: sale_date, daily_revenue, moving_avg_3_day.\nGrain: one row per sale date.\nBusiness rule: use the current day plus up to two previous days.",
+    "expectedSql": "WITH dates AS (\n  SELECT DISTINCT event_date AS activity_date\n  FROM user_events\n  WHERE event_date IS NOT NULL\n)\nSELECT d.activity_date,\n       COUNT(DISTINCT e.user_id) AS rolling_7_day_active_users\nFROM dates d\nLEFT JOIN user_events e\n  ON e.event_date BETWEEN date(d.activity_date, '-6 day') AND d.activity_date\n AND e.user_id IS NOT NULL\nGROUP BY d.activity_date\nORDER BY d.activity_date",
+    "solutionCode": "WITH dates AS (\n  SELECT DISTINCT event_date AS activity_date\n  FROM user_events\n  WHERE event_date IS NOT NULL\n)\nSELECT d.activity_date,\n       COUNT(DISTINCT e.user_id) AS rolling_7_day_active_users\nFROM dates d\nLEFT JOIN user_events e\n  ON e.event_date BETWEEN date(d.activity_date, '-6 day') AND d.activity_date\n AND e.user_id IS NOT NULL\nGROUP BY d.activity_date\nORDER BY d.activity_date",
+    "expectedOutcome": "Columns: activity_date, rolling_7_day_active_users.\nGrain: one row per event date present in the table.\nBusiness rule: count distinct users where event_date is between activity_date - 6 days and activity_date inclusive.",
     "sqlTestCases": [
       {
-        "name": "Short rolling window",
-        "description": "Ensures early rows use the available window and later rows use three days.",
+        "name": "Distinct users across trailing dates",
+        "description": "Multiple events from the same user should count once inside a rolling window.",
         "tables": [
           {
-            "name": "daily_sales",
+            "name": "user_events",
             "columns": [
-              "sale_date",
-              "city",
-              "region",
-              "customer_id",
-              "amount"
+              "event_id",
+              "user_id",
+              "event_date",
+              "event_type"
             ],
             "rows": [
               [
-                "2026-04-29",
-                "Mumbai",
-                "West",
                 1,
-                50
+                10,
+                "2026-06-01",
+                "login"
               ],
               [
-                "2026-04-30",
-                "Delhi",
-                "North",
                 2,
-                75
+                10,
+                "2026-06-01",
+                "click"
               ],
               [
-                "2026-05-01",
-                "Mumbai",
-                "West",
-                1,
-                200
-              ],
-              [
-                "2026-05-02",
-                "Delhi",
-                "North",
-                2,
-                125
-              ],
-              [
-                "2026-05-03",
-                "Chennai",
-                "South",
                 3,
-                175
+                11,
+                "2026-06-03",
+                "login"
               ],
               [
-                "2026-05-04",
-                "Mumbai",
-                "West",
-                1,
-                25
+                4,
+                12,
+                "2026-06-08",
+                "login"
+              ],
+              [
+                5,
+                10,
+                "2026-06-08",
+                "login"
               ]
             ]
           }
         ],
-        "expectedSql": "WITH daily AS (\n  SELECT sale_date, SUM(CAST(amount AS REAL)) AS daily_revenue\n  FROM daily_sales\n  GROUP BY sale_date\n)\nSELECT sale_date,\n       daily_revenue,\n       AVG(daily_revenue) OVER (ORDER BY sale_date ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS moving_avg_3_day\nFROM daily;"
+        "expectedSql": "WITH dates AS (\n  SELECT DISTINCT event_date AS activity_date\n  FROM user_events\n  WHERE event_date IS NOT NULL\n)\nSELECT d.activity_date,\n       COUNT(DISTINCT e.user_id) AS rolling_7_day_active_users\nFROM dates d\nLEFT JOIN user_events e\n  ON e.event_date BETWEEN date(d.activity_date, '-6 day') AND d.activity_date\n AND e.user_id IS NOT NULL\nGROUP BY d.activity_date\nORDER BY d.activity_date"
       }
+    ],
+    "commonMistakes": [
+      "Counting events instead of distinct users.",
+      "Using only the current day instead of the trailing 7-day window.",
+      "Including NULL user_id system events in active-user counts."
+    ],
+    "validationKeywords": [
+      "count distinct",
+      "date",
+      "between"
     ]
   },
   {
@@ -6557,162 +6640,126 @@
     "section": "Warehouse",
     "isFree": false,
     "estimatedMinutes": 18,
-    "starterCode": "-- Inspect the sample customer_dim table.\nSELECT *\nFROM customer_dim\nLIMIT 5;",
+    "starterCode": "SELECT *\nFROM account_balance_snapshots\nORDER BY account_id, snapshot_ts, snapshot_id;",
     "hints": [
-      "Filter updates using updated_at greater than the watermark.",
-      "Rows exactly equal to this watermark are not included in this simplified lab.",
-      "Order by updated_at and customer_id for deterministic output."
+      "Partition by account_id.",
+      "Order by snapshot_ts descending to put the newest snapshot first.",
+      "Add snapshot_id descending as a tie-breaker before filtering rn = 1."
     ],
-    "explanation": "The strong interview answer explains the grain, why the pattern is safe, and which edge cases are covered.",
+    "explanation": "This tests latest-row selection from snapshot tables. ROW_NUMBER gives one row per account, and the secondary sort on snapshot_id makes the result stable when two records share the same timestamp.",
     "topicTags": [
       "SQL",
-      "Incremental Loads"
+      "Snapshots",
+      "Window Functions"
     ],
-    "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
-    "problemStatement": "Solve this SQL interview task using the seeded tables: Snapshot Table - Latest Balance per Account. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
+    "businessContext": "Finance stores multiple balance snapshots per account during the day. The reporting mart needs exactly the latest balance per account, and ties on timestamp must be deterministic so reruns do not randomly pick a different row.",
+    "problemStatement": "Return the latest balance snapshot for each account. If two snapshots have the same snapshot_ts for an account, use the higher snapshot_id as the later record.",
+    "studentTask": "Write a query that returns one latest balance row per account using deterministic ordering.",
     "tables": [
       {
-        "name": "customer_dim",
+        "name": "account_balance_snapshots",
         "columns": [
-          "customer_sk",
-          "customer_id",
-          "city",
-          "effective_start_date",
-          "effective_end_date",
-          "current_flag"
+          "snapshot_id",
+          "account_id",
+          "snapshot_ts",
+          "balance"
         ],
         "rows": [
           [
-            11,
             1,
-            "Mumbai",
-            "2026-01-01",
-            null,
-            1
+            101,
+            "2026-05-01 09:00:00",
+            1200
           ],
           [
-            12,
             2,
-            "Delhi",
-            "2026-01-01",
-            null,
-            1
+            101,
+            "2026-05-01 17:00:00",
+            1500
           ],
           [
-            13,
             3,
-            "Pune",
-            "2026-01-01",
-            "2026-04-30",
-            0
-          ]
-        ]
-      },
-      {
-        "name": "customer_updates",
-        "columns": [
-          "customer_id",
-          "city",
-          "updated_at"
-        ],
-        "rows": [
-          [
-            1,
-            "Mumbai",
-            "2026-05-01 10:00:00"
-          ],
-          [
-            2,
-            "Bengaluru",
-            "2026-05-01 11:00:00"
+            102,
+            "2026-05-01 10:00:00",
+            900
           ],
           [
             4,
-            "Hyderabad",
-            "2026-05-01 12:00:00"
+            102,
+            "2026-05-01 10:00:00",
+            950
+          ],
+          [
+            5,
+            103,
+            "2026-04-30 18:00:00",
+            700
+          ],
+          [
+            6,
+            103,
+            "2026-05-01 18:00:00",
+            650
           ]
         ]
       }
     ],
-    "expectedSql": "SELECT u.customer_id, u.city, u.updated_at\nFROM customer_updates u\nWHERE u.updated_at > '2026-05-01 10:30:00'\nORDER BY u.updated_at, u.customer_id;",
-    "solutionCode": "SELECT u.customer_id, u.city, u.updated_at\nFROM customer_updates u\nWHERE u.updated_at > '2026-05-01 10:30:00'\nORDER BY u.updated_at, u.customer_id;",
-    "expectedOutcome": "Columns: customer_id, city, updated_at.\nGrain: one incoming update row after the watermark.\nBusiness rule: return updates strictly newer than the configured timestamp.",
+    "expectedSql": "WITH ranked AS (\n  SELECT account_id, balance, snapshot_ts,\n         ROW_NUMBER() OVER (\n           PARTITION BY account_id\n           ORDER BY snapshot_ts DESC, snapshot_id DESC\n         ) AS rn\n  FROM account_balance_snapshots\n)\nSELECT account_id, balance, snapshot_ts\nFROM ranked\nWHERE rn = 1\nORDER BY account_id",
+    "solutionCode": "WITH ranked AS (\n  SELECT account_id, balance, snapshot_ts,\n         ROW_NUMBER() OVER (\n           PARTITION BY account_id\n           ORDER BY snapshot_ts DESC, snapshot_id DESC\n         ) AS rn\n  FROM account_balance_snapshots\n)\nSELECT account_id, balance, snapshot_ts\nFROM ranked\nWHERE rn = 1\nORDER BY account_id",
+    "expectedOutcome": "Columns: account_id, balance, snapshot_ts.\nGrain: one row per account.\nBusiness rule: latest snapshot_ts wins; snapshot_id breaks ties deterministically.",
     "sqlTestCases": [
       {
-        "name": "Watermark boundary",
-        "description": "Ensures rows equal to the watermark are excluded while newer rows are included.",
+        "name": "Timestamp tie uses snapshot id",
+        "description": "When timestamps tie, choose the row with the highest snapshot_id.",
         "tables": [
           {
-            "name": "customer_dim",
+            "name": "account_balance_snapshots",
             "columns": [
-              "customer_sk",
-              "customer_id",
-              "city",
-              "effective_start_date",
-              "effective_end_date",
-              "current_flag"
+              "snapshot_id",
+              "account_id",
+              "snapshot_ts",
+              "balance"
             ],
             "rows": [
               [
-                21,
-                1,
-                "Mumbai",
-                "2026-01-01",
-                null,
-                1
+                10,
+                201,
+                "2026-06-01 12:00:00",
+                100
               ],
               [
-                22,
-                2,
-                "Delhi",
-                "2026-01-01",
-                null,
-                1
+                11,
+                201,
+                "2026-06-01 12:00:00",
+                120
               ],
               [
-                23,
-                3,
-                "Pune",
-                "2026-01-01",
-                null,
-                1
-              ]
-            ]
-          },
-          {
-            "name": "customer_updates",
-            "columns": [
-              "customer_id",
-              "city",
-              "updated_at"
-            ],
-            "rows": [
-              [
-                1,
-                "Mumbai",
-                "2026-05-01 10:00:00"
+                12,
+                202,
+                "2026-06-01 09:00:00",
+                200
               ],
               [
-                2,
-                "Delhi",
-                "2026-05-01 10:30:00"
-              ],
-              [
-                3,
-                "Jaipur",
-                "2026-05-01 10:31:00"
-              ],
-              [
-                4,
-                "Kochi",
-                "2026-05-01 11:00:00"
+                13,
+                202,
+                "2026-06-02 09:00:00",
+                220
               ]
             ]
           }
         ],
-        "expectedSql": "SELECT u.customer_id, u.city, u.updated_at\nFROM customer_updates u\nWHERE u.updated_at > '2026-05-01 10:30:00'\nORDER BY u.updated_at, u.customer_id;"
+        "expectedSql": "WITH ranked AS (\n  SELECT account_id, balance, snapshot_ts,\n         ROW_NUMBER() OVER (\n           PARTITION BY account_id\n           ORDER BY snapshot_ts DESC, snapshot_id DESC\n         ) AS rn\n  FROM account_balance_snapshots\n)\nSELECT account_id, balance, snapshot_ts\nFROM ranked\nWHERE rn = 1\nORDER BY account_id"
       }
+    ],
+    "commonMistakes": [
+      "Using MAX(snapshot_ts) then joining back without handling timestamp ties.",
+      "Returning every snapshot for an account.",
+      "Forgetting deterministic tie handling."
+    ],
+    "validationKeywords": [
+      "row_number",
+      "partition by",
+      "order by"
     ]
   },
   {
@@ -6724,218 +6771,134 @@
     "section": "Warehouse",
     "isFree": false,
     "estimatedMinutes": 18,
-    "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
+    "starterCode": "SELECT *\nFROM order_facts\nORDER BY order_id;",
     "hints": [
-      "Filter to successful orders before aggregating revenue.",
-      "Exclude NULL customer_id records because they cannot be assigned to a customer.",
-      "Group by customer_id and sort by revenue descending."
+      "Focus on successful facts because cancelled rows do not contribute to revenue.",
+      "Compare the business event_date with the physical partition_date.",
+      "Return the affected rows so the backfill can target exact order_ids."
     ],
-    "explanation": "The strong interview answer explains the grain, why the pattern is safe, and which edge cases are covered.",
+    "explanation": "This tests partition-quality investigation for late-arriving facts. Revenue should be grouped by the business event date, not the load date. Comparing event_date with partition_date identifies successful facts that were physically written to the wrong partition.",
     "topicTags": [
       "SQL",
-      "Metrics"
+      "Late Arriving Data",
+      "Partitions"
     ],
-    "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
-    "problemStatement": "Solve this SQL interview task using the seeded tables: Late-Arriving Facts That Missed the Correct Date Partition. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
+    "businessContext": "A daily revenue pipeline writes order facts into date partitions. Some late-arriving successful orders were loaded into the load-date partition instead of the business event-date partition, so historical revenue by event date is incomplete.",
+    "problemStatement": "Find successful order facts where partition_date does not match event_date. These rows likely landed in the wrong date partition and need a partition repair or backfill.",
+    "studentTask": "Write a query that identifies late-arriving successful order facts stored under the wrong partition_date.",
     "tables": [
       {
-        "name": "customers",
-        "columns": [
-          "customer_id",
-          "customer_name",
-          "signup_date"
-        ],
-        "rows": [
-          [
-            1,
-            "Asha",
-            "2026-01-02"
-          ],
-          [
-            2,
-            "Ben",
-            "2026-01-05"
-          ],
-          [
-            3,
-            "Chen",
-            "2026-02-01"
-          ],
-          [
-            4,
-            "Diya",
-            "2026-02-11"
-          ],
-          [
-            5,
-            "Evan",
-            "2026-03-10"
-          ]
-        ]
-      },
-      {
-        "name": "orders",
+        "name": "order_facts",
         "columns": [
           "order_id",
-          "customer_id",
-          "order_date",
+          "event_date",
+          "load_date",
+          "partition_date",
           "amount",
           "status"
         ],
         "rows": [
           [
-            101,
-            1,
-            "2026-04-01",
+            1001,
+            "2026-05-01",
+            "2026-05-01",
+            "2026-05-01",
             120,
             "SUCCESS"
           ],
           [
-            102,
-            1,
-            "2026-04-01",
+            1002,
+            "2026-05-01",
+            "2026-05-03",
+            "2026-05-03",
             80,
             "SUCCESS"
           ],
           [
-            103,
-            2,
-            "2026-04-03",
-            220,
+            1003,
+            "2026-05-02",
+            "2026-05-02",
+            "2026-05-02",
+            200,
             "SUCCESS"
           ],
           [
-            104,
-            2,
-            "2026-05-06",
-            180,
+            1004,
+            "2026-05-02",
+            "2026-05-04",
+            "2026-05-04",
+            150,
             "SUCCESS"
           ],
           [
-            105,
-            3,
-            "2026-05-08",
-            75,
-            "FAILED"
-          ],
-          [
-            106,
-            99,
-            "2026-05-09",
-            300,
-            "SUCCESS"
-          ],
-          [
-            107,
-            null,
-            "2026-05-10",
-            60,
-            "SUCCESS"
+            1005,
+            "2026-05-03",
+            "2026-05-04",
+            "2026-05-04",
+            90,
+            "CANCELLED"
           ]
         ]
       }
     ],
-    "expectedSql": "SELECT customer_id, SUM(CAST(amount AS REAL)) AS total_revenue\nFROM orders\nWHERE status = 'SUCCESS'\n  AND customer_id IS NOT NULL\nGROUP BY customer_id\nORDER BY total_revenue DESC;",
-    "solutionCode": "SELECT customer_id, SUM(CAST(amount AS REAL)) AS total_revenue\nFROM orders\nWHERE status = 'SUCCESS'\n  AND customer_id IS NOT NULL\nGROUP BY customer_id\nORDER BY total_revenue DESC;",
-    "expectedOutcome": "Columns: customer_id, total_revenue.\nGrain: one row per customer with successful orders.\nBusiness rule: include SUCCESS orders only and ignore NULL customer_id values.",
+    "expectedSql": "SELECT order_id, event_date, load_date, partition_date, amount\nFROM order_facts\nWHERE status = 'SUCCESS'\n  AND event_date <> partition_date\nORDER BY order_id",
+    "solutionCode": "SELECT order_id, event_date, load_date, partition_date, amount\nFROM order_facts\nWHERE status = 'SUCCESS'\n  AND event_date <> partition_date\nORDER BY order_id",
+    "expectedOutcome": "Columns: order_id, event_date, load_date, partition_date, amount.\nGrain: one row per successful fact stored in the wrong partition.\nBusiness rule: compare event_date to partition_date and exclude non-success facts.",
     "sqlTestCases": [
       {
-        "name": "Successful revenue only",
-        "description": "Ensures failed and NULL-customer orders do not affect customer revenue.",
+        "name": "Ignore cancelled late facts",
+        "description": "Only successful rows stored in the wrong partition should be flagged.",
         "tables": [
           {
-            "name": "customers",
-            "columns": [
-              "customer_id",
-              "customer_name",
-              "signup_date"
-            ],
-            "rows": [
-              [
-                1,
-                "Alpha Foods",
-                "2026-01-01"
-              ],
-              [
-                2,
-                "Beta Retail",
-                "2026-01-02"
-              ],
-              [
-                3,
-                "Gamma Labs",
-                "2026-01-03"
-              ],
-              [
-                4,
-                "Delta Health",
-                "2026-01-04"
-              ],
-              [
-                5,
-                "Echo Market",
-                "2026-01-05"
-              ]
-            ]
-          },
-          {
-            "name": "orders",
+            "name": "order_facts",
             "columns": [
               "order_id",
-              "customer_id",
-              "order_date",
+              "event_date",
+              "load_date",
+              "partition_date",
               "amount",
               "status"
             ],
             "rows": [
               [
-                201,
                 1,
-                "2026-05-01",
-                100,
-                "SUCCESS"
-              ],
-              [
-                202,
-                1,
-                "2026-05-03",
-                150,
-                "SUCCESS"
-              ],
-              [
-                203,
-                2,
-                "2026-05-12",
-                220,
-                "FAILED"
-              ],
-              [
-                204,
-                2,
-                "2026-05-20",
-                80,
-                "SUCCESS"
-              ],
-              [
-                205,
-                99,
-                "2026-05-21",
-                300,
-                "SUCCESS"
-              ],
-              [
-                206,
-                null,
-                "2026-05-22",
+                "2026-06-01",
+                "2026-06-02",
+                "2026-06-02",
                 50,
+                "SUCCESS"
+              ],
+              [
+                2,
+                "2026-06-01",
+                "2026-06-02",
+                "2026-06-02",
+                60,
+                "CANCELLED"
+              ],
+              [
+                3,
+                "2026-06-02",
+                "2026-06-02",
+                "2026-06-02",
+                70,
                 "SUCCESS"
               ]
             ]
           }
         ],
-        "expectedSql": "SELECT customer_id, SUM(CAST(amount AS REAL)) AS total_revenue\nFROM orders\nWHERE status = 'SUCCESS'\n  AND customer_id IS NOT NULL\nGROUP BY customer_id\nORDER BY total_revenue DESC;"
+        "expectedSql": "SELECT order_id, event_date, load_date, partition_date, amount\nFROM order_facts\nWHERE status = 'SUCCESS'\n  AND event_date <> partition_date\nORDER BY order_id"
       }
+    ],
+    "commonMistakes": [
+      "Checking load_date only and missing the actual partition mismatch.",
+      "Including cancelled rows in the repair list.",
+      "Aggregating too early instead of returning repairable fact rows."
+    ],
+    "validationKeywords": [
+      "partition_date",
+      "event_date",
+      "status"
     ]
   },
   {
@@ -7114,218 +7077,188 @@
     "section": "Warehouse",
     "isFree": false,
     "estimatedMinutes": 18,
-    "starterCode": "-- Inspect the sample customers table.\nSELECT *\nFROM customers\nLIMIT 5;",
+    "starterCode": "SELECT * FROM customer_dim ORDER BY customer_id;\n\nSELECT * FROM order_facts ORDER BY load_date, order_id;",
     "hints": [
-      "Start from orders and left join to customers.",
-      "Treat NULL customer_id rows as a separate data-quality bucket outside this foreign-key check.",
-      "Rows where the joined customer is NULL are the broken foreign keys."
+      "Start from order_facts because every fact row needs a dimension check.",
+      "Join to current customer_dim rows using customer_id.",
+      "After the left join, missing dimension keys appear where c.customer_id is NULL."
     ],
-    "explanation": "The strong interview answer explains the grain, why the pattern is safe, and which edge cases are covered.",
+    "explanation": "This tests a practical fact-to-dimension reconciliation. Start from the fact table, left join to the current dimension, and count rows where the dimension side is missing. Grouping by load_date turns the result into an actionable batch-quality signal.",
     "topicTags": [
       "SQL",
-      "Data Quality"
+      "Data Quality",
+      "Dimensional Modeling"
     ],
-    "businessContext": "You are validating a warehouse query before it is promoted into a production analytics mart. This lab is written like a real analytics ticket: understand the required grain, inspect the sample data, then write a query that survives messy production-style edge cases.",
-    "problemStatement": "Solve this SQL interview task using the seeded tables: Fact Table Missing Dimension Keys by Load Date. Your solution should work for the visible sample data and for hidden edge-case datasets that test ties, NULLs, duplicate rows, missing keys, and boundary conditions where relevant.",
-    "studentTask": "Return exactly the requested result set. Your output will be compared with the expected result. After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.",
+    "businessContext": "A daily warehouse quality check needs to report fact rows whose customer_id is not present in the current customer dimension. Reporting the issue by load_date helps the data engineering team identify which ingestion batch introduced the broken keys.",
+    "problemStatement": "Count order fact rows by load_date where customer_id is non-null but missing from the current customer dimension.",
+    "studentTask": "Write a query that reports missing customer dimension keys by load_date.",
     "tables": [
       {
-        "name": "customers",
+        "name": "customer_dim",
         "columns": [
           "customer_id",
           "customer_name",
-          "signup_date"
+          "current_flag"
         ],
         "rows": [
           [
             1,
             "Asha",
-            "2026-01-02"
+            1
           ],
           [
             2,
             "Ben",
-            "2026-01-05"
+            1
           ],
           [
             3,
             "Chen",
-            "2026-02-01"
+            1
           ],
           [
             4,
             "Diya",
-            "2026-02-11"
-          ],
-          [
-            5,
-            "Evan",
-            "2026-03-10"
+            0
           ]
         ]
       },
       {
-        "name": "orders",
+        "name": "order_facts",
         "columns": [
           "order_id",
           "customer_id",
           "order_date",
-          "amount",
-          "status"
+          "load_date",
+          "amount"
         ],
         "rows": [
           [
             101,
             1,
-            "2026-04-01",
-            120,
-            "SUCCESS"
+            "2026-05-01",
+            "2026-05-02",
+            120
           ],
           [
             102,
-            1,
-            "2026-04-01",
-            80,
-            "SUCCESS"
+            2,
+            "2026-05-01",
+            "2026-05-02",
+            80
           ],
           [
             103,
-            2,
-            "2026-04-03",
-            220,
-            "SUCCESS"
+            99,
+            "2026-05-02",
+            "2026-05-03",
+            200
           ],
           [
             104,
-            2,
-            "2026-05-06",
-            180,
-            "SUCCESS"
+            null,
+            "2026-05-02",
+            "2026-05-03",
+            50
           ],
           [
             105,
-            3,
-            "2026-05-08",
-            75,
-            "FAILED"
+            4,
+            "2026-05-03",
+            "2026-05-04",
+            70
           ],
           [
             106,
-            99,
-            "2026-05-09",
-            300,
-            "SUCCESS"
-          ],
-          [
-            107,
-            null,
-            "2026-05-10",
-            60,
-            "SUCCESS"
+            100,
+            "2026-05-03",
+            "2026-05-04",
+            90
           ]
         ]
       }
     ],
-    "expectedSql": "SELECT o.order_id, o.customer_id, o.order_date, o.amount\nFROM orders o\nLEFT JOIN customers c ON o.customer_id = c.customer_id\nWHERE o.customer_id IS NOT NULL\n  AND c.customer_id IS NULL;",
-    "solutionCode": "SELECT o.order_id, o.customer_id, o.order_date, o.amount\nFROM orders o\nLEFT JOIN customers c ON o.customer_id = c.customer_id\nWHERE o.customer_id IS NOT NULL\n  AND c.customer_id IS NULL;",
-    "expectedOutcome": "Columns: order_id, customer_id, order_date, amount.\nGrain: one row per order whose customer_id does not exist in the customer dimension.\nBusiness rule: ignore NULL customer_id rows and flag only real missing foreign keys.",
+    "expectedSql": "SELECT o.load_date, COUNT(*) AS missing_dimension_orders\nFROM order_facts o\nLEFT JOIN customer_dim c\n  ON o.customer_id = c.customer_id\n AND c.current_flag = 1\nWHERE o.customer_id IS NOT NULL\n  AND c.customer_id IS NULL\nGROUP BY o.load_date\nORDER BY o.load_date",
+    "solutionCode": "SELECT o.load_date, COUNT(*) AS missing_dimension_orders\nFROM order_facts o\nLEFT JOIN customer_dim c\n  ON o.customer_id = c.customer_id\n AND c.current_flag = 1\nWHERE o.customer_id IS NOT NULL\n  AND c.customer_id IS NULL\nGROUP BY o.load_date\nORDER BY o.load_date",
+    "expectedOutcome": "Columns: load_date, missing_dimension_orders.\nGrain: one row per load_date with at least one missing dimension key.\nBusiness rule: ignore NULL customer_id rows and join only to current dimension records.",
     "sqlTestCases": [
       {
-        "name": "Broken foreign key",
-        "description": "Ensures non-null customer IDs missing from the dimension are flagged.",
+        "name": "Null keys are counted separately outside this check",
+        "description": "Missing non-null keys should be counted by load date, while NULL keys are ignored here.",
         "tables": [
           {
-            "name": "customers",
+            "name": "customer_dim",
             "columns": [
               "customer_id",
               "customer_name",
-              "signup_date"
+              "current_flag"
             ],
             "rows": [
               [
-                1,
-                "Alpha Foods",
-                "2026-01-01"
+                10,
+                "Ira",
+                1
               ],
               [
-                2,
-                "Beta Retail",
-                "2026-01-02"
-              ],
-              [
-                3,
-                "Gamma Labs",
-                "2026-01-03"
-              ],
-              [
-                4,
-                "Delta Health",
-                "2026-01-04"
-              ],
-              [
-                5,
-                "Echo Market",
-                "2026-01-05"
+                11,
+                "Jai",
+                1
               ]
             ]
           },
           {
-            "name": "orders",
+            "name": "order_facts",
             "columns": [
               "order_id",
               "customer_id",
               "order_date",
-              "amount",
-              "status"
+              "load_date",
+              "amount"
             ],
             "rows": [
               [
-                201,
                 1,
-                "2026-05-01",
-                100,
-                "SUCCESS"
+                10,
+                "2026-06-01",
+                "2026-06-02",
+                100
               ],
               [
-                202,
-                1,
-                "2026-05-03",
-                150,
-                "SUCCESS"
-              ],
-              [
-                203,
                 2,
-                "2026-05-12",
-                220,
-                "FAILED"
+                77,
+                "2026-06-01",
+                "2026-06-02",
+                200
               ],
               [
-                204,
-                2,
-                "2026-05-20",
-                80,
-                "SUCCESS"
-              ],
-              [
-                205,
-                99,
-                "2026-05-21",
-                300,
-                "SUCCESS"
-              ],
-              [
-                206,
+                3,
                 null,
-                "2026-05-22",
-                50,
-                "SUCCESS"
+                "2026-06-02",
+                "2026-06-03",
+                50
+              ],
+              [
+                4,
+                88,
+                "2026-06-02",
+                "2026-06-03",
+                75
               ]
             ]
           }
         ],
-        "expectedSql": "SELECT o.order_id, o.customer_id, o.order_date, o.amount\nFROM orders o\nLEFT JOIN customers c ON o.customer_id = c.customer_id\nWHERE o.customer_id IS NOT NULL\n  AND c.customer_id IS NULL;"
+        "expectedSql": "SELECT o.load_date, COUNT(*) AS missing_dimension_orders\nFROM order_facts o\nLEFT JOIN customer_dim c\n  ON o.customer_id = c.customer_id\n AND c.current_flag = 1\nWHERE o.customer_id IS NOT NULL\n  AND c.customer_id IS NULL\nGROUP BY o.load_date\nORDER BY o.load_date"
       }
+    ],
+    "commonMistakes": [
+      "Using an inner join, which hides the broken fact rows.",
+      "Counting NULL customer_id as a missing dimension key instead of handling it separately.",
+      "Forgetting current_flag and matching an expired dimension row."
+    ],
+    "validationKeywords": [
+      "left join",
+      "current_flag",
+      "group by"
     ]
   },
   {

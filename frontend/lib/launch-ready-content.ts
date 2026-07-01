@@ -12,6 +12,9 @@ export const LAUNCH_READY_CODING_LAB_SLUGS = [
   "sql-coding-11-customers-with-no-orders",
   "sql-coding-12-employees-earning-above-department-average",
   "sql-coding-13-orders-with-missing-customer-records",
+  "sql-coding-14-intersection-of-active-users-across-two-months",
+  "sql-coding-15-customers-who-bought-every-product-in-a-category",
+  "sql-coding-16-compare-two-tables-and-find-added-rows",
   "sql-coding-17-same-day-repeat-orders",
   "sql-coding-18-orders-and-their-immediate-previous-order",
   "sql-coding-19-find-duplicate-business-keys",
@@ -19,6 +22,7 @@ export const LAUNCH_READY_CODING_LAB_SLUGS = [
   "sql-coding-21-recursive-employee-hierarchy",
   "sql-coding-22-hierarchy-path-from-ceo-to-employee",
   "sql-coding-23-sessionization-with-a-30-minute-gap",
+  "sql-coding-24-rolling-7-day-active-users",
   "sql-coding-25-customers-who-churned-no-orders-in-last-90-days",
   "sql-coding-26-repeat-purchase-within-7-days",
   "sql-coding-27-consecutive-login-streaks",
@@ -30,7 +34,10 @@ export const LAUNCH_READY_CODING_LAB_SLUGS = [
   "sql-coding-33-scd-type-2-close-old-row-and-insert-new-row",
   "sql-coding-34-incremental-load-using-watermark",
   "sql-coding-35-merge-staging-into-target-by-business-key",
+  "sql-coding-36-snapshot-table-latest-balance-per-account",
+  "sql-coding-37-late-arriving-facts-that-missed-the-correct-date-partition",
   "sql-coding-38-find-changed-rows-between-two-snapshots-by-key",
+  "sql-coding-39-fact-table-missing-dimension-keys-by-load-date",
   "sql-coding-40-current-active-scd-row-per-customer",
   "python-coding-01-reverse-a-string",
   "python-coding-02-check-whether-a-string-is-a-palindrome",
@@ -152,20 +159,24 @@ export function shouldIncludeHiddenContent(options: LaunchReadyFilterOptions = {
   );
 }
 
+export function shouldUseCuratedLaunchSubset() {
+  return process.env.NEXT_PUBLIC_LIMIT_TO_CURATED_CONTENT === "true";
+}
+
 export function isLaunchReadyCodingLab(slug: string) {
-  return LAUNCH_READY_CODING_LABS.has(slug);
+  return !shouldUseCuratedLaunchSubset() || LAUNCH_READY_CODING_LABS.has(slug);
 }
 
 export function isLaunchReadyOperationsLab(slug: string) {
-  return LAUNCH_READY_OPERATIONS_LABS.has(slug);
+  return !shouldUseCuratedLaunchSubset() || LAUNCH_READY_OPERATIONS_LABS.has(slug);
 }
 
 export function isLaunchReadyScenario(slug: string) {
-  return LAUNCH_READY_SCENARIOS.has(slug);
+  return !shouldUseCuratedLaunchSubset() || LAUNCH_READY_SCENARIOS.has(slug);
 }
 
 export function isLaunchReadySystemDesign(slug: string) {
-  return LAUNCH_READY_SYSTEM_DESIGN.has(slug);
+  return !shouldUseCuratedLaunchSubset() || LAUNCH_READY_SYSTEM_DESIGN.has(slug);
 }
 
 export function filterLaunchReady<T extends { launchReady?: boolean }>(

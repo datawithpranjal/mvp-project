@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 
 import codingLabGenerated from "../frontend/data/coding-labs.generated.json";
+import publicSqlPracticeGenerated from "../frontend/data/public-sql-practice.generated.json";
 import { pysparkLabData } from "../frontend/data/pyspark-labs.generated";
 import {
   ALL_OPERATIONS_LABS,
@@ -75,6 +76,7 @@ const SQL_WASM_DIR = path.join(FRONTEND_DIR, "node_modules", "sql.js", "dist");
 const frontendRequire = createRequire(path.join(FRONTEND_DIR, "package.json"));
 const VALIDATED_FILES = [
   "frontend/data/coding-labs.generated.json",
+  "frontend/data/public-sql-practice.generated.json",
   "frontend/data/pyspark-labs.generated.ts",
   "frontend/lib/scenarios.ts",
   "frontend/data/platform-operations-labs.ts",
@@ -144,6 +146,9 @@ function addFinding(
 }
 
 function launchSection(item: ValidationItem): string {
+  if (item.kind === "coding-lab" && item.source.includes("public-sql-practice.generated")) {
+    return "SQL coverage labs";
+  }
   if (item.kind === "coding-lab" && item.source.includes("coding-labs.generated")) {
     return item.slug.startsWith("sql-") ? "SQL labs" : "Python labs";
   }
@@ -750,6 +755,9 @@ async function main() {
   const generatedSqlLabs = (codingLabGenerated as unknown[])
     .map((lab) => normalizeCodingLab(lab, "frontend/data/coding-labs.generated.json"))
     .filter((lab): lab is ValidationItem => Boolean(lab));
+  const publicSqlPracticeLabs = (publicSqlPracticeGenerated as unknown[])
+    .map((lab) => normalizeCodingLab(lab, "frontend/data/public-sql-practice.generated.json"))
+    .filter((lab): lab is ValidationItem => Boolean(lab));
   const generatedPySparkLabs = (pysparkLabData as unknown[])
     .map((lab) => normalizeCodingLab(lab, "frontend/data/pyspark-labs.generated.ts"))
     .filter((lab): lab is ValidationItem => Boolean(lab));
@@ -759,6 +767,7 @@ async function main() {
 
   const items = [
     ...generatedSqlLabs,
+    ...publicSqlPracticeLabs,
     ...generatedPySparkLabs,
     ...scenarioItems,
     ...operationsItems,
@@ -766,6 +775,7 @@ async function main() {
   ];
   const itemsBySource = new Map<string, ValidationItem[]>([
     ["frontend/data/coding-labs.generated.json", generatedSqlLabs],
+    ["frontend/data/public-sql-practice.generated.json", publicSqlPracticeLabs],
     ["frontend/data/pyspark-labs.generated.ts", generatedPySparkLabs],
     ["frontend/lib/scenarios.ts", scenarioItems],
     ["frontend/data/platform-operations-labs.ts", operationsItems],
@@ -777,17 +787,17 @@ async function main() {
   items.forEach(validateSemanticMatch);
   items.forEach(validateHints);
 
-  const codingItems = [...generatedSqlLabs, ...generatedPySparkLabs];
+  const codingItems = [...generatedSqlLabs, ...publicSqlPracticeLabs, ...generatedPySparkLabs];
   codingItems.forEach(validateSqlReferences);
   validateDuplicateSolutions(codingItems);
 
   const SQL = await createSqlEngine();
-  for (const lab of generatedSqlLabs.filter((item) => item.expectedSql?.trim())) {
+  for (const lab of [...generatedSqlLabs, ...publicSqlPracticeLabs].filter((item) => item.expectedSql?.trim())) {
     await validateSqlExecution(SQL, lab);
   }
 
   console.log(
-    `Validated ${items.length} records: ${generatedSqlLabs.length} generated SQL/Python labs, ${generatedPySparkLabs.length} generated PySpark labs, ${scenarioItems.length} scenarios, ${operationsItems.length} operations labs, ${systemDesignItems.length} system-design cases.`
+    `Validated ${items.length} records: ${generatedSqlLabs.length} generated SQL/Python labs, ${publicSqlPracticeLabs.length} SQL coverage labs, ${generatedPySparkLabs.length} generated PySpark labs, ${scenarioItems.length} scenarios, ${operationsItems.length} operations labs, ${systemDesignItems.length} system-design cases.`
   );
   printReport(items);
 }
