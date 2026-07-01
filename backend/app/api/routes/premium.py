@@ -2,7 +2,7 @@ import secrets
 import time
 from typing import Annotated
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.api.routes.auth import auth_error_response, bearer_token
@@ -291,6 +291,13 @@ def verify_razorpay_payment(
             billing_interval=quote.billing_interval,
             amount_inr=quote.final_amount_inr,
             payment_reference=payload.razorpay_payment_id or "",
+            original_amount_inr=quote.original_amount_inr,
+            discount_amount_inr=quote.discount_amount_inr,
+            coupon_code=quote.coupon_code,
+            payment_provider="razorpay",
+            provider_order_id=payload.razorpay_order_id,
+            provider_payment_id=payload.razorpay_payment_id,
+            currency=order_currency,
         )
         return {
             "verified": True,
@@ -357,6 +364,10 @@ def submit_manual_premium_payment_request(
                 billing_interval=payload.billing_interval,
                 amount_inr=quote.final_amount_inr,
                 payment_reference=payload.payment_reference,
+                original_amount_inr=quote.original_amount_inr,
+                discount_amount_inr=quote.discount_amount_inr,
+                coupon_code=quote.coupon_code,
+                payment_provider="coupon",
             )
             return {
                 "submitted": True,
@@ -416,6 +427,8 @@ def grant_manual_premium_access(
             billing_interval=payload.billing_interval,
             amount_inr=payload.amount_inr,
             payment_reference=payload.payment_reference,
+            coupon_code=payload.coupon_code,
+            payment_provider="manual",
         )
         return {
             "unlocked_premium": True,
@@ -426,6 +439,46 @@ def grant_manual_premium_access(
         raise HTTPException(
             status_code=500,
             detail=f"Premium access is temporarily unavailable. {exc}",
+        ) from exc
+
+
+@router.get("/api/v1/admin/premium/purchases")
+@router.get("/v1/admin/premium/purchases")
+def list_premium_purchase_records(
+    x_admin_token: Annotated[str | None, Header()] = None,
+    email: Annotated[str | None, Query(max_length=254)] = None,
+) -> dict[str, object]:
+    _require_admin_token(x_admin_token)
+
+    try:
+        records = premium_access_service.list_purchase_records(email)
+        return {
+            "count": len(records),
+            "records": [
+                {
+                    "email": record["email"],
+                    "plan_label": record["plan_label"],
+                    "billing_interval": record["billing_interval"],
+                    "amount_inr": record["amount_inr"],
+                    "original_amount_inr": record["original_amount_inr"],
+                    "discount_amount_inr": record["discount_amount_inr"],
+                    "coupon_code": record["coupon_code"],
+                    "payment_provider": record["payment_provider"],
+                    "payment_reference": record["payment_reference"],
+                    "provider_order_id": record["provider_order_id"],
+                    "provider_payment_id": record["provider_payment_id"],
+                    "currency": record["currency"],
+                    "purchase_status": record["purchase_status"],
+                    "purchased_at": _isoformat(record["purchased_at"]),
+                    "access_expires_at": _isoformat(record["access_expires_at"]),
+                }
+                for record in records
+            ],
+        }
+    except PremiumAccessServiceError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Premium purchase records are temporarily unavailable. {exc}",
         ) from exc
 
 

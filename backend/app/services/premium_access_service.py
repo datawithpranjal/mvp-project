@@ -13,6 +13,7 @@ class PremiumAccessServiceError(RuntimeError):
 class PremiumAccessService:
     _memory_grants: dict[str, dict[str, Any]] = {}
     _memory_payment_requests: list[dict[str, Any]] = []
+    _memory_purchase_records: list[dict[str, Any]] = []
     _plan_durations = {
         "monthly": timedelta(days=30),
         "yearly": timedelta(days=365),
@@ -30,6 +31,14 @@ class PremiumAccessService:
         billing_interval: str,
         amount_inr: int,
         payment_reference: str,
+        original_amount_inr: int | None = None,
+        discount_amount_inr: int = 0,
+        coupon_code: str | None = None,
+        payment_provider: str = "manual",
+        provider_order_id: str | None = None,
+        provider_payment_id: str | None = None,
+        currency: str = "INR",
+        purchase_status: str = "paid",
     ) -> dict[str, Any]:
         granted_at = datetime.now(timezone.utc)
         record = {
@@ -41,11 +50,23 @@ class PremiumAccessService:
             "granted_at": granted_at,
             "expires_at": self._expires_at_for(billing_interval, granted_at),
         }
+        purchase_record = self._build_purchase_record(
+            record,
+            original_amount_inr=original_amount_inr,
+            discount_amount_inr=discount_amount_inr,
+            coupon_code=coupon_code,
+            payment_provider=payment_provider,
+            provider_order_id=provider_order_id,
+            provider_payment_id=provider_payment_id,
+            currency=currency,
+            purchase_status=purchase_status,
+        )
 
         if self.postgres_url:
-            return self._postgres_grant(record)
+            return self._postgres_grant(record, purchase_record)
 
         self._memory_grants[record["email"]] = record
+        self._upsert_memory_purchase_record(purchase_record)
         return record
 
     def submit_manual_payment_request(
@@ -109,6 +130,22 @@ class PremiumAccessService:
             return None
 
         return record
+
+    def list_purchase_records(self, email: str | None = None) -> list[dict[str, Any]]:
+        normalized_email = email.strip().lower() if email else None
+        if self.postgres_url:
+            return self._postgres_list_purchase_records(normalized_email)
+
+        records = self._memory_purchase_records
+        if normalized_email:
+            records = [
+                record for record in records if record.get("email") == normalized_email
+            ]
+        return sorted(
+            records,
+            key=lambda record: record.get("purchased_at") or datetime.min.replace(tzinfo=timezone.utc),
+            reverse=True,
+        )
 
     def _postgres_connect(self):
         try:
@@ -200,11 +237,95 @@ class PremiumAccessService:
             "ALTER TABLE public.premium_payment_requests ENABLE ROW LEVEL SECURITY"
         )
 
-    def _postgres_grant(self, record: dict[str, Any]) -> dict[str, Any]:
+    def _ensure_purchase_record_schema(self, cursor: Any) -> None:
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS premium_purchase_records (
+                id BIGSERIAL PRIMARY KEY,
+                email TEXT NOT NULL,
+                plan_label TEXT NOT NULL,
+                billing_interval TEXT NOT NULL,
+                amount_inr INTEGER NOT NULL,
+                original_amount_inr INTEGER NOT NULL,
+                discount_amount_inr INTEGER NOT NULL DEFAULT 0,
+                coupon_code TEXT,
+                payment_provider TEXT NOT NULL DEFAULT 'manual',
+                payment_reference TEXT NOT NULL,
+                provider_order_id TEXT,
+                provider_payment_id TEXT,
+                currency TEXT NOT NULL DEFAULT 'INR',
+                purchase_status TEXT NOT NULL DEFAULT 'paid',
+                purchased_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                access_expires_at TIMESTAMPTZ NOT NULL
+            )
+            """
+        )
+        cursor.execute(
+            """
+            ALTER TABLE premium_purchase_records
+                ADD COLUMN IF NOT EXISTS original_amount_inr INTEGER,
+                ADD COLUMN IF NOT EXISTS discount_amount_inr INTEGER NOT NULL DEFAULT 0,
+                ADD COLUMN IF NOT EXISTS coupon_code TEXT,
+                ADD COLUMN IF NOT EXISTS payment_provider TEXT NOT NULL DEFAULT 'manual',
+                ADD COLUMN IF NOT EXISTS provider_order_id TEXT,
+                ADD COLUMN IF NOT EXISTS provider_payment_id TEXT,
+                ADD COLUMN IF NOT EXISTS currency TEXT NOT NULL DEFAULT 'INR',
+                ADD COLUMN IF NOT EXISTS purchase_status TEXT NOT NULL DEFAULT 'paid',
+                ADD COLUMN IF NOT EXISTS purchased_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                ADD COLUMN IF NOT EXISTS access_expires_at TIMESTAMPTZ
+            """
+        )
+        cursor.execute(
+            """
+            UPDATE premium_purchase_records
+            SET original_amount_inr = amount_inr
+            WHERE original_amount_inr IS NULL
+            """
+        )
+        cursor.execute(
+            """
+            UPDATE premium_purchase_records
+            SET access_expires_at = CASE
+                WHEN billing_interval = 'monthly' THEN purchased_at + INTERVAL '1 month'
+                ELSE purchased_at + INTERVAL '1 year'
+            END
+            WHERE access_expires_at IS NULL
+            """
+        )
+        cursor.execute(
+            """
+            ALTER TABLE premium_purchase_records
+                ALTER COLUMN original_amount_inr SET NOT NULL,
+                ALTER COLUMN access_expires_at SET NOT NULL
+            """
+        )
+        cursor.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS premium_purchase_records_provider_reference_idx
+            ON premium_purchase_records (payment_provider, payment_reference)
+            """
+        )
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS premium_purchase_records_email_purchased_idx
+            ON premium_purchase_records (email, purchased_at DESC)
+            """
+        )
+        cursor.execute(
+            "ALTER TABLE public.premium_purchase_records ENABLE ROW LEVEL SECURITY"
+        )
+
+    def _postgres_grant(
+        self,
+        record: dict[str, Any],
+        purchase_record: dict[str, Any],
+    ) -> dict[str, Any]:
         try:
             with self._postgres_connect() as connection:
                 with connection.cursor() as cursor:
                     self._ensure_schema(cursor)
+                    self._ensure_purchase_record_schema(cursor)
+                    self._postgres_upsert_purchase_record(cursor, purchase_record)
                     cursor.execute(
                         """
                         INSERT INTO premium_access_grants (
@@ -245,6 +366,56 @@ class PremiumAccessService:
             }
         except Exception as exc:
             raise PremiumAccessServiceError(f"Unable to grant premium access. {exc}") from exc
+
+    def _postgres_upsert_purchase_record(
+        self,
+        cursor: Any,
+        record: dict[str, Any],
+    ) -> None:
+        cursor.execute(
+            """
+            INSERT INTO premium_purchase_records (
+                email, plan_label, billing_interval, amount_inr,
+                original_amount_inr, discount_amount_inr, coupon_code,
+                payment_provider, payment_reference, provider_order_id,
+                provider_payment_id, currency, purchase_status, purchased_at,
+                access_expires_at
+            )
+            VALUES (
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+            )
+            ON CONFLICT (payment_provider, payment_reference) DO UPDATE SET
+                email = EXCLUDED.email,
+                plan_label = EXCLUDED.plan_label,
+                billing_interval = EXCLUDED.billing_interval,
+                amount_inr = EXCLUDED.amount_inr,
+                original_amount_inr = EXCLUDED.original_amount_inr,
+                discount_amount_inr = EXCLUDED.discount_amount_inr,
+                coupon_code = EXCLUDED.coupon_code,
+                provider_order_id = EXCLUDED.provider_order_id,
+                provider_payment_id = EXCLUDED.provider_payment_id,
+                currency = EXCLUDED.currency,
+                purchase_status = EXCLUDED.purchase_status,
+                access_expires_at = EXCLUDED.access_expires_at
+            """,
+            (
+                record["email"],
+                record["plan_label"],
+                record["billing_interval"],
+                record["amount_inr"],
+                record["original_amount_inr"],
+                record["discount_amount_inr"],
+                record["coupon_code"],
+                record["payment_provider"],
+                record["payment_reference"],
+                record["provider_order_id"],
+                record["provider_payment_id"],
+                record["currency"],
+                record["purchase_status"],
+                record["purchased_at"],
+                record["access_expires_at"],
+            ),
+        )
 
     def _postgres_submit_payment_request(self, record: dict[str, Any]) -> dict[str, Any]:
         try:
@@ -320,6 +491,101 @@ class PremiumAccessService:
                     }
         except Exception as exc:
             raise PremiumAccessServiceError(f"Unable to check premium access. {exc}") from exc
+
+    def _postgres_list_purchase_records(
+        self,
+        email: str | None = None,
+    ) -> list[dict[str, Any]]:
+        try:
+            with self._postgres_connect() as connection:
+                with connection.cursor() as cursor:
+                    self._ensure_purchase_record_schema(cursor)
+                    where_clause = "WHERE email = %s" if email else ""
+                    params = (email,) if email else ()
+                    cursor.execute(
+                        f"""
+                        SELECT id, email, plan_label, billing_interval, amount_inr,
+                               original_amount_inr, discount_amount_inr, coupon_code,
+                               payment_provider, payment_reference, provider_order_id,
+                               provider_payment_id, currency, purchase_status,
+                               purchased_at, access_expires_at
+                        FROM premium_purchase_records
+                        {where_clause}
+                        ORDER BY purchased_at DESC
+                        """,
+                        params,
+                    )
+                    rows = cursor.fetchall()
+            return [
+                {
+                    "id": row[0],
+                    "email": row[1],
+                    "plan_label": row[2],
+                    "billing_interval": row[3],
+                    "amount_inr": row[4],
+                    "original_amount_inr": row[5],
+                    "discount_amount_inr": row[6],
+                    "coupon_code": row[7],
+                    "payment_provider": row[8],
+                    "payment_reference": row[9],
+                    "provider_order_id": row[10],
+                    "provider_payment_id": row[11],
+                    "currency": row[12],
+                    "purchase_status": row[13],
+                    "purchased_at": row[14],
+                    "access_expires_at": row[15],
+                }
+                for row in rows
+            ]
+        except Exception as exc:
+            raise PremiumAccessServiceError(
+                f"Unable to list premium purchase records. {exc}"
+            ) from exc
+
+    def _build_purchase_record(
+        self,
+        access_record: dict[str, Any],
+        *,
+        original_amount_inr: int | None,
+        discount_amount_inr: int,
+        coupon_code: str | None,
+        payment_provider: str,
+        provider_order_id: str | None,
+        provider_payment_id: str | None,
+        currency: str,
+        purchase_status: str,
+    ) -> dict[str, Any]:
+        provider = (payment_provider or "manual").strip().lower()
+        normalized_coupon = coupon_code.strip().upper() if coupon_code else None
+        return {
+            "email": access_record["email"],
+            "plan_label": access_record["plan_label"],
+            "billing_interval": access_record["billing_interval"],
+            "amount_inr": access_record["amount_inr"],
+            "original_amount_inr": original_amount_inr
+            if original_amount_inr is not None
+            else access_record["amount_inr"],
+            "discount_amount_inr": discount_amount_inr,
+            "coupon_code": normalized_coupon,
+            "payment_provider": provider or "manual",
+            "payment_reference": access_record["payment_reference"],
+            "provider_order_id": provider_order_id,
+            "provider_payment_id": provider_payment_id,
+            "currency": (currency or "INR").strip().upper(),
+            "purchase_status": (purchase_status or "paid").strip().lower(),
+            "purchased_at": access_record["granted_at"],
+            "access_expires_at": access_record["expires_at"],
+        }
+
+    def _upsert_memory_purchase_record(self, record: dict[str, Any]) -> None:
+        for index, existing in enumerate(self._memory_purchase_records):
+            if (
+                existing.get("payment_provider") == record["payment_provider"]
+                and existing.get("payment_reference") == record["payment_reference"]
+            ):
+                self._memory_purchase_records[index] = record
+                return
+        self._memory_purchase_records.append(record)
 
     def _expires_at_for(self, billing_interval: str, granted_at: datetime) -> datetime:
         normalized_interval = billing_interval if billing_interval in self._plan_durations else "yearly"
