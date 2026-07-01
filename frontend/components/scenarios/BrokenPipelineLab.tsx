@@ -9,14 +9,17 @@ import {
   PREMIUM_ACCESS_UPDATED_EVENT,
   type PremiumAccessRecord
 } from "../../lib/premium-access";
-import { getScenarioProgressMap, type ScenarioProgressSummary } from "../../lib/progress";
+import {
+  SCENARIO_PROGRESS_UPDATED_EVENT,
+  getScenarioProgressMap,
+  type ScenarioProgressSummary
+} from "../../lib/progress";
 import {
   DOMAIN_LABELS,
   SCENARIO_TYPE_LABELS,
   getScenarios,
   type Scenario
 } from "../../lib/scenarios";
-import { GUIDED_SCENARIO_PATHS } from "../../lib/product";
 import { ScenarioCard } from "./ScenarioCard";
 import { ScenarioFilters, type ScenarioFilterState } from "./ScenarioFilters";
 
@@ -44,11 +47,13 @@ export function BrokenPipelineLab() {
     syncState();
     window.addEventListener("storage", syncState);
     window.addEventListener(AUTH_UPDATED_EVENT, syncState);
+    window.addEventListener(SCENARIO_PROGRESS_UPDATED_EVENT, syncState);
     window.addEventListener(PREMIUM_ACCESS_UPDATED_EVENT, syncState);
 
     return () => {
       window.removeEventListener("storage", syncState);
       window.removeEventListener(AUTH_UPDATED_EVENT, syncState);
+      window.removeEventListener(SCENARIO_PROGRESS_UPDATED_EVENT, syncState);
       window.removeEventListener(PREMIUM_ACCESS_UPDATED_EVENT, syncState);
     };
   }, []);
@@ -157,36 +162,6 @@ export function BrokenPipelineLab() {
             <Stat label="Premium labs" value={counts.premium} />
             <Stat label="Completed" value={counts.completed} />
           </div>
-        </div>
-      </section>
-
-      <section className="panel rounded-[2rem] p-6">
-        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-200">
-              Start here
-            </p>
-            <h2 className="mt-3 text-2xl font-semibold text-slate-50">
-              Choose the path closest to your current goal.
-            </h2>
-          </div>
-          <p className="max-w-2xl text-sm leading-6 text-slate-400">
-            These shortcuts set the filters for you so the library feels like a guided
-            practice plan, not a wall of cards.
-          </p>
-        </div>
-        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-          {GUIDED_SCENARIO_PATHS.map((path) => (
-            <button
-              key={path.title}
-              type="button"
-              onClick={() => setFilters(path.filters as ScenarioFilterState)}
-              className="rounded-3xl border border-slate-800 bg-slate-950/40 p-4 text-left transition hover:-translate-y-0.5 hover:border-teal-300/35"
-            >
-              <p className="text-sm font-semibold text-slate-50">{path.title}</p>
-              <p className="mt-2 text-xs leading-5 text-slate-400">{path.description}</p>
-            </button>
-          ))}
         </div>
       </section>
 

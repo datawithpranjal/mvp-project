@@ -49,6 +49,7 @@ export interface ScenarioProgressSummary {
 type ScenarioProgressStore = Record<string, Partial<ScenarioProgressEntry>>;
 
 const STORAGE_KEY = "data-engineering-scenario-playground-progress-v1";
+export const SCENARIO_PROGRESS_UPDATED_EVENT = "scenario-progress-updated";
 
 function buildAttemptId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -86,6 +87,7 @@ function writeStore(store: ScenarioProgressStore): void {
   }
 
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+  window.dispatchEvent(new Event(SCENARIO_PROGRESS_UPDATED_EVENT));
 }
 
 function normalizeAttempt(value: Partial<AttemptHistoryEntry>, index: number): AttemptHistoryEntry {

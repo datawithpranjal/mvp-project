@@ -15,9 +15,46 @@ import {
 
 const EXPERIENCE_LEVELS = ["Beginner", "Intermediate", "Advanced"];
 
+type ProfileFormState = {
+  full_name: string;
+  role: string;
+  experience_level: string;
+  target_role: string;
+  country: string;
+  phone: string;
+  linkedin_url: string;
+  preparation_goal: string;
+};
+
+function cleanText(value: string): string {
+  return value.trim();
+}
+
+function normalizeLinkedInUrl(value: string): string {
+  const normalized = cleanText(value);
+  if (!normalized) {
+    return "";
+  }
+
+  return /^https?:\/\//i.test(normalized) ? normalized : `https://${normalized}`;
+}
+
+function normalizeProfilePayload(formState: ProfileFormState): ProfileFormState {
+  return {
+    full_name: cleanText(formState.full_name),
+    role: cleanText(formState.role),
+    experience_level: formState.experience_level,
+    target_role: cleanText(formState.target_role),
+    country: cleanText(formState.country),
+    phone: cleanText(formState.phone),
+    linkedin_url: normalizeLinkedInUrl(formState.linkedin_url),
+    preparation_goal: cleanText(formState.preparation_goal)
+  };
+}
+
 export default function ProfilePage() {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
-  const [formState, setFormState] = useState({
+  const [formState, setFormState] = useState<ProfileFormState>({
     full_name: "",
     role: "",
     experience_level: "Beginner",
@@ -51,21 +88,35 @@ export default function ProfilePage() {
   }
 
   useEffect(() => {
+    let isMounted = true;
+
     async function syncUser() {
       setIsLoading(true);
       const localUser = getCurrentUser();
-      loadUserIntoForm(localUser);
+      if (isMounted) {
+        loadUserIntoForm(localUser);
+      }
       const freshUser = await refreshCurrentUser();
-      if (freshUser) {
+      if (freshUser && isMounted) {
         loadUserIntoForm(freshUser);
       }
+      if (isMounted) {
+        setIsLoading(false);
+      }
+    }
+
+    function syncUserFromLocalSession() {
+      loadUserIntoForm(getCurrentUser());
       setIsLoading(false);
     }
 
     void syncUser();
-    window.addEventListener(AUTH_UPDATED_EVENT, syncUser);
+    window.addEventListener(AUTH_UPDATED_EVENT, syncUserFromLocalSession);
 
-    return () => window.removeEventListener(AUTH_UPDATED_EVENT, syncUser);
+    return () => {
+      isMounted = false;
+      window.removeEventListener(AUTH_UPDATED_EVENT, syncUserFromLocalSession);
+    };
   }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -80,7 +131,13 @@ export default function ProfilePage() {
       setIsSaving(true);
       setError(null);
       setMessage(null);
-      const updatedProfile = await updateAuthProfile(token, formState);
+      const payload = normalizeProfilePayload(formState);
+      if (payload.full_name.length < 2) {
+        setError("Please enter your full name before saving your profile.");
+        return;
+      }
+
+      const updatedProfile = await updateAuthProfile(token, payload);
       const updatedUser = saveCurrentUser(updatedProfile);
       if (updatedUser) {
         loadUserIntoForm(updatedUser);
@@ -149,7 +206,6 @@ export default function ProfilePage() {
             <input
               id="profile-role"
               type="text"
-              required
               value={formState.role}
               onChange={(event) => setFormState({ ...formState, role: event.target.value })}
               className="w-full rounded-2xl border border-slate-700 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-teal-300/50"
@@ -181,7 +237,6 @@ export default function ProfilePage() {
             <input
               id="profile-target-role"
               type="text"
-              required
               value={formState.target_role}
               onChange={(event) => setFormState({ ...formState, target_role: event.target.value })}
               className="w-full rounded-2xl border border-slate-700 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-teal-300/50"
@@ -194,7 +249,6 @@ export default function ProfilePage() {
             <input
               id="profile-country"
               type="text"
-              required
               value={formState.country}
               onChange={(event) => setFormState({ ...formState, country: event.target.value })}
               className="w-full rounded-2xl border border-slate-700 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-teal-300/50"
@@ -218,7 +272,8 @@ export default function ProfilePage() {
             </label>
             <input
               id="profile-linkedin"
-              type="url"
+              type="text"
+              inputMode="url"
               value={formState.linkedin_url}
               onChange={(event) =>
                 setFormState({ ...formState, linkedin_url: event.target.value })
@@ -233,7 +288,6 @@ export default function ProfilePage() {
             </label>
             <textarea
               id="profile-goal"
-              required
               rows={5}
               value={formState.preparation_goal}
               onChange={(event) =>
