@@ -146,6 +146,10 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
     if (index < 0 || scenarios.length <= 1) return null;
     return scenarios[(index + 1) % scenarios.length];
   }, [scenario.slug]);
+  const scenarioCompleted = Boolean(progress?.completed);
+  const nextScenarioButtonClass = nextScenario && scenarioCompleted
+    ? "rounded-full bg-teal-300 px-5 py-3 text-sm font-semibold text-slate-950 shadow-[0_0_28px_rgba(94,234,212,0.2)] transition hover:bg-teal-200"
+    : "rounded-full border border-teal-300/30 px-5 py-3 text-sm font-semibold text-teal-100 transition hover:bg-teal-300/10 disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-500";
   const promptLabel = useMemo(() => {
     if (scenario.scenarioType === "broken_sql") return "Write the corrected SQL";
     if (scenario.scenarioType === "broken_pyspark") return "Write the corrected PySpark approach";
@@ -325,7 +329,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
       if (passed) {
         setDraftMessage(
           nextScenario
-            ? "Correct. This scenario is completed. Moving to the next scenario..."
+            ? "Correct. This scenario is completed. Use Next scenario when you are ready."
             : "Correct. This scenario is completed."
         );
         sendUsageEvent("scenario_completed", {
@@ -336,12 +340,8 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
           }
         });
         trackEvent("lab_completed", { scenario: scenario.slug });
-        if (nextScenario) {
-          window.setTimeout(() => {
-            router.push(`/scenarios/${nextScenario.slug}`);
-            window.scrollTo({ top: 0, behavior: "smooth" });
-          }, 1000);
-        }
+      } else {
+        setDraftMessage("Not correct yet. Review the feedback, adjust your answer, and submit again.");
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "The query checker could not run this answer.";
@@ -415,9 +415,11 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
       }
     });
     trackEvent("lab_completed", { scenario: scenario.slug });
-    if (nextScenario) {
-      router.push(`/scenarios/${nextScenario.slug}`);
-    }
+    setDraftMessage(
+      nextScenario
+        ? "Marked complete. Use Next scenario when you are ready."
+        : "Marked complete."
+    );
   }
 
   function requestModelSolution() {
@@ -572,12 +574,12 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
                 </button>
                 <button
                   type="button"
-                  onClick={goToNextScenario}
-                  disabled={!nextScenario}
-                  className="rounded-full border border-teal-300/30 px-5 py-3 text-sm font-semibold text-teal-100 transition hover:bg-teal-300/10 disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-500"
-                >
-                  Next scenario
-                </button>
+	                  onClick={goToNextScenario}
+	                  disabled={!nextScenario}
+	                  className={nextScenarioButtonClass}
+	                >
+	                  Next scenario
+	                </button>
               </div>
             </div>
 
@@ -684,7 +686,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
                 type="button"
                 onClick={goToNextScenario}
                 disabled={!nextScenario}
-                className="rounded-full border border-teal-300/30 px-5 py-3 text-sm font-semibold text-teal-100 transition hover:bg-teal-300/10 disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-500"
+                className={nextScenarioButtonClass}
               >
                 Next scenario
               </button>
@@ -788,11 +790,11 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
                   <div className="flex flex-wrap gap-3">
                     <button
                       type="button"
-                      onClick={completeLab}
-                      className="rounded-full bg-teal-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-teal-200"
-                    >
-                      Mark complete & go next
-                    </button>
+	                      onClick={completeLab}
+	                      className="rounded-full bg-teal-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-teal-200"
+	                    >
+	                      Mark complete
+	                    </button>
                     <button
                       type="button"
                       onClick={goToNextScenario}
@@ -842,7 +844,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
                 onClick={completeLab}
                 className="mt-5 rounded-full bg-teal-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-teal-200"
               >
-                {nextScenario ? "Mark completed & go next" : "Mark completed"}
+                Mark completed
               </button>
             </section>
           ) : null}
@@ -982,14 +984,14 @@ function ScenarioSqlResultPanel({ result }: { result: BrowserSqlValidationResult
   return (
     <section
       className={`rounded-[2rem] border p-6 ${
-        result.passed
-          ? "border-teal-300/25 bg-teal-300/10"
-          : "border-rose-300/25 bg-rose-300/10"
-      }`}
+	        result.passed
+	          ? "border-teal-300/25 bg-teal-300/10"
+	          : "border-amber-300/30 bg-amber-300/10"
+	      }`}
     >
       <p
         className={`text-xs font-semibold uppercase tracking-[0.24em] ${
-          result.passed ? "text-teal-100" : "text-rose-100"
+	          result.passed ? "text-teal-100" : "text-amber-100"
         }`}
       >
         {result.passed ? "Correct answer" : "Wrong answer"}

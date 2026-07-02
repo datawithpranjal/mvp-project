@@ -224,9 +224,9 @@ export function recordScenarioAttempt(
   };
   const nextEntry: ScenarioProgressEntry = {
     ...existing,
-    completed: existing.completed || attempt.passed !== false,
+    completed: existing.completed || attempt.passed === true,
     completedAt:
-      existing.completedAt ?? (attempt.passed !== false ? nextAttempt.attemptedAt : null),
+      existing.completedAt ?? (attempt.passed === true ? nextAttempt.attemptedAt : null),
     attempts: [nextAttempt, ...existing.attempts]
   };
 

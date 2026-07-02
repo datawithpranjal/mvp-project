@@ -423,6 +423,12 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
     currentQueueIndex >= 0
       ? activeLabQueue[currentQueueIndex + 1] ?? null
       : activeLabQueue[0] ?? null;
+  const selectedProgress = progressMap[selectedLab.slug];
+  const selectedCompleted = Boolean(selectedProgress?.completed);
+  const shouldHighlightNext = Boolean(nextLab && selectedCompleted);
+  const nextQuestionButtonClass = shouldHighlightNext
+    ? "rounded-full bg-teal-300 px-5 py-3 text-sm font-bold text-slate-950 shadow-[0_0_28px_rgba(94,234,212,0.2)] transition hover:bg-teal-200"
+    : "rounded-full border border-teal-300/30 px-5 py-3 text-sm font-bold text-teal-100 transition hover:bg-teal-300/10 disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-500";
 
   async function submitLab() {
     if (!selectedLab) return;
@@ -475,7 +481,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
       if (nextResult.passed) {
         setWorkspaceMessage(
           nextLab
-            ? "Correct. Passed full validation and edge-case checks. Moving to the next question..."
+            ? "Correct. Passed full validation and edge-case checks. Use Next question when you are ready."
             : "Correct. Passed full validation and edge-case checks."
         );
         sendUsageEvent("coding_lab_completed", {
@@ -485,11 +491,8 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
           }
         });
         trackEvent("lab_completed", { lab: selectedLab.slug, track: selectedLab.track });
-        if (nextLab) {
-          window.setTimeout(() => {
-            goToNextLab();
-          }, 900);
-        }
+      } else if (nextResult.passed === false) {
+        setWorkspaceMessage("Not correct yet. Review the result details, fix the answer, and submit again.");
       }
     } catch (error) {
       setResult({
@@ -793,7 +796,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
                 type="button"
                 onClick={goToNextLab}
                 disabled={!nextLab}
-                className="rounded-full border border-teal-300/30 px-5 py-2 text-sm font-semibold text-teal-100 transition hover:bg-teal-300/10 disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-500"
+                className={nextQuestionButtonClass}
               >
                 Next question
               </button>
@@ -935,10 +938,10 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
                   </button>
                   <button
                     type="button"
-                    onClick={goToNextLab}
-                    disabled={!nextLab}
-                    className="rounded-full border border-teal-300/30 px-5 py-3 text-sm font-bold text-teal-100 transition hover:bg-teal-300/10 disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-500"
-                  >
+	                    onClick={goToNextLab}
+	                    disabled={!nextLab}
+	                    className={nextQuestionButtonClass}
+	                  >
                     Next question
                   </button>
                 </div>
@@ -1170,10 +1173,11 @@ function LabLibraryCard({
   onSelect: () => void;
 }) {
   const isCompleted = Boolean(progress?.completed);
+  const isAttempted = (progress?.attemptCount ?? 0) > 0;
   const status =
     isCompleted
       ? "Completed"
-      : (progress?.attemptCount ?? 0) > 0
+      : isAttempted
         ? "Attempted"
         : hasDraft
           ? "Draft saved"
@@ -1188,7 +1192,9 @@ function LabLibraryCard({
           : "border border-slate-700 text-slate-400";
   const cardClass = isCompleted
     ? "group flex min-h-[280px] flex-col rounded-[2rem] border border-teal-300/55 bg-teal-300/10 p-5 text-left shadow-[0_0_0_1px_rgba(94,234,212,0.12),0_22px_80px_rgba(20,184,166,0.12)] transition hover:-translate-y-1 hover:border-teal-200/70 hover:bg-teal-300/15"
-    : "group flex min-h-[280px] flex-col rounded-[2rem] border border-slate-800 bg-slate-950/45 p-5 text-left transition hover:-translate-y-1 hover:border-amber-300/50 hover:bg-slate-950/70";
+    : isAttempted
+      ? "group flex min-h-[280px] flex-col rounded-[2rem] border border-amber-300/55 bg-amber-300/10 p-5 text-left shadow-[0_0_0_1px_rgba(251,191,36,0.1),0_22px_80px_rgba(245,158,11,0.1)] transition hover:-translate-y-1 hover:border-amber-200/70 hover:bg-amber-300/15"
+      : "group flex min-h-[280px] flex-col rounded-[2rem] border border-slate-800 bg-slate-950/45 p-5 text-left transition hover:-translate-y-1 hover:border-amber-300/50 hover:bg-slate-950/70";
 
   return (
     <button
@@ -1253,10 +1259,11 @@ function LabListButton({
   onSelect: () => void;
 }) {
   const isCompleted = Boolean(progress?.completed);
+  const isAttempted = (progress?.attemptCount ?? 0) > 0;
   const status =
     isCompleted
       ? "Completed"
-      : (progress?.attemptCount ?? 0) > 0
+      : isAttempted
         ? "Attempted"
         : hasDraft
           ? "Draft saved"
@@ -1275,10 +1282,16 @@ function LabListButton({
       type="button"
       onClick={onSelect}
       className={`w-full rounded-3xl border p-4 text-left transition ${
-        active
+        active && isCompleted
           ? "border-teal-300/70 bg-teal-300/15 shadow-[0_0_0_1px_rgba(94,234,212,0.12)]"
+          : active && isAttempted
+            ? "border-amber-300/70 bg-amber-300/15 shadow-[0_0_0_1px_rgba(251,191,36,0.12)]"
+          : active
+            ? "border-teal-300/70 bg-teal-300/15 shadow-[0_0_0_1px_rgba(94,234,212,0.12)]"
           : isCompleted
             ? "border-teal-300/45 bg-teal-300/10 hover:border-teal-200/60 hover:bg-teal-300/15"
+            : isAttempted
+              ? "border-amber-300/45 bg-amber-300/10 hover:border-amber-200/60 hover:bg-amber-300/15"
             : "border-slate-800 bg-slate-950/30 hover:border-teal-300/30"
       }`}
     >
@@ -1438,7 +1451,7 @@ function ResultPanel({ result }: { result: LabRunResult }) {
     result.passed === true
       ? "border-teal-300/25 bg-teal-300/10 text-teal-50"
       : result.passed === false
-        ? "border-rose-300/25 bg-rose-300/10 text-rose-50"
+        ? "border-amber-300/30 bg-amber-300/10 text-amber-50"
         : "border-amber-300/25 bg-amber-300/10 text-amber-50";
 
   return (
@@ -1494,7 +1507,7 @@ function ResultPanel({ result }: { result: LabRunResult }) {
                 </div>
                 <span
                   className={`rounded-full px-3 py-1 text-xs font-bold ${
-                    test.passed ? "bg-teal-300 text-slate-950" : "bg-rose-300 text-slate-950"
+                    test.passed ? "bg-teal-300 text-slate-950" : "bg-amber-300 text-slate-950"
                   }`}
                 >
                   {test.passed ? "pass" : "fail"}
@@ -1518,7 +1531,7 @@ function ResultPanel({ result }: { result: LabRunResult }) {
                 <p className="text-sm font-semibold text-slate-100">{test.name}</p>
                 <span
                   className={`rounded-full px-3 py-1 text-xs font-bold ${
-                    test.passed ? "bg-teal-300 text-slate-950" : "bg-rose-300 text-slate-950"
+                    test.passed ? "bg-teal-300 text-slate-950" : "bg-amber-300 text-slate-950"
                   }`}
                 >
                   {test.passed ? "pass" : "fail"}

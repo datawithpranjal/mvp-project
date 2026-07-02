@@ -17,9 +17,10 @@ interface ScenarioCardProps {
 
 export function ScenarioCard({ scenario, progress, isLocked }: ScenarioCardProps) {
   const isCompleted = Boolean(progress?.completed);
+  const isAttempted = (progress?.attemptCount ?? 0) > 0;
   const status = progress?.completed
     ? "Completed"
-    : (progress?.attemptCount ?? 0) > 0
+    : isAttempted
       ? "Attempted"
       : "Not started";
 
@@ -28,6 +29,8 @@ export function ScenarioCard({ scenario, progress, isLocked }: ScenarioCardProps
       className={`group flex min-h-[390px] flex-col rounded-[2rem] border p-6 shadow-2xl shadow-slate-950/20 transition hover:-translate-y-1 ${
         isCompleted
           ? "border-teal-300/55 bg-teal-300/10 shadow-teal-950/20 hover:border-teal-200/70"
+          : isAttempted
+            ? "border-amber-300/55 bg-amber-300/10 shadow-amber-950/20 hover:border-amber-200/70"
           : "border-slate-800 bg-slate-950/45 hover:border-teal-300/30"
       }`}
     >
@@ -36,6 +39,10 @@ export function ScenarioCard({ scenario, progress, isLocked }: ScenarioCardProps
         {isCompleted ? (
           <span className="rounded-full border border-teal-200/40 bg-teal-300 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-slate-950">
             Completed
+          </span>
+        ) : isAttempted ? (
+          <span className="rounded-full border border-amber-200/40 bg-amber-300 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-slate-950">
+            Attempted
           </span>
         ) : null}
         <span className="rounded-full border border-slate-700 bg-slate-950/40 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-200">
@@ -57,6 +64,8 @@ export function ScenarioCard({ scenario, progress, isLocked }: ScenarioCardProps
         className={`mt-3 rounded-2xl border px-4 py-3 ${
           isCompleted
             ? "border-teal-200/25 bg-teal-200/15"
+            : isAttempted
+              ? "border-amber-200/25 bg-amber-200/15"
             : "border-teal-300/15 bg-teal-300/10"
         }`}
       >
@@ -96,6 +105,8 @@ export function ScenarioCard({ scenario, progress, isLocked }: ScenarioCardProps
               ? "border border-amber-300/30 text-amber-100 hover:bg-amber-300/10"
               : isCompleted
                 ? "bg-teal-300 text-slate-950 hover:bg-teal-200"
+                : isAttempted
+                  ? "bg-amber-300 text-slate-950 hover:bg-amber-200"
               : "bg-amber-300 text-slate-950 hover:bg-amber-200"
           }`}
         >
