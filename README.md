@@ -182,10 +182,11 @@ The admin token must remain server-side and private.
 
 ### Read learner usage metrics
 
-Logged-in learner activity is stored in the Postgres table `user_usage_events`.
-The platform records login success, active session heartbeats, page views, lab
-submissions, and scenario completions. It does not store raw answers or OTPs in
-the usage table.
+Logged-in learner and anonymous visitor activity is stored in the Postgres table
+`user_usage_events`. The platform records login success, active session
+heartbeats, page views, content views, lab submissions, and scenario completions.
+It does not store raw answers, OTPs, passwords, or payment details in the usage
+table.
 
 To see a founder/admin summary for the last 30 days:
 
@@ -196,6 +197,13 @@ curl -H "X-Admin-Token: YOUR_ADMIN_TOKEN" \
 
 The response includes each learner's active seconds, submitted/completed question
 counts, login counts for the last 7 and 30 days, session counts, and last seen time.
+
+To see anonymous visitor totals, daily visit counts, and top visited pages:
+
+```bash
+curl -H "X-Admin-Token: YOUR_ADMIN_TOKEN" \
+  "https://api.datawithpranjal.com/api/v1/admin/usage/visitors?days=30&limit=25"
+```
 
 For production email capture, set `POSTGRES_URL` to your Supabase Postgres connection string instead of the local Docker value. Use the full URI with your database password, for example:
 
@@ -285,6 +293,7 @@ NEXT_PUBLIC_API_BASE_URL=https://api.yourdomain.com
 - Premium checkout uses Razorpay Standard Checkout with backend order creation and payment verification.
 - Premium purchase history is stored in `premium_purchase_records` as an append-only ledger with amount, plan, payment ids, purchase time, and access expiry. Card, UPI, wallet, and bank details stay inside Razorpay and are not stored by this app.
 - Current premium validity is stored separately in `premium_access_grants`, so renewals can update the active entitlement without mutating historical payment records.
+- Visitor and learner usage events are stored in `user_usage_events` through the backend only. Anonymous visitors receive a random local visitor id so page visits, content views, and daily counts can be measured before login without storing payment data or passwords.
 
 ### Supabase security / RLS
 
@@ -296,7 +305,7 @@ If Supabase reports `rls_disabled_in_public`, run the hardening script in **Supa
 docs/SUPABASE_RLS_FIX.sql
 ```
 
-The backend also enables RLS automatically when it creates its Postgres tables. Do not add public `anon` or `authenticated` policies for `email_captures`, `playground_users`, `auth_otps`, `auth_sessions`, `auth_otp_attempts`, `premium_access_grants`, `premium_payment_requests`, or `premium_purchase_records`; those tables are accessed through the FastAPI backend only.
+The backend also enables RLS automatically when it creates its Postgres tables. Do not add public `anon` or `authenticated` policies for `email_captures`, `playground_users`, `auth_otps`, `auth_sessions`, `auth_otp_attempts`, `premium_access_grants`, `premium_payment_requests`, `premium_purchase_records`, or `user_usage_events`; those tables are accessed through the FastAPI backend only.
 
 ## Email Capture
 

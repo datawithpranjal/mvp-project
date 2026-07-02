@@ -129,3 +129,81 @@ def test_usage_rejects_client_login_events(monkeypatch, tmp_path) -> None:
 
     assert response.status_code == 400
     assert response.json()["detail"] == "Login events are recorded by the server."
+
+
+def test_anonymous_usage_events_capture_daily_page_counts(monkeypatch, tmp_path) -> None:
+    store = UsageStore(
+        storage_path=tmp_path / "usage.jsonl",
+        postgres_url=DEFAULT_POSTGRES_URL,
+    )
+    monkeypatch.setattr(usage_route, "usage_store", store)
+    monkeypatch.setattr(usage_route.settings, "admin_api_token", "test-admin-token")
+
+    page_response = client.post(
+        "/api/v1/usage/anonymous-events",
+        json={
+            "event_name": "page_view",
+            "visitor_id": "visitor-test-001",
+            "session_id": "anonymous-session-001",
+            "page_url": "/scenarios/duplicate-records-after-rerun",
+            "metadata": {
+                "content_type": "scenario",
+                "content_id": "duplicate-records-after-rerun",
+            },
+        },
+    )
+    assert page_response.status_code == 200
+
+    heartbeat_response = client.post(
+        "/api/v1/usage/anonymous-events",
+        json={
+            "event_name": "session_heartbeat",
+            "visitor_id": "visitor-test-001",
+            "session_id": "anonymous-session-001",
+            "page_url": "/scenarios/duplicate-records-after-rerun",
+            "active_seconds": 45,
+            "metadata": {
+                "path": "/scenarios/duplicate-records-after-rerun",
+            },
+        },
+    )
+    assert heartbeat_response.status_code == 200
+
+    visitor_summary_response = client.get(
+        "/api/v1/admin/usage/visitors",
+        headers={"X-Admin-Token": "test-admin-token"},
+    )
+    assert visitor_summary_response.status_code == 200
+    visitor_payload = visitor_summary_response.json()
+    assert visitor_payload["total_visits"] == 1
+    assert visitor_payload["unique_visitors"] == 1
+    assert visitor_payload["total_active_seconds"] == 45
+    assert visitor_payload["daily_totals"][0]["visits"] == 1
+    assert visitor_payload["top_pages"][0]["page_url"] == "/scenarios/duplicate-records-after-rerun"
+
+    user_summary_response = client.get(
+        "/api/v1/admin/usage/summary",
+        headers={"X-Admin-Token": "test-admin-token"},
+    )
+    assert user_summary_response.status_code == 200
+    assert user_summary_response.json()["total_users"] == 0
+
+
+def test_anonymous_usage_rejects_client_login_events(monkeypatch, tmp_path) -> None:
+    store = UsageStore(
+        storage_path=tmp_path / "usage.jsonl",
+        postgres_url=DEFAULT_POSTGRES_URL,
+    )
+    monkeypatch.setattr(usage_route, "usage_store", store)
+
+    response = client.post(
+        "/api/v1/usage/anonymous-events",
+        json={
+            "event_name": "login_success",
+            "visitor_id": "visitor-test-login",
+            "session_id": "anonymous-session-login",
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Login events are recorded by the server."

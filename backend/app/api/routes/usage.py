@@ -5,9 +5,11 @@ from fastapi import APIRouter, Header, HTTPException
 
 from app.core.config import get_settings
 from app.schemas.usage import (
+    AnonymousUsageEventRequest,
     UsageAdminSummaryResponse,
     UsageEventRequest,
     UsageEventResponse,
+    UsageVisitorSummaryResponse,
 )
 from app.services.auth_service import AuthService, AuthServiceError, AuthUnauthorizedError
 from app.services.usage_store import UsageStore, UsageStoreError
@@ -48,6 +50,17 @@ def record_usage_event(
         raise HTTPException(status_code=503, detail="Usage event could not be saved right now.") from exc
 
 
+@router.post("/api/v1/usage/anonymous-events", response_model=UsageEventResponse)
+@router.post("/v1/usage/anonymous-events", response_model=UsageEventResponse)
+def record_anonymous_usage_event(payload: AnonymousUsageEventRequest) -> UsageEventResponse:
+    if payload.event_name == "login_success":
+        raise HTTPException(status_code=400, detail="Login events are recorded by the server.")
+    try:
+        return usage_store.record_anonymous_event(payload=payload)
+    except UsageStoreError as exc:
+        raise HTTPException(status_code=503, detail="Usage event could not be saved right now.") from exc
+
+
 @router.get("/api/v1/admin/usage/summary", response_model=UsageAdminSummaryResponse)
 @router.get("/v1/admin/usage/summary", response_model=UsageAdminSummaryResponse)
 def usage_summary(
@@ -67,4 +80,26 @@ def usage_summary(
         raise HTTPException(
             status_code=503,
             detail="Usage summary is temporarily unavailable.",
+        ) from exc
+
+
+@router.get("/api/v1/admin/usage/visitors", response_model=UsageVisitorSummaryResponse)
+@router.get("/v1/admin/usage/visitors", response_model=UsageVisitorSummaryResponse)
+def visitor_usage_summary(
+    x_admin_token: Annotated[str | None, Header()] = None,
+    days: int = 30,
+    limit: int = 25,
+) -> UsageVisitorSummaryResponse:
+    if not settings.admin_api_token:
+        raise HTTPException(status_code=503, detail="Admin usage access is not configured.")
+    if not x_admin_token or not secrets.compare_digest(
+        x_admin_token, settings.admin_api_token
+    ):
+        raise HTTPException(status_code=401, detail="Invalid admin token.")
+    try:
+        return usage_store.visitor_summary(days=days, limit=limit)
+    except UsageStoreError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Visitor usage summary is temporarily unavailable.",
         ) from exc

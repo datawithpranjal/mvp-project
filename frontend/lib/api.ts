@@ -2,6 +2,7 @@ import { API_BASE_URL } from "./config";
 import type {
   AiScenarioEvaluationRequest,
   AiScenarioEvaluationResponse,
+  AnonymousUsageEventRequest,
   AuthProfileFields,
   AuthRequestOtpRequest,
   AuthRequestOtpResponse,
@@ -132,6 +133,15 @@ export function recordUsageEvent(
   return apiFetch<UsageEventResponse>("/api/v1/usage/events", {
     method: "POST",
     authToken: token,
+    body: JSON.stringify(payload)
+  });
+}
+
+export function recordAnonymousUsageEvent(
+  payload: AnonymousUsageEventRequest
+): Promise<UsageEventResponse> {
+  return apiFetch<UsageEventResponse>("/api/v1/usage/anonymous-events", {
+    method: "POST",
     body: JSON.stringify(payload)
   });
 }

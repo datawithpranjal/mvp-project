@@ -23,6 +23,7 @@ alter table if exists public.auth_otp_attempts enable row level security;
 alter table if exists public.premium_access_grants enable row level security;
 alter table if exists public.premium_payment_requests enable row level security;
 alter table if exists public.premium_purchase_records enable row level security;
+alter table if exists public.user_usage_events enable row level security;
 
 -- 3. Defense-in-depth: remove direct table privileges from Supabase browser roles.
 -- The FastAPI backend uses the server-side Postgres connection string and should
@@ -40,7 +41,8 @@ begin
     'auth_otp_attempts',
     'premium_access_grants',
     'premium_payment_requests',
-    'premium_purchase_records'
+    'premium_purchase_records',
+    'user_usage_events'
   ]
   loop
     if to_regclass(format('public.%I', table_name)) is not null then
@@ -93,6 +95,7 @@ where schemaname = 'public'
     'auth_otp_attempts',
     'premium_access_grants',
     'premium_payment_requests',
-    'premium_purchase_records'
+    'premium_purchase_records',
+    'user_usage_events'
   )
 order by tablename;

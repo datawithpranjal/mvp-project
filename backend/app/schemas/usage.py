@@ -10,6 +10,7 @@ UsageEventName = Literal[
     "session_start",
     "session_heartbeat",
     "page_view",
+    "content_view",
     "coding_lab_submitted",
     "coding_lab_completed",
     "scenario_submitted",
@@ -36,6 +37,15 @@ class UsageEventRequest(BaseModel):
         return self
 
 
+class AnonymousUsageEventRequest(UsageEventRequest):
+    visitor_id: str = Field(..., min_length=8, max_length=120)
+
+    @field_validator("visitor_id")
+    @classmethod
+    def clean_visitor_id(cls, value: str) -> str:
+        return value.strip()
+
+
 class UsageEventResponse(BaseModel):
     recorded: bool
 
@@ -60,3 +70,28 @@ class UsageAdminSummaryResponse(BaseModel):
     days: int
     total_users: int
     rows: list[UsageUserSummary]
+
+
+class UsageVisitorDailyTotal(BaseModel):
+    date: str
+    visits: int
+    unique_visitors: int
+    total_active_seconds: int
+
+
+class UsageVisitorTopPage(BaseModel):
+    page_url: str
+    visits: int
+    unique_visitors: int
+    total_active_seconds: int
+
+
+class UsageVisitorSummaryResponse(BaseModel):
+    storage_backend: Literal["postgres", "file"]
+    table_exists: bool
+    days: int
+    total_visits: int
+    unique_visitors: int
+    total_active_seconds: int
+    daily_totals: list[UsageVisitorDailyTotal]
+    top_pages: list[UsageVisitorTopPage]

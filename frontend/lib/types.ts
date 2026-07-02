@@ -87,6 +87,7 @@ export type UsageEventName =
   | "session_start"
   | "session_heartbeat"
   | "page_view"
+  | "content_view"
   | "coding_lab_submitted"
   | "coding_lab_completed"
   | "scenario_submitted"
@@ -98,6 +99,10 @@ export interface UsageEventRequest {
   page_url?: string;
   active_seconds?: number;
   metadata?: Record<string, string | number | boolean | null | undefined>;
+}
+
+export interface AnonymousUsageEventRequest extends UsageEventRequest {
+  visitor_id: string;
 }
 
 export interface UsageEventResponse {

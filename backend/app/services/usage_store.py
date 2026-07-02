@@ -8,7 +8,11 @@ from typing import Any
 from app.core.config import DEFAULT_POSTGRES_URL, get_settings
 from app.schemas.auth import AuthUserProfile
 from app.schemas.usage import (
+    AnonymousUsageEventRequest,
     UsageAdminSummaryResponse,
+    UsageVisitorDailyTotal,
+    UsageVisitorSummaryResponse,
+    UsageVisitorTopPage,
     UsageEventRequest,
     UsageEventResponse,
     UsageUserSummary,
@@ -16,7 +20,8 @@ from app.schemas.usage import (
 
 QUESTION_SUBMITTED_EVENTS = {"coding_lab_submitted", "scenario_submitted"}
 QUESTION_COMPLETED_EVENTS = {"coding_lab_completed", "scenario_completed"}
-SESSION_EVENTS = {"session_start", "session_heartbeat", "page_view"}
+SESSION_EVENTS = {"session_start", "session_heartbeat", "page_view", "content_view"}
+ANONYMOUS_USER_PREFIX = "visitor:"
 
 
 class UsageStoreError(RuntimeError):
@@ -46,6 +51,28 @@ class UsageStore:
             self._record_file(record)
         return UsageEventResponse(recorded=True)
 
+    def record_anonymous_event(self, payload: AnonymousUsageEventRequest) -> UsageEventResponse:
+        visitor_id = payload.visitor_id.strip()
+        anonymous_payload = UsageEventRequest(
+            event_name=payload.event_name,
+            session_id=payload.session_id,
+            page_url=payload.page_url,
+            active_seconds=payload.active_seconds,
+            metadata={
+                **payload.metadata,
+                "visitor_id": visitor_id,
+                "anonymous": True,
+            },
+        )
+        return self.record_event(
+            user={
+                "id": f"{ANONYMOUS_USER_PREFIX}{visitor_id}",
+                "email": "",
+                "full_name": "Anonymous visitor",
+            },
+            payload=anonymous_payload,
+        )
+
     def record_login(self, user: AuthUserProfile | dict[str, Any]) -> None:
         payload = UsageEventRequest(
             event_name="login_success",
@@ -60,6 +87,13 @@ class UsageStore:
         if self.postgres_url:
             return self._summary_postgres(days=bounded_days, limit=bounded_limit)
         return self._summary_file(days=bounded_days, limit=bounded_limit)
+
+    def visitor_summary(self, days: int = 30, limit: int = 25) -> UsageVisitorSummaryResponse:
+        bounded_days = max(1, min(days, 365))
+        bounded_limit = max(1, min(limit, 100))
+        if self.postgres_url:
+            return self._visitor_summary_postgres(days=bounded_days, limit=bounded_limit)
+        return self._visitor_summary_file(days=bounded_days, limit=bounded_limit)
 
     def _build_record(
         self,
@@ -150,7 +184,11 @@ class UsageStore:
         for record in self._read_file_records():
             created_at = self._parse_datetime(record.get("created_at"))
             user_id = str(record.get("user_id") or "")
-            if not user_id or created_at < thirty_start:
+            if (
+                not user_id
+                or self._is_anonymous_user_id(user_id)
+                or created_at < thirty_start
+            ):
                 continue
 
             summary = rows_by_user.setdefault(
@@ -249,8 +287,9 @@ class UsageStore:
                         SELECT COUNT(DISTINCT user_id)
                         FROM public.user_usage_events
                         WHERE created_at >= %s
+                          AND user_id NOT LIKE %s
                         """,
-                        (scan_start,),
+                        (scan_start, f"{ANONYMOUS_USER_PREFIX}%"),
                     )
                     total_users = int(cursor.fetchone()[0])
                     cursor.execute(
@@ -277,15 +316,16 @@ class UsageStore:
                             ) AS logins_30d,
                             COUNT(DISTINCT session_id) FILTER (
                                 WHERE created_at >= %s
-                                  AND event_name IN ('session_start', 'session_heartbeat', 'page_view')
+                                  AND event_name IN ('session_start', 'session_heartbeat', 'page_view', 'content_view')
                             ) AS sessions_7d,
                             COUNT(DISTINCT session_id) FILTER (
                                 WHERE created_at >= %s
-                                  AND event_name IN ('session_start', 'session_heartbeat', 'page_view')
+                                  AND event_name IN ('session_start', 'session_heartbeat', 'page_view', 'content_view')
                             ) AS sessions_30d,
                             MAX(created_at) AS last_seen_at
                         FROM public.user_usage_events
                         WHERE created_at >= %s
+                          AND user_id NOT LIKE %s
                         GROUP BY user_id
                         ORDER BY last_seen_at DESC
                         LIMIT %s
@@ -299,6 +339,7 @@ class UsageStore:
                             seven_start,
                             thirty_start,
                             scan_start,
+                            f"{ANONYMOUS_USER_PREFIX}%",
                             limit,
                         ),
                     )
@@ -327,6 +368,208 @@ class UsageStore:
             )
         except Exception as exc:
             raise UsageStoreError("Unable to read usage summary.") from exc
+
+    def _visitor_summary_file(self, days: int, limit: int) -> UsageVisitorSummaryResponse:
+        if not self.storage_path.exists():
+            return UsageVisitorSummaryResponse(
+                storage_backend="file",
+                table_exists=False,
+                days=days,
+                total_visits=0,
+                unique_visitors=0,
+                total_active_seconds=0,
+                daily_totals=[],
+                top_pages=[],
+            )
+
+        now = datetime.now(timezone.utc)
+        window_start = now - timedelta(days=days)
+        daily_totals: dict[str, dict[str, Any]] = {}
+        pages: dict[str, dict[str, Any]] = {}
+        visitors: set[str] = set()
+        total_visits = 0
+        total_active_seconds = 0
+
+        for record in self._read_file_records():
+            created_at = self._parse_datetime(record.get("created_at"))
+            user_id = str(record.get("user_id") or "")
+            if created_at < window_start or not self._is_anonymous_user_id(user_id):
+                continue
+
+            event_name = str(record.get("event_name") or "")
+            page_url = str(record.get("page_url") or "/")
+            active_seconds = int(record.get("active_seconds") or 0)
+            date_key = created_at.date().isoformat()
+            visitors.add(user_id)
+            total_active_seconds += active_seconds
+
+            daily = daily_totals.setdefault(
+                date_key,
+                {
+                    "date": date_key,
+                    "visits": 0,
+                    "visitors": set(),
+                    "total_active_seconds": 0,
+                },
+            )
+            daily["visitors"].add(user_id)
+            daily["total_active_seconds"] += active_seconds
+
+            page = pages.setdefault(
+                page_url,
+                {
+                    "page_url": page_url,
+                    "visits": 0,
+                    "visitors": set(),
+                    "total_active_seconds": 0,
+                },
+            )
+            page["visitors"].add(user_id)
+            page["total_active_seconds"] += active_seconds
+
+            if event_name == "page_view":
+                total_visits += 1
+                daily["visits"] += 1
+                page["visits"] += 1
+
+        daily_rows = [
+            UsageVisitorDailyTotal(
+                date=row["date"],
+                visits=row["visits"],
+                unique_visitors=len(row["visitors"]),
+                total_active_seconds=row["total_active_seconds"],
+            )
+            for row in sorted(daily_totals.values(), key=lambda item: item["date"], reverse=True)
+        ]
+        page_rows = [
+            UsageVisitorTopPage(
+                page_url=row["page_url"],
+                visits=row["visits"],
+                unique_visitors=len(row["visitors"]),
+                total_active_seconds=row["total_active_seconds"],
+            )
+            for row in sorted(
+                pages.values(),
+                key=lambda item: (item["visits"], item["total_active_seconds"]),
+                reverse=True,
+            )[:limit]
+        ]
+
+        return UsageVisitorSummaryResponse(
+            storage_backend="file",
+            table_exists=True,
+            days=days,
+            total_visits=total_visits,
+            unique_visitors=len(visitors),
+            total_active_seconds=total_active_seconds,
+            daily_totals=daily_rows,
+            top_pages=page_rows,
+        )
+
+    def _visitor_summary_postgres(self, days: int, limit: int) -> UsageVisitorSummaryResponse:
+        try:
+            import psycopg
+        except ImportError as exc:
+            raise UsageStoreError("Usage storage is unavailable.") from exc
+
+        window_start = datetime.now(timezone.utc) - timedelta(days=days)
+        visitor_pattern = f"{ANONYMOUS_USER_PREFIX}%"
+
+        try:
+            with psycopg.connect(self.postgres_url) as connection:
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        "SELECT to_regclass('public.user_usage_events') IS NOT NULL"
+                    )
+                    if not bool(cursor.fetchone()[0]):
+                        return UsageVisitorSummaryResponse(
+                            storage_backend="postgres",
+                            table_exists=False,
+                            days=days,
+                            total_visits=0,
+                            unique_visitors=0,
+                            total_active_seconds=0,
+                            daily_totals=[],
+                            top_pages=[],
+                        )
+
+                    cursor.execute(
+                        """
+                        SELECT
+                            COUNT(*) FILTER (WHERE event_name = 'page_view') AS total_visits,
+                            COUNT(DISTINCT user_id) AS unique_visitors,
+                            COALESCE(SUM(active_seconds), 0) AS total_active_seconds
+                        FROM public.user_usage_events
+                        WHERE created_at >= %s
+                          AND user_id LIKE %s
+                        """,
+                        (window_start, visitor_pattern),
+                    )
+                    total_row = cursor.fetchone()
+
+                    cursor.execute(
+                        """
+                        SELECT
+                            created_at::date::text AS visit_date,
+                            COUNT(*) FILTER (WHERE event_name = 'page_view') AS visits,
+                            COUNT(DISTINCT user_id) AS unique_visitors,
+                            COALESCE(SUM(active_seconds), 0) AS total_active_seconds
+                        FROM public.user_usage_events
+                        WHERE created_at >= %s
+                          AND user_id LIKE %s
+                        GROUP BY visit_date
+                        ORDER BY visit_date DESC
+                        """,
+                        (window_start, visitor_pattern),
+                    )
+                    daily_rows = [
+                        UsageVisitorDailyTotal(
+                            date=str(row[0]),
+                            visits=int(row[1] or 0),
+                            unique_visitors=int(row[2] or 0),
+                            total_active_seconds=int(row[3] or 0),
+                        )
+                        for row in cursor.fetchall()
+                    ]
+
+                    cursor.execute(
+                        """
+                        SELECT
+                            COALESCE(NULLIF(page_url, ''), '/') AS page_url,
+                            COUNT(*) FILTER (WHERE event_name = 'page_view') AS visits,
+                            COUNT(DISTINCT user_id) AS unique_visitors,
+                            COALESCE(SUM(active_seconds), 0) AS total_active_seconds
+                        FROM public.user_usage_events
+                        WHERE created_at >= %s
+                          AND user_id LIKE %s
+                        GROUP BY COALESCE(NULLIF(page_url, ''), '/')
+                        ORDER BY visits DESC, total_active_seconds DESC
+                        LIMIT %s
+                        """,
+                        (window_start, visitor_pattern, limit),
+                    )
+                    page_rows = [
+                        UsageVisitorTopPage(
+                            page_url=str(row[0]),
+                            visits=int(row[1] or 0),
+                            unique_visitors=int(row[2] or 0),
+                            total_active_seconds=int(row[3] or 0),
+                        )
+                        for row in cursor.fetchall()
+                    ]
+
+            return UsageVisitorSummaryResponse(
+                storage_backend="postgres",
+                table_exists=True,
+                days=days,
+                total_visits=int(total_row[0] or 0),
+                unique_visitors=int(total_row[1] or 0),
+                total_active_seconds=int(total_row[2] or 0),
+                daily_totals=daily_rows,
+                top_pages=page_rows,
+            )
+        except Exception as exc:
+            raise UsageStoreError("Unable to read visitor usage summary.") from exc
 
     def _ensure_table(self, cursor: object) -> None:
         cursor.execute(
@@ -357,6 +600,12 @@ class UsageStore:
             """
             CREATE INDEX IF NOT EXISTS idx_user_usage_events_event_created
             ON public.user_usage_events (event_name, created_at DESC)
+            """
+        )
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_user_usage_events_page_created
+            ON public.user_usage_events (page_url, created_at DESC)
             """
         )
         cursor.execute("ALTER TABLE public.user_usage_events ENABLE ROW LEVEL SECURITY")
@@ -391,6 +640,10 @@ class UsageStore:
             else:
                 safe[safe_key] = str(value)[:500]
         return safe
+
+    @staticmethod
+    def _is_anonymous_user_id(user_id: str) -> bool:
+        return user_id.startswith(ANONYMOUS_USER_PREFIX)
 
     @staticmethod
     def _parse_datetime(value: object) -> datetime:
