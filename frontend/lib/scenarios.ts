@@ -234,7 +234,7 @@ export const BROKEN_PIPELINE_SCENARIOS: Scenario[] = [
     brokenCode:
       "SELECT c.customer_id, c.customer_name, MAX(cc.clicked_at) AS last_click_at\nFROM customers c\nLEFT JOIN campaign_clicks cc ON c.customer_id = cc.customer_id\nWHERE c.is_active = TRUE\n  AND cc.campaign_id = 'SPRING_26'\nGROUP BY 1, 2;",
     expectedOutput:
-      "All active customers should appear. Customers without SPRING_26 clicks should have last_click_at = NULL.",
+      "customer_id | customer_name | last_click_at\n1 | Asha | 2026-05-03 10:30:00\n2 | Ben | NULL\n3 | Chen | NULL",
     sampleTables: [
       {
         name: "customers",
@@ -640,7 +640,7 @@ export const BROKEN_PIPELINE_SCENARIOS: Scenario[] = [
     brokenCode:
       "SELECT order_date, SUM(amount) AS revenue\nFROM payments\nWHERE payment_status = 'SUCCESS'\nGROUP BY order_date;",
     actualOutput: "2026-05-21 revenue = 700000",
-    expectedOutput: "2026-05-21 revenue = 1000000",
+    expectedOutput: "order_date | revenue\n2026-05-21 | 1000000",
     sampleTables: [
       {
         name: "payments",
@@ -707,7 +707,7 @@ export const BROKEN_PIPELINE_SCENARIOS: Scenario[] = [
     brokenCode:
       "SELECT CAST(event_ts_utc AS DATE) AS order_date, SUM(amount) AS revenue\nFROM orders\nGROUP BY 1;",
     expectedOutput:
-      "Events between 18:30 UTC and 23:59 UTC should belong to the next India business date.",
+      "business_date | revenue\n2026-05-01 | 100\n2026-05-02 | 350",
     sampleTables: [
       {
         name: "orders",
