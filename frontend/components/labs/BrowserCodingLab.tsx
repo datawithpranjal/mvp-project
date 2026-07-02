@@ -11,6 +11,7 @@ import { trackEvent } from "../../lib/analytics";
 import { getCurrentUser } from "../../lib/auth";
 import { getGuestSubmissionStatus, recordGuestSubmission } from "../../lib/guest-submissions";
 import { sendUsageEvent } from "../../lib/usage";
+import { handleTextareaTabKeyDown } from "../../lib/textarea-tab";
 import {
   formatTrackLabel,
   getCodingLabs,
@@ -879,6 +880,18 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
                     [selectedLab.slug]: event.target.value
                   };
                 })
+              }
+              onKeyDown={(event) =>
+                handleTextareaTabKeyDown(event, (nextValue) =>
+                  setAnswers((current) => {
+                    setResult(null);
+                    setSaveStatus("Saving...");
+                    return {
+                      ...current,
+                      [selectedLab.slug]: nextValue
+                    };
+                  })
+                )
               }
               spellCheck={false}
               className="mt-5 min-h-[360px] w-full resize-y rounded-3xl border border-slate-700 bg-slate-950/80 p-5 font-mono text-sm leading-7 text-teal-50 outline-none transition focus:border-teal-300/70"

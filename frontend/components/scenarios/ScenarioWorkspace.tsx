@@ -30,6 +30,7 @@ import {
 import { evaluateScenarioAnswer, type ScenarioEvaluationResult } from "../../lib/scenarioEvaluator";
 import { getGuestSubmissionStatus, recordGuestSubmission } from "../../lib/guest-submissions";
 import { sendUsageEvent } from "../../lib/usage";
+import { handleTextareaTabKeyDown } from "../../lib/textarea-tab";
 import {
   formatDifficulty,
   formatDomain,
@@ -609,6 +610,14 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
                   setEvaluation(null);
                   setDraftMessage(null);
                 }}
+                onKeyDown={(event) =>
+                  handleTextareaTabKeyDown(event, (nextValue) => {
+                    setAnswer(nextValue);
+                    setSqlExecution(null);
+                    setEvaluation(null);
+                    setDraftMessage(null);
+                  })
+                }
                 rows={13}
                 className="mt-5 w-full rounded-3xl border border-slate-800 bg-slate-950/80 p-5 font-mono text-sm leading-7 text-slate-100 outline-none transition focus:border-teal-300/50"
                 placeholder="Write your fix, diagnosis, or production-safe approach here."
@@ -635,6 +644,12 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
                   setInterviewAnswer(event.target.value);
                   setEvaluation(null);
                 }}
+                onKeyDown={(event) =>
+                  handleTextareaTabKeyDown(event, (nextValue) => {
+                    setInterviewAnswer(nextValue);
+                    setEvaluation(null);
+                  })
+                }
                 rows={6}
                 className="mt-4 w-full rounded-2xl border border-slate-800 bg-slate-950/80 p-4 text-sm leading-6 text-slate-100 outline-none transition focus:border-amber-300/50"
                 placeholder="I would first confirm..., the root cause is..., the safe fix is..., and I would monitor..."

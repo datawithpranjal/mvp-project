@@ -13,6 +13,7 @@ import {
 import { trackEvent } from "../../lib/analytics";
 import { getOperationsLearningFlow } from "../../lib/learning-flow";
 import { getPremiumAccess, type PremiumAccessRecord } from "../../lib/premium-access";
+import { handleTextareaTabKeyDown } from "../../lib/textarea-tab";
 
 interface SavedOperationsAnswer {
   optionId: string;
@@ -403,6 +404,12 @@ export function OperationsDecisionLab({ track }: { track: OperationsLabTrack }) 
                     setExplanation(event.target.value);
                     setResult(null);
                   }}
+                  onKeyDown={(event) =>
+                    handleTextareaTabKeyDown(event, (nextValue) => {
+                      setExplanation(nextValue);
+                      setResult(null);
+                    })
+                  }
                   rows={10}
                   placeholder="Write this as if you are explaining the incident in an interview or production review..."
                   className="mt-3 w-full resize-y rounded-3xl border border-slate-700 bg-slate-950/60 p-5 text-sm leading-7 text-slate-100 outline-none focus:border-teal-300/50"

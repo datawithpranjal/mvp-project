@@ -8,6 +8,7 @@ import { getAuthToken } from "../../lib/auth";
 import { InteractiveLearningFlow } from "../interactive-learning-flow";
 import { buildArchitectureFlow } from "../../lib/learning-flow";
 import { getPremiumAccess, type PremiumAccessRecord } from "../../lib/premium-access";
+import { handleTextareaTabKeyDown } from "../../lib/textarea-tab";
 import {
   SYSTEM_DESIGN_CASES,
   SYSTEM_DESIGN_DIFFICULTIES,
@@ -609,6 +610,7 @@ function AnswerWorkspace({
         <textarea
           value={answer}
           onChange={(event) => setAnswer(event.target.value)}
+          onKeyDown={(event) => handleTextareaTabKeyDown(event, setAnswer)}
           placeholder="Example structure: I would start by clarifying SLA and data sources. Then I would design..."
           className="mt-5 min-h-[360px] w-full resize-y rounded-3xl border border-slate-700 bg-slate-950/80 p-5 text-sm leading-7 text-slate-100 outline-none transition focus:border-teal-300/70"
         />

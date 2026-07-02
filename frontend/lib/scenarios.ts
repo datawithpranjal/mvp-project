@@ -303,7 +303,8 @@ export const BROKEN_PIPELINE_SCENARIOS: Scenario[] = [
     brokenCode:
       "SELECT\n  o.order_id,\n  SUM(p.payment_amount) - COALESCE(SUM(r.refund_amount), 0) AS net_revenue\nFROM orders o\nLEFT JOIN payments p ON o.order_id = p.order_id AND p.status = 'SUCCESS'\nLEFT JOIN refunds r ON o.order_id = r.order_id\nGROUP BY 1;",
     actualOutput: "order_id 5001 net_revenue 260",
-    expectedOutput: "order_id 5001 net_revenue 130",
+    expectedOutput:
+      "order_id  paid_amount  refunded_amount  net_revenue\n5001      150          20               130\n5002      80           5                75",
     sampleTables: [
       {
         name: "orders",
@@ -345,7 +346,7 @@ export const BROKEN_PIPELINE_SCENARIOS: Scenario[] = [
       "Explain how to monitor for this class of bug."
     ],
     modelSolution:
-      "WITH payment_totals AS (\n  SELECT order_id, SUM(payment_amount) AS paid_amount\n  FROM payments\n  WHERE status = 'SUCCESS'\n  GROUP BY order_id\n), refund_totals AS (\n  SELECT order_id, SUM(refund_amount) AS refunded_amount\n  FROM refunds\n  GROUP BY order_id\n)\nSELECT\n  o.order_id,\n  COALESCE(p.paid_amount, 0) - COALESCE(r.refunded_amount, 0) AS net_revenue\nFROM orders o\nLEFT JOIN payment_totals p ON o.order_id = p.order_id\nLEFT JOIN refund_totals r ON o.order_id = r.order_id;",
+      "WITH payment_totals AS (\n  SELECT order_id, SUM(payment_amount) AS paid_amount\n  FROM payments\n  WHERE status = 'SUCCESS'\n  GROUP BY order_id\n), refund_totals AS (\n  SELECT order_id, SUM(refund_amount) AS refunded_amount\n  FROM refunds\n  GROUP BY order_id\n)\nSELECT\n  o.order_id,\n  COALESCE(p.paid_amount, 0) AS paid_amount,\n  COALESCE(r.refunded_amount, 0) AS refunded_amount,\n  COALESCE(p.paid_amount, 0) - COALESCE(r.refunded_amount, 0) AS net_revenue\nFROM orders o\nLEFT JOIN payment_totals p ON o.order_id = p.order_id\nLEFT JOIN refund_totals r ON o.order_id = r.order_id;",
     productionExplanation:
       "The safe pattern is to join tables at the same grain. Pre-aggregate child tables to order_id, then join. Add tests for duplicate row count by order and compare net revenue to processor totals.",
     commonMistakes: [

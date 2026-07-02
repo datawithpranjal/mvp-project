@@ -1,5 +1,7 @@
 "use client";
 
+import { handleTextareaTabKeyDown } from "../lib/textarea-tab";
+
 interface SqlEditorProps {
   value: string;
   onChange: (value: string) => void;
@@ -40,6 +42,7 @@ export function SqlEditor({
       <textarea
         value={value}
         onChange={(event) => onChange(event.target.value)}
+        onKeyDown={(event) => handleTextareaTabKeyDown(event, onChange)}
         spellCheck={false}
         className="mt-4 min-h-[320px] w-full resize-y rounded-2xl border border-slate-800 bg-slate-950/90 p-4 text-sm leading-6 text-teal-100 outline-none transition focus:border-teal-300/50"
         placeholder={placeholder}
