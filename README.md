@@ -283,6 +283,8 @@ NEXT_PUBLIC_API_BASE_URL=https://api.yourdomain.com
 - Email capture writes to Supabase/Postgres when `POSTGRES_URL` is set to a real external database URL. If the default local Docker URL is used, it falls back to local file storage for development.
 - Login, signup, profile, OTPs, and sessions are backed by Postgres in production.
 - Premium checkout uses Razorpay Standard Checkout with backend order creation and payment verification.
+- Premium purchase history is stored in `premium_purchase_records` as an append-only ledger with amount, plan, payment ids, purchase time, and access expiry. Card, UPI, wallet, and bank details stay inside Razorpay and are not stored by this app.
+- Current premium validity is stored separately in `premium_access_grants`, so renewals can update the active entitlement without mutating historical payment records.
 
 ### Supabase security / RLS
 
@@ -294,7 +296,7 @@ If Supabase reports `rls_disabled_in_public`, run the hardening script in **Supa
 docs/SUPABASE_RLS_FIX.sql
 ```
 
-The backend also enables RLS automatically when it creates its Postgres tables. Do not add public `anon` or `authenticated` policies for `email_captures`, `playground_users`, `auth_otps`, `auth_sessions`, `auth_otp_attempts`, `premium_access_grants`, or `premium_payment_requests`; those tables are accessed through the FastAPI backend only.
+The backend also enables RLS automatically when it creates its Postgres tables. Do not add public `anon` or `authenticated` policies for `email_captures`, `playground_users`, `auth_otps`, `auth_sessions`, `auth_otp_attempts`, `premium_access_grants`, `premium_payment_requests`, or `premium_purchase_records`; those tables are accessed through the FastAPI backend only.
 
 ## Email Capture
 

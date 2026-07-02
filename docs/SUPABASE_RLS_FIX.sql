@@ -22,6 +22,7 @@ alter table if exists public.auth_sessions enable row level security;
 alter table if exists public.auth_otp_attempts enable row level security;
 alter table if exists public.premium_access_grants enable row level security;
 alter table if exists public.premium_payment_requests enable row level security;
+alter table if exists public.premium_purchase_records enable row level security;
 
 -- 3. Defense-in-depth: remove direct table privileges from Supabase browser roles.
 -- The FastAPI backend uses the server-side Postgres connection string and should
@@ -38,7 +39,8 @@ begin
     'auth_sessions',
     'auth_otp_attempts',
     'premium_access_grants',
-    'premium_payment_requests'
+    'premium_payment_requests',
+    'premium_purchase_records'
   ]
   loop
     if to_regclass(format('public.%I', table_name)) is not null then
@@ -53,7 +55,30 @@ begin
   end loop;
 end $$;
 
--- 4. Confirm there are no backend-owned tables left with RLS disabled.
+-- 4. Keep verified payment history append-only.
+-- The current access entitlement can update in premium_access_grants, but payment
+-- records should never be edited or deleted after successful verification.
+create or replace function public.prevent_premium_purchase_record_mutation()
+returns trigger as $$
+begin
+  raise exception 'premium_purchase_records is append-only. Insert a new payment record instead of updating or deleting payment history.';
+end;
+$$ language plpgsql;
+
+do $$
+begin
+  if to_regclass('public.premium_purchase_records') is not null then
+    drop trigger if exists premium_purchase_records_no_update_delete
+    on public.premium_purchase_records;
+
+    create trigger premium_purchase_records_no_update_delete
+    before update or delete on public.premium_purchase_records
+    for each row
+    execute function public.prevent_premium_purchase_record_mutation();
+  end if;
+end $$;
+
+-- 5. Confirm there are no backend-owned tables left with RLS disabled.
 select
   schemaname,
   tablename,
@@ -67,6 +92,7 @@ where schemaname = 'public'
     'auth_sessions',
     'auth_otp_attempts',
     'premium_access_grants',
-    'premium_payment_requests'
+    'premium_payment_requests',
+    'premium_purchase_records'
   )
 order by tablename;
