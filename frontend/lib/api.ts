@@ -1,5 +1,10 @@
 import { API_BASE_URL } from "./config";
 import type {
+  AdminAiStatusResponse,
+  AdminFeedbackResponse,
+  AdminPremiumPurchasesResponse,
+  AdminUsageSummaryResponse,
+  AdminVisitorSummaryResponse,
   AiScenarioEvaluationRequest,
   AiScenarioEvaluationResponse,
   AnonymousUsageEventRequest,
@@ -306,4 +311,53 @@ export function updateContentAuditIssueStatus(
       body: JSON.stringify({ status })
     }
   );
+}
+
+export function getAdminFeedback(
+  adminToken: string,
+  limit: number = 50
+): Promise<AdminFeedbackResponse> {
+  return apiFetch<AdminFeedbackResponse>(`/api/v1/admin/feedback?limit=${limit}`, {
+    headers: { "X-Admin-Token": adminToken }
+  });
+}
+
+export function getAdminUsageSummary(
+  adminToken: string,
+  days: number = 30,
+  limit: number = 100
+): Promise<AdminUsageSummaryResponse> {
+  return apiFetch<AdminUsageSummaryResponse>(
+    `/api/v1/admin/usage/summary?days=${days}&limit=${limit}`,
+    {
+      headers: { "X-Admin-Token": adminToken }
+    }
+  );
+}
+
+export function getAdminVisitorSummary(
+  adminToken: string,
+  days: number = 30,
+  limit: number = 25
+): Promise<AdminVisitorSummaryResponse> {
+  return apiFetch<AdminVisitorSummaryResponse>(
+    `/api/v1/admin/usage/visitors?days=${days}&limit=${limit}`,
+    {
+      headers: { "X-Admin-Token": adminToken }
+    }
+  );
+}
+
+export function getAdminPremiumPurchases(
+  adminToken: string
+): Promise<AdminPremiumPurchasesResponse> {
+  return apiFetch<AdminPremiumPurchasesResponse>("/api/v1/admin/premium/purchases", {
+    headers: { "X-Admin-Token": adminToken }
+  });
+}
+
+export function getAdminAiStatus(adminToken: string): Promise<AdminAiStatusResponse> {
+  return apiFetch<AdminAiStatusResponse>("/api/v1/admin/ai/status", {
+    headers: { "X-Admin-Token": adminToken }
+  });
 }

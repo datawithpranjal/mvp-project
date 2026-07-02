@@ -109,6 +109,100 @@ export interface UsageEventResponse {
   recorded: boolean;
 }
 
+export interface AdminFeedbackRecord {
+  id: string;
+  name: string;
+  email: string;
+  category: string;
+  message: string;
+  rating?: number | null;
+  page_url?: string | null;
+  created_at: string;
+}
+
+export interface AdminFeedbackResponse {
+  storage_backend: string;
+  table_exists: boolean;
+  count: number;
+  rows: AdminFeedbackRecord[];
+}
+
+export interface AdminUsageUserSummary {
+  user_id: string;
+  email: string;
+  full_name: string;
+  total_active_seconds: number;
+  questions_submitted: number;
+  questions_completed: number;
+  logins_7d: number;
+  logins_30d: number;
+  sessions_7d: number;
+  sessions_30d: number;
+  last_seen_at?: string | null;
+}
+
+export interface AdminUsageSummaryResponse {
+  storage_backend: "postgres" | "file";
+  table_exists: boolean;
+  days: number;
+  total_users: number;
+  rows: AdminUsageUserSummary[];
+}
+
+export interface AdminVisitorDailyTotal {
+  date: string;
+  visits: number;
+  unique_visitors: number;
+  total_active_seconds: number;
+}
+
+export interface AdminVisitorTopPage {
+  page_url: string;
+  visits: number;
+  unique_visitors: number;
+  total_active_seconds: number;
+}
+
+export interface AdminVisitorSummaryResponse {
+  storage_backend: "postgres" | "file";
+  table_exists: boolean;
+  days: number;
+  total_visits: number;
+  unique_visitors: number;
+  total_active_seconds: number;
+  daily_totals: AdminVisitorDailyTotal[];
+  top_pages: AdminVisitorTopPage[];
+}
+
+export interface AdminPremiumPurchaseRecord {
+  email: string;
+  plan_label: string;
+  billing_interval: string;
+  amount_inr: number;
+  original_amount_inr: number;
+  discount_amount_inr: number;
+  coupon_code?: string | null;
+  payment_provider: string;
+  payment_reference: string;
+  provider_order_id?: string | null;
+  provider_payment_id?: string | null;
+  currency: string;
+  purchase_status: string;
+  purchased_at: string;
+  access_expires_at: string;
+}
+
+export interface AdminPremiumPurchasesResponse {
+  count: number;
+  records: AdminPremiumPurchaseRecord[];
+}
+
+export interface AdminAiStatusResponse {
+  provider: string;
+  configured: boolean;
+  model: string;
+}
+
 export interface PremiumManualUnlockRequest {
   plan_label: string;
   billing_interval: "monthly" | "yearly";
