@@ -14,11 +14,21 @@ const CATEGORIES: Array<{ value: ProductFeedbackRequest["category"]; label: stri
   { value: "other", label: "Other" }
 ];
 
-export function FeedbackDialog() {
+interface FeedbackDialogProps {
+  triggerLabel?: string;
+  defaultCategory?: ProductFeedbackRequest["category"];
+  triggerClassName?: string;
+}
+
+export function FeedbackDialog({
+  triggerLabel = "Share feedback",
+  defaultCategory = "general",
+  triggerClassName = "inline-flex rounded-full bg-amber-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-200"
+}: FeedbackDialogProps = {}) {
   const [isOpen, setIsOpen] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [category, setCategory] = useState<ProductFeedbackRequest["category"]>("general");
+  const [category, setCategory] = useState<ProductFeedbackRequest["category"]>(defaultCategory);
   const [message, setMessage] = useState("");
   const [rating, setRating] = useState<number | null>(null);
   const [website, setWebsite] = useState("");
@@ -28,12 +38,13 @@ export function FeedbackDialog() {
 
   useEffect(() => {
     if (!isOpen) return;
+    setCategory(defaultCategory);
     const currentUser = getCurrentUser();
     if (currentUser) {
       setName((current) => current || currentUser.full_name);
       setEmail((current) => current || currentUser.email);
     }
-  }, [isOpen]);
+  }, [defaultCategory, isOpen]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -69,9 +80,9 @@ export function FeedbackDialog() {
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="inline-flex rounded-full bg-amber-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-200"
+        className={triggerClassName}
       >
-        Share feedback
+        {triggerLabel}
       </button>
 
       {isOpen ? (
