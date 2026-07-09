@@ -50,6 +50,32 @@ export interface ScenarioSampleTable {
   rows: ScenarioTableCell[][];
 }
 
+export interface ScenarioIncident {
+  incidentId: string;
+  severity: string;
+  reportedBy: string;
+  reportedAt: string;
+  pipeline: string;
+  owner: string;
+  expected: string;
+  actual: string;
+  impact: string;
+}
+
+export interface ScenarioEvidenceItem {
+  title: string;
+  type: string;
+  summary: string;
+  details: string;
+}
+
+export interface ScenarioDiagnosisOption {
+  id: string;
+  text: string;
+  isCorrect: boolean;
+  explanation: string;
+}
+
 export interface Scenario {
   id: string;
   title: string;
@@ -71,6 +97,11 @@ export interface Scenario {
   sampleTables?: ScenarioSampleTable[];
   expectedSql?: string;
   logs?: string;
+  incident?: ScenarioIncident;
+  evidence?: ScenarioEvidenceItem[];
+  diagnosisOptions?: ScenarioDiagnosisOption[];
+  productionChecklist?: string[];
+  interviewPrompt?: string;
   mcqOptions?: McqOption[];
   hints: string[];
   tasks: string[];
@@ -620,6 +651,183 @@ export const BROKEN_PIPELINE_SCENARIOS: Scenario[] = [
       "How would you recover today's duplicates?",
       "What metadata belongs in the file manifest?"
     ]
+  },
+  {
+    id: "bpl-mixed-002",
+    title: "Yesterday's Sales Missing After Late Source Arrival",
+    slug: "yesterdays-sales-missing-late-source-arrival",
+    domain: "mixed",
+    difficulty: "intermediate",
+    scenarioType: "mixed_lab",
+    isFree: true,
+    estimatedMinutes: 28,
+    tags: ["Airflow", "PySpark", "BigQuery", "Late Data", "Sales Dashboard"],
+    businessContext:
+      "You are supporting the daily sales reporting pipeline for a retail company. Business users open the 9 AM revenue dashboard and see zero sales for yesterday, even though the source system clearly processed orders. The pipeline is orchestrated by Airflow, transformed with PySpark, and loaded into a cloud warehouse table used by the dashboard.",
+    problemStatement:
+      "The pipeline expected yesterday's sales export to be available before the 2 AM Airflow run. The source file arrived late, so the first run failed. A later retry picked up data, but the PySpark transformation filters by ingestion date instead of sales business date, so late-arriving rows for yesterday still do not land in the correct dashboard partition.",
+    incident: {
+      incidentId: "INC-2026-05-08-DAILY-SALES",
+      severity: "P1 - Executive sales dashboard incorrect",
+      reportedBy: "Sales Operations",
+      reportedAt: "2026-05-08 09:12 IST",
+      pipeline: "daily_sales_to_bigquery",
+      owner: "Data Platform On-call",
+      expected: "Yesterday's sales should show 2 paid orders worth 420.00",
+      actual: "Dashboard shows 0 orders and 0.00 gross sales",
+      impact: "Morning sales review is blocked and Finance cannot reconcile yesterday's daily revenue."
+    },
+    requirement:
+      "Diagnose why yesterday's sales are late, fix the PySpark transformation so sales are assigned to the correct business_date, and propose an Airflow scheduling change that waits for the required source partition before loading the warehouse. For executable validation, create a Spark DataFrame named daily_sales or fixed_daily_sales with business_date, order_count, and gross_sales. Do not write to the warehouse from the practice runner.",
+    schema:
+      "raw_sales_events(order_id, customer_id, sale_ts_utc, amount, status, source_file_date, ingested_at)\nwarehouse_daily_sales(business_date, order_count, gross_sales, loaded_at)",
+    sampleInput:
+      "The Airflow logical date is 2026-05-08 and the dashboard needs sales for business_date=2026-05-07. Two valid sales records arrived after the scheduled 2 AM run, so they have ingested_at on 2026-05-08 but sale_ts_utc on 2026-05-07.",
+    brokenCode:
+      "from pyspark.sql import functions as F\n\nrun_date = \"2026-05-07\"\n\nraw_sales = spark.read.parquet(raw_sales_path)\n\n# Broken: this assumes records for the sales day are ingested on the same date.\n# Late files arrive on 2026-05-08, so yesterday's valid sales are filtered out.\ndaily_sales = (\n    raw_sales\n    .withColumn(\"ingest_date\", F.to_date(\"ingested_at\"))\n    .filter(F.col(\"ingest_date\") == F.lit(run_date))\n    .filter(F.col(\"status\") == F.lit(\"PAID\"))\n    .groupBy(F.col(\"ingest_date\").alias(\"business_date\"))\n    .agg(\n        F.countDistinct(\"order_id\").alias(\"order_count\"),\n        F.sum(\"amount\").alias(\"gross_sales\")\n    )\n)\n\ndaily_sales.write.mode(\"overwrite\").insertInto(\"warehouse.daily_sales\")",
+    actualOutput:
+      "Dashboard for 2026-05-07 shows order_count=0 and gross_sales=0 because the transformation filters on ingest_date instead of sale business date.",
+    expectedOutput:
+      "business_date | order_count | gross_sales\n2026-05-07 | 2 | 420.00",
+    sampleTables: [
+      {
+        name: "raw_sales_events",
+        columns: [
+          "order_id",
+          "customer_id",
+          "sale_ts_utc",
+          "amount",
+          "status",
+          "source_file_date",
+          "ingested_at"
+        ],
+        rows: [
+          [7001, 101, "2026-05-07 10:15:00", 250, "PAID", "2026-05-07", "2026-05-08 03:22:10"],
+          [7002, 102, "2026-05-07 18:40:00", 170, "PAID", "2026-05-07", "2026-05-08 03:25:44"],
+          [7003, 103, "2026-05-08 01:05:00", 90, "PAID", "2026-05-08", "2026-05-08 03:26:01"],
+          [7004, 104, "2026-05-07 12:30:00", 75, "CANCELLED", "2026-05-07", "2026-05-08 03:23:00"]
+        ]
+      },
+      {
+        name: "airflow_runs",
+        columns: ["dag_id", "logical_date", "scheduled_at", "status", "records_loaded"],
+        rows: [
+          ["daily_sales_to_bigquery", "2026-05-07", "2026-05-08 02:00:00", "failed", 0],
+          ["daily_sales_to_bigquery", "2026-05-07", "2026-05-08 03:45:00", "success", 0]
+        ]
+      },
+      {
+        name: "warehouse_daily_sales_expected",
+        columns: ["business_date", "order_count", "gross_sales"],
+        rows: [["2026-05-07", 2, 420]]
+      }
+    ],
+    logs:
+      "[2026-05-08 02:00:14] {sales_sensor.py:88} INFO - Waiting for gs://retail-landing/sales/dt=2026-05-07/_SUCCESS\n[2026-05-08 02:15:14] {sales_sensor.py:104} ERROR - Source partition dt=2026-05-07 not available before timeout\n[2026-05-08 02:15:15] {taskinstance.py:1345} ERROR - Task failed: source data delay\n[2026-05-08 03:21:58] {gcs.py:61} INFO - File arrived: gs://retail-landing/sales/dt=2026-05-07/part-0001.json\n[2026-05-08 03:45:08] {spark_submit.py:512} INFO - Retry started for logical_date=2026-05-07\n[2026-05-08 03:47:31] {spark_submit.py:540} INFO - PySpark output rows=0 for business_date=2026-05-07\n[2026-05-08 03:48:02] {bigquery.py:220} WARNING - Loaded 0 rows into warehouse.daily_sales partition 2026-05-07",
+    evidence: [
+      {
+        title: "Business ticket",
+        type: "Incident",
+        summary: "Sales Ops reports yesterday's sales are missing from the 9 AM dashboard.",
+        details:
+          "Expected 2 paid orders totaling 420.00 for business_date=2026-05-07. Dashboard currently shows 0 orders and 0.00 gross sales."
+      },
+      {
+        title: "Airflow run history",
+        type: "Orchestration",
+        summary: "The 2 AM run failed waiting for the upstream source partition.",
+        details:
+          "The source success marker for dt=2026-05-07 was not available before the sensor timeout. A retry started after the file arrived, but the transform still loaded zero rows."
+      },
+      {
+        title: "Source landing check",
+        type: "Storage",
+        summary: "The source file did arrive, but after the scheduled run window.",
+        details:
+          "The sales file for source_file_date=2026-05-07 landed at 03:21. Valid records have sale_ts_utc on 2026-05-07 but ingested_at on 2026-05-08."
+      },
+      {
+        title: "PySpark transform review",
+        type: "Code",
+        summary: "The job derives business_date from ingested_at instead of the sale timestamp.",
+        details:
+          "Late-arriving records are filtered out because ingest_date becomes 2026-05-08 while the dashboard partition being rebuilt is 2026-05-07."
+      },
+      {
+        title: "Warehouse validation",
+        type: "Data Quality",
+        summary: "The warehouse partition was overwritten with an empty result.",
+        details:
+          "The load step completed, but records_loaded=0 should have failed the data quality gate for a paid-sales business date."
+      }
+    ],
+    diagnosisOptions: [
+      {
+        id: "A",
+        text: "The dashboard cache did not refresh after the successful Airflow retry.",
+        isCorrect: false,
+        explanation:
+          "Dashboard cache could hide fresh data, but the warehouse load log itself says zero rows were loaded for the partition."
+      },
+      {
+        id: "B",
+        text: "The source file arrived late, and the PySpark job filtered by ingestion date instead of sales business date.",
+        isCorrect: true,
+        explanation:
+          "Correct. The Airflow logs show source delay, and the code uses ingested_at as the reporting date, so late rows for 2026-05-07 are excluded."
+      },
+      {
+        id: "C",
+        text: "BigQuery rejected the load because the service account lost write permission.",
+        isCorrect: false,
+        explanation:
+          "A permission issue would normally fail the load task. Here the load completed with zero rows, which points to transformation/date logic."
+      },
+      {
+        id: "D",
+        text: "The fix is only to increase Airflow retries and leave the PySpark logic unchanged.",
+        isCorrect: false,
+        explanation:
+          "Retries help with delayed files, but the PySpark transformation would still misclassify late records by ingestion date."
+      }
+    ],
+    productionChecklist: [
+      "Confirm source partition availability for the business date.",
+      "Compare raw paid order count against warehouse partition count.",
+      "Derive dashboard business_date from sale_ts_utc or source business date, not ingested_at.",
+      "Overwrite or merge the affected daily partition idempotently.",
+      "Fail the DAG when a required sales day loads zero rows unexpectedly.",
+      "Move the run schedule or sensor timeout to match the source-system SLA."
+    ],
+    interviewPrompt:
+      "An interviewer asks: Yesterday's sales were missing from the dashboard even though the DAG eventually turned green. Walk me through how you would debug, fix, and prevent this.",
+    hints: [
+      "Separate ingestion date from business sales date before explaining the incident.",
+      "The Airflow failure tells you the source partition arrived after the scheduled run.",
+      "The PySpark bug is the filter and grouping column: late records should be selected by sale_ts_utc or source_file_date, not ingested_at."
+    ],
+    tasks: [
+      "Diagnose why yesterday's dashboard partition is missing sales.",
+      "Rewrite the PySpark transformation so late-arriving records land on the correct business_date and assign the aggregate DataFrame to daily_sales.",
+      "Propose an Airflow schedule or sensor change that handles late source files without silently loading zero rows."
+    ],
+    modelSolution:
+      "A production-safe fix separates business time from ingestion time. The Airflow incident happened because the upstream file for dt=2026-05-07 arrived after the 2 AM run. The PySpark transformation then made the problem worse by filtering on ingested_at, so records that arrived on 2026-05-08 were excluded from the 2026-05-07 sales partition.\n\nExample PySpark fix for the practice runner:\n\nfrom pyspark.sql import functions as F\n\nfixed_daily_sales = (\n    raw_sales\n    .withColumn(\"business_date\", F.to_date(\"sale_ts_utc\"))\n    .filter(F.col(\"business_date\") == F.lit(run_date))\n    .filter(F.col(\"status\") == F.lit(\"PAID\"))\n    .dropDuplicates([\"order_id\"])\n    .groupBy(\"business_date\")\n    .agg(\n        F.countDistinct(\"order_id\").alias(\"order_count\"),\n        F.round(F.sum(\"amount\"), 2).alias(\"gross_sales\")\n    )\n)\n\nIn production, write fixed_daily_sales idempotently into the affected warehouse partition after validation passes. For Airflow, use a data-aware sensor or deferrable sensor that waits for the upstream success marker for the business date, set a realistic timeout based on source SLA, and fail the DAG if the partition is missing instead of loading zero rows. A common schedule is to run after the expected source arrival window, for example 4 AM instead of 2 AM, plus a controlled late-data reprocessing window for the last 1-3 business dates.",
+    productionExplanation:
+      "This incident has two layers: source data arrived late, and the transformation used the wrong date semantics. A strong production fix includes a source-availability check, business-date based transformation, idempotent overwrite or merge of the affected partition, row-count/freshness validation before dashboard refresh, and alerting when expected sales are zero. The interview answer should make clear that Airflow success alone does not prove the dashboard is correct.",
+    commonMistakes: [
+      "Changing only the Airflow retry count while keeping the wrong PySpark filter.",
+      "Filtering by ingested_at when the dashboard is defined by sales business date.",
+      "Loading zero rows into the warehouse and marking the DAG green.",
+      "Using append mode for a daily aggregate partition and creating duplicate sales on rerun."
+    ],
+    evaluationRubric: DEFAULT_RUBRIC,
+    followUps: [
+      "How would you handle sales that arrive two days late after finance has already reviewed the dashboard?",
+      "What data quality check should fail the DAG before the dashboard refreshes?",
+      "Would you use sale_ts_utc, source_file_date, or ingested_at for the dashboard partition, and why?"
+    ],
+    relatedProjectMissionId: "late-arriving-records"
   },
   {
     id: "bpl-dq-001",

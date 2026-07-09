@@ -133,6 +133,7 @@ export const LAUNCH_READY_SCENARIO_SLUGS = [
   "too-many-small-files-hourly-writes",
   "airflow-green-dashboard-wrong",
   "airflow-retry-reprocessed-file-duplicates",
+  "yesterdays-sales-missing-late-source-arrival",
   "revenue-drop-new-successful-status",
   "utc-local-timezone-dashboard-mismatch"
 ] as const;

@@ -10,6 +10,7 @@ from app.api.routes.email_capture import router as email_capture_router
 from app.api.routes.feedback import router as feedback_router
 from app.api.routes.health import router as health_router
 from app.api.routes.premium import router as premium_router
+from app.api.routes.pyspark_validation import router as pyspark_validation_router
 from app.api.routes.scenarios import router as scenarios_router
 from app.api.routes.usage import router as usage_router
 from app.api.routes.validation import router as validation_router
@@ -54,6 +55,7 @@ app.include_router(content_audit_router)
 app.include_router(email_capture_router)
 app.include_router(feedback_router)
 app.include_router(premium_router)
+app.include_router(pyspark_validation_router)
 app.include_router(scenarios_router)
 app.include_router(usage_router)
 app.include_router(validation_router)

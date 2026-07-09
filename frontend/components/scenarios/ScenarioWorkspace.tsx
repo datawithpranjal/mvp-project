@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
 import { trackEvent } from "../../lib/analytics";
-import { evaluateScenarioWithAi } from "../../lib/api";
+import { evaluateScenarioWithAi, validatePysparkScenario } from "../../lib/api";
 import {
   AUTH_UPDATED_EVENT,
   getAuthToken,
@@ -31,11 +31,13 @@ import { evaluateScenarioAnswer, type ScenarioEvaluationResult } from "../../lib
 import { getGuestSubmissionStatus, recordGuestSubmission } from "../../lib/guest-submissions";
 import { sendUsageEvent } from "../../lib/usage";
 import { handleTextareaTabKeyDown } from "../../lib/textarea-tab";
+import type { PysparkValidationResponse } from "../../lib/types";
 import {
   formatDifficulty,
   formatDomain,
   formatScenarioType,
   getScenarios,
+  type ScenarioIncident,
   type ScenarioSampleTable,
   type Scenario
 } from "../../lib/scenarios";
@@ -48,11 +50,36 @@ interface ScenarioWorkspaceProps {
   scenario: Scenario;
 }
 
+const EXECUTABLE_PYSPARK_SCENARIOS = new Set([
+  "yesterdays-sales-missing-late-source-arrival"
+]);
+
+const EXECUTABLE_PYSPARK_STARTERS: Record<string, string> = {
+  "yesterdays-sales-missing-late-source-arrival": `from pyspark.sql import functions as F
+
+# The validation runner already provides:
+# - raw_sales: input DataFrame
+# - run_date: business date to rebuild, for example "2026-05-07"
+#
+# Create a DataFrame named daily_sales with:
+# business_date, order_count, gross_sales
+
+daily_sales = (
+    raw_sales
+    # TODO: derive business_date from the sale timestamp, not ingested_at
+    # TODO: keep only run_date and PAID rows
+    # TODO: deduplicate orders before summing revenue
+    # TODO: aggregate to order_count and gross_sales
+)
+`
+};
+
 export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
   const router = useRouter();
   const [answer, setAnswer] = useState("");
   const [interviewAnswer, setInterviewAnswer] = useState("");
   const [selectedOptionId, setSelectedOptionId] = useState("");
+  const [selectedDiagnosisId, setSelectedDiagnosisId] = useState("");
   const [hintsRevealed, setHintsRevealed] = useState(0);
   const [modelSolutionVisible, setModelSolutionVisible] = useState(false);
   const [evaluation, setEvaluation] = useState<ScenarioEvaluationResult | null>(null);
@@ -61,6 +88,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
   const [draftMessage, setDraftMessage] = useState<string | null>(null);
   const [evaluationNotice, setEvaluationNotice] = useState<string | null>(null);
   const [sqlExecution, setSqlExecution] = useState<BrowserSqlValidationResult | null>(null);
+  const [pysparkExecution, setPysparkExecution] = useState<PysparkValidationResponse | null>(null);
   const [isChecking, setIsChecking] = useState(false);
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
@@ -75,12 +103,19 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
     if (scenario.scenarioType === "mcq" && scenario.mcqOptions?.some((option) => option.id === savedAnswer)) {
       setSelectedOptionId(savedAnswer);
     } else {
-      setAnswer(savedAnswer || scenario.brokenCode || "");
+      setAnswer(
+        savedAnswer ||
+          EXECUTABLE_PYSPARK_STARTERS[scenario.slug] ||
+          scenario.brokenCode ||
+          ""
+      );
     }
     setInterviewAnswer(savedProgress.draftInterviewAnswer);
+    setSelectedDiagnosisId("");
     setHintsRevealed(Math.min(savedProgress.hintsRevealed, scenario.hints.length));
     setProgress(summarizeScenarioProgress(savedProgress, scenario.slug));
     setSqlExecution(null);
+    setPysparkExecution(null);
     setEvaluation(null);
     setEvaluationNotice(null);
     setModelSolutionVisible(false);
@@ -137,9 +172,13 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
   }, [currentUser, evaluation, scenario.slug]);
 
   const visibleHints = scenario.hints.slice(0, hintsRevealed);
+  const selectedDiagnosis = scenario.diagnosisOptions?.find(
+    (option) => option.id === selectedDiagnosisId
+  );
   const canRunSql =
     Boolean(scenario.expectedSql && scenario.sampleTables?.length) &&
     (scenario.scenarioType === "broken_sql" || scenario.scenarioType === "output_mismatch");
+  const canRunPyspark = EXECUTABLE_PYSPARK_SCENARIOS.has(scenario.slug);
   const nextScenario = useMemo(() => {
     const scenarios = getScenarios();
     const index = scenarios.findIndex((item) => item.slug === scenario.slug);
@@ -152,17 +191,19 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
     : "rounded-full border border-teal-300/30 px-5 py-3 text-sm font-semibold text-teal-100 transition hover:bg-teal-300/10 disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-500";
   const promptLabel = useMemo(() => {
     if (scenario.scenarioType === "broken_sql") return "Write the corrected SQL";
+    if (canRunPyspark) return "Write the corrected PySpark transformation";
     if (scenario.scenarioType === "broken_pyspark") return "Write the corrected PySpark approach";
     if (scenario.scenarioType === "log_analysis") return "Write your root-cause analysis";
     if (scenario.scenarioType === "output_mismatch") return "Explain and fix the mismatch";
     return "Write your answer";
-  }, [scenario.scenarioType]);
+  }, [canRunPyspark, scenario.scenarioType]);
   const submitLabel = useMemo(() => {
     if (canRunSql) return "Submit query";
+    if (canRunPyspark) return "Submit fix";
     if (scenario.scenarioType === "broken_pyspark") return "Submit fix";
     if (scenario.scenarioType === "mcq") return "Submit answer";
     return "Submit answer";
-  }, [canRunSql, scenario.scenarioType]);
+  }, [canRunPyspark, canRunSql, scenario.scenarioType]);
 
   function revealHint() {
     const nextCount = Math.min(hintsRevealed + 1, scenario.hints.length);
@@ -196,9 +237,10 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
     const submittedAnswer =
       scenario.scenarioType === "mcq"
         ? selectedOptionId
-        : `${answer}\n\nInterview explanation:\n${interviewAnswer}`;
+        : `${answer}\n\nDiagnosis selected:\n${selectedDiagnosis ? `${selectedDiagnosis.id}. ${selectedDiagnosis.text}` : "Not selected"}\n\nInterview explanation:\n${interviewAnswer}`;
     setIsChecking(true);
     setSqlExecution(null);
+    setPysparkExecution(null);
     setEvaluationNotice(null);
 
     try {
@@ -208,9 +250,22 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
         canRunSql && scenario.sampleTables && scenario.expectedSql
           ? await validateSqlOutput(scenario.sampleTables, answer, scenario.expectedSql)
           : null;
+      const runnablePysparkResult = canRunPyspark
+        ? await validatePysparkScenario(
+            scenario.slug,
+            {
+              code: answer,
+              mode: "hidden"
+            },
+            authToken
+          )
+        : null;
 
       if (runnableSqlResult) {
         setSqlExecution(runnableSqlResult);
+      }
+      if (runnablePysparkResult) {
+        setPysparkExecution(runnablePysparkResult);
       }
 
       if (
@@ -226,12 +281,29 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
               title: scenario.title,
               domain: scenario.domain,
               scenario_type: scenario.scenarioType,
-              business_context: scenario.businessContext.slice(0, 5000),
+              business_context: [
+                scenario.businessContext,
+                scenario.incident
+                  ? `Incident ticket: ${scenario.incident.incidentId}
+Severity: ${scenario.incident.severity}
+Reported by: ${scenario.incident.reportedBy}
+Reported at: ${scenario.incident.reportedAt}
+Pipeline: ${scenario.incident.pipeline}
+Expected: ${scenario.incident.expected}
+Actual: ${scenario.incident.actual}
+Impact: ${scenario.incident.impact}`
+                  : ""
+              ].filter(Boolean).join("\n\n").slice(0, 5000),
               problem_statement: scenario.problemStatement.slice(0, 7000),
               requirement: (scenario.requirement ?? scenario.tasks.join("\n")).slice(0, 5000),
               broken_code: [
                 scenario.schema ? `Schema:\n${scenario.schema}` : "",
                 scenario.sampleInput ? `Sample input:\n${scenario.sampleInput}` : "",
+                scenario.evidence?.length
+                  ? `Production evidence:\n${scenario.evidence
+                      .map((item) => `- ${item.title} (${item.type}): ${item.summary} ${item.details}`)
+                      .join("\n")}`
+                  : "",
                 scenario.brokenCode ? `Broken code:\n${scenario.brokenCode}` : ""
               ]
                 .filter(Boolean)
@@ -277,9 +349,15 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
         }
       }
 
-      const passed = runnableSqlResult ? runnableSqlResult.passed : nextEvaluation.score >= 70;
+      const passed = runnableSqlResult
+        ? runnableSqlResult.passed
+        : runnablePysparkResult
+          ? runnablePysparkResult.passed
+          : nextEvaluation.score >= 70;
       const message = runnableSqlResult
         ? `${runnableSqlResult.passed ? "SQL passed" : "SQL output mismatch"} · ${nextEvaluation.score}/100 explanation score`
+        : runnablePysparkResult
+          ? `${runnablePysparkResult.passed ? "PySpark hidden tests passed" : "PySpark hidden tests failed"} · ${nextEvaluation.score}/100 explanation score`
         : `${nextEvaluation.verdict} · ${nextEvaluation.score}/100`;
       const nextProgress = recordScenarioAttempt(scenario.slug, {
         passed,
@@ -287,15 +365,28 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
         message
       });
       recordScenarioAiFeedback(scenario.slug, {
-        totalScore: runnableSqlResult?.passed ? Math.max(nextEvaluation.score, 85) : nextEvaluation.score,
+        totalScore:
+          runnableSqlResult?.passed || runnablePysparkResult?.passed
+            ? Math.max(nextEvaluation.score, 85)
+            : nextEvaluation.score,
         strengths: runnableSqlResult?.passed
           ? ["Your SQL returned the expected result on the seeded data.", ...nextEvaluation.strengths]
-          : nextEvaluation.strengths,
-        missingPoints: runnableSqlResult?.passed
-          ? nextEvaluation.gaps
-          : runnableSqlResult
-            ? [runnableSqlResult.message, ...nextEvaluation.gaps]
-            : nextEvaluation.gaps,
+          : runnablePysparkResult?.passed
+            ? ["Your PySpark fix passed the hidden production-style tests.", ...nextEvaluation.strengths]
+            : nextEvaluation.strengths,
+        missingPoints:
+          runnableSqlResult?.passed || runnablePysparkResult?.passed
+            ? nextEvaluation.gaps
+            : runnableSqlResult
+              ? [runnableSqlResult.message, ...nextEvaluation.gaps]
+              : runnablePysparkResult
+                ? [
+                    ...runnablePysparkResult.tests
+                      .filter((test) => !test.passed)
+                      .map((test) => `${test.name}: ${test.message}`),
+                    ...nextEvaluation.gaps
+                  ]
+                : nextEvaluation.gaps,
         improvedAnswer: nextEvaluation.improvedAnswer,
         followUpQuestions: scenario.followUps
       });
@@ -317,7 +408,8 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
           domain: scenario.domain,
           passed,
           score: nextEvaluation.score,
-          sql_passed: runnableSqlResult?.passed ?? null
+          sql_passed: runnableSqlResult?.passed ?? null,
+          pyspark_passed: runnablePysparkResult?.passed ?? null
         }
       });
       trackEvent("first_lab_submitted", {
@@ -351,12 +443,31 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
         message
       });
       setProgress(summarizeScenarioProgress(nextProgress, scenario.slug));
-      setSqlExecution({
-        passed: false,
-        message,
-        actual: { columns: [], rows: [] },
-        expected: { columns: [], rows: [] }
-      });
+      if (canRunPyspark) {
+        setPysparkExecution({
+          validation_type: "PYSPARK_OUTPUT_MATCH",
+          mode: "hidden",
+          passed: false,
+          message,
+          tests: [
+            {
+              name: "executor",
+              passed: false,
+              message,
+              actual_output: null,
+              expected_output: null
+            }
+          ],
+          execution_engine: "remote"
+        });
+      } else {
+        setSqlExecution({
+          passed: false,
+          message,
+          actual: { columns: [], rows: [] },
+          expected: { columns: [], rows: [] }
+        });
+      }
       setDraftMessage(null);
     } finally {
       setIsChecking(false);
@@ -364,30 +475,69 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
   }
 
   async function runSampleCheck() {
-    if (!canRunSql || !scenario.sampleTables || !scenario.expectedSql) return;
+    if (
+      !canRunPyspark &&
+      (!canRunSql || !scenario.sampleTables || !scenario.expectedSql)
+    ) {
+      return;
+    }
     setIsChecking(true);
     setSqlExecution(null);
+    setPysparkExecution(null);
     try {
-      const result = await validateSqlOutput(
-        scenario.sampleTables,
-        answer,
-        scenario.expectedSql
-      );
-      setSqlExecution(result);
-      setDraftMessage(
-        result.passed
-          ? "Visible sample check passed. Submit for the complete evaluation."
-          : "Visible sample check found an output mismatch."
-      );
+      if (canRunPyspark) {
+        const result = await validatePysparkScenario(scenario.slug, {
+          code: answer,
+          mode: "sample"
+        });
+        setPysparkExecution(result);
+        setDraftMessage(
+          result.passed
+            ? "Visible PySpark sample passed. Submit for hidden production-style tests."
+            : "Visible PySpark sample found an output mismatch."
+        );
+      } else if (scenario.sampleTables && scenario.expectedSql) {
+        const result = await validateSqlOutput(
+          scenario.sampleTables,
+          answer,
+          scenario.expectedSql
+        );
+        setSqlExecution(result);
+        setDraftMessage(
+          result.passed
+            ? "Visible sample check passed. Submit for the complete evaluation."
+            : "Visible sample check found an output mismatch."
+        );
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : "The query could not be run.";
-      setSqlExecution({
-        passed: false,
-        message,
-        actual: { columns: [], rows: [] },
-        expected: { columns: [], rows: [] }
-      });
-      setDraftMessage("Query execution failed.");
+      if (canRunPyspark) {
+        setPysparkExecution({
+          validation_type: "PYSPARK_OUTPUT_MATCH",
+          mode: "sample",
+          passed: false,
+          message,
+          tests: [
+            {
+              name: "executor",
+              passed: false,
+              message,
+              actual_output: null,
+              expected_output: null
+            }
+          ],
+          execution_engine: "remote"
+        });
+        setDraftMessage("PySpark sample execution failed.");
+      } else {
+        setSqlExecution({
+          passed: false,
+          message,
+          actual: { columns: [], rows: [] },
+          expected: { columns: [], rows: [] }
+        });
+        setDraftMessage("Query execution failed.");
+      }
     } finally {
       setIsChecking(false);
     }
@@ -449,6 +599,18 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
     setModelSolutionVisible(false);
   }
 
+  const scenarioSections = [
+    ...(scenario.incident ? [["Incident", "#incident"] as const] : []),
+    ["Context", "#context"] as const,
+    ...(scenario.evidence?.length ? [["Evidence", "#evidence"] as const] : []),
+    ...(scenario.diagnosisOptions?.length ? [["Diagnosis", "#diagnosis"] as const] : []),
+    ["Data", "#data"] as const,
+    ["Broken code", "#broken-code"] as const,
+    ["Attempt", "#attempt"] as const,
+    ["Explanation", "#explanation"] as const,
+    ["Rubric", "#rubric"] as const
+  ];
+
   return (
     <main className="mx-auto min-h-screen max-w-7xl px-6 py-10 sm:px-10">
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -478,14 +640,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
               aria-label="Scenario sections"
               className="mt-6 flex flex-wrap gap-2 border-t border-slate-800 pt-5"
             >
-              {[
-                ["Context", "#context"],
-                ["Data", "#data"],
-                ["Broken code", "#broken-code"],
-                ["Attempt", "#attempt"],
-                ["Explanation", "#explanation"],
-                ["Rubric", "#rubric"]
-              ].map(([label, href]) => (
+              {scenarioSections.map(([label, href]) => (
                 <a
                   key={href}
                   href={href}
@@ -497,8 +652,95 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
             </nav>
           </section>
 
+          {scenario.incident ? <IncidentCommandCenter incident={scenario.incident} /> : null}
+
           <InfoSection id="context" title="Scenario context" body={scenario.problemStatement} />
           <InfoSection title="Business requirement" body={scenario.requirement ?? ""} />
+
+          {scenario.evidence?.length ? (
+            <section id="evidence" className="panel scroll-mt-32 rounded-[2rem] p-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-200">
+                Production evidence board
+              </p>
+              <h2 className="mt-3 text-2xl font-semibold text-slate-50">
+                Inspect the artifacts before touching code
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                This is how real incidents feel: business ticket, orchestration logs,
+                source freshness, code review, and warehouse validation all point to the answer.
+              </p>
+              <div className="mt-5 grid gap-4 md:grid-cols-2">
+                {scenario.evidence.map((item, index) => (
+                  <div
+                    key={`${item.title}-${index}`}
+                    className="rounded-3xl border border-slate-800 bg-slate-950/40 p-5"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-semibold text-slate-50">{item.title}</p>
+                      <span className="rounded-full border border-teal-300/25 bg-teal-300/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-teal-100">
+                        {item.type}
+                      </span>
+                    </div>
+                    <p className="mt-3 text-sm font-semibold leading-6 text-slate-200">
+                      {item.summary}
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-slate-400">
+                      {item.details}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : null}
+
+          {scenario.diagnosisOptions?.length ? (
+            <section id="diagnosis" className="panel scroll-mt-32 rounded-[2rem] p-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-200">
+                Step 1: diagnose like on-call
+              </p>
+              <h2 className="mt-3 text-2xl font-semibold text-slate-50">
+                What is the most likely root cause?
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                Choose your diagnosis before writing the fix. This builds the production
+                judgment interviewers are actually testing.
+              </p>
+              <div className="mt-5 grid gap-3">
+                {scenario.diagnosisOptions.map((option) => {
+                  const isSelected = selectedDiagnosisId === option.id;
+                  const showResult = Boolean(selectedDiagnosisId && isSelected);
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => setSelectedDiagnosisId(option.id)}
+                      className={`rounded-3xl border p-4 text-left transition ${
+                        isSelected
+                          ? option.isCorrect
+                            ? "border-teal-300/55 bg-teal-300/10"
+                            : "border-amber-300/55 bg-amber-300/10"
+                          : "border-slate-800 bg-slate-950/35 hover:border-teal-300/30"
+                      }`}
+                    >
+                      <p className="text-sm font-semibold leading-6 text-slate-100">
+                        {option.id}. {option.text}
+                      </p>
+                      {showResult ? (
+                        <p
+                          className={`mt-3 text-sm leading-6 ${
+                            option.isCorrect ? "text-teal-100" : "text-amber-100"
+                          }`}
+                        >
+                          {option.isCorrect ? "Good diagnosis. " : "Not the primary issue. "}
+                          {option.explanation}
+                        </p>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          ) : null}
 
           {scenario.sampleTables?.length ? (
             <section id="data" className="panel scroll-mt-32 rounded-[2rem] p-6">
@@ -538,6 +780,8 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
                 <p className="mt-2 text-sm leading-6 text-slate-400">
                   {canRunSql
                     ? "Write the corrected query, run it against the sample tables, and compare the result with the expected output."
+                    : canRunPyspark
+                      ? "Create a DataFrame named daily_sales or fixed_daily_sales. Run checks the visible sample; Submit fix runs hidden late-data edge cases."
                     : "Think before revealing the answer. A partial but honest attempt is better practice than reading the model solution first."}
                 </p>
               </div>
@@ -545,22 +789,24 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
                 {draftMessage ? (
                   <p className="text-sm font-semibold text-teal-100">{draftMessage}</p>
                 ) : null}
-                {canRunSql ? (
+                {canRunSql || canRunPyspark ? (
                   <>
-                    <button
-                      type="button"
-                      onClick={copySchema}
-                      className="rounded-full border border-slate-700 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:border-teal-300/40"
-                    >
-                      Copy schema
-                    </button>
+                    {canRunSql ? (
+                      <button
+                        type="button"
+                        onClick={copySchema}
+                        className="rounded-full border border-slate-700 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:border-teal-300/40"
+                      >
+                        Copy schema
+                      </button>
+                    ) : null}
                     <button
                       type="button"
                       onClick={runSampleCheck}
                       disabled={isChecking}
                       className="rounded-full border border-teal-300/35 px-5 py-3 text-sm font-semibold text-teal-100 transition hover:bg-teal-300/10 disabled:opacity-60"
                     >
-                      Run
+                      {canRunPyspark ? "Run sample" : "Run"}
                     </button>
                   </>
                 ) : null}
@@ -609,6 +855,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
                 onChange={(event) => {
                   setAnswer(event.target.value);
                   setSqlExecution(null);
+                  setPysparkExecution(null);
                   setEvaluation(null);
                   setDraftMessage(null);
                 }}
@@ -616,6 +863,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
                   handleTextareaTabKeyDown(event, (nextValue) => {
                     setAnswer(nextValue);
                     setSqlExecution(null);
+                    setPysparkExecution(null);
                     setEvaluation(null);
                     setDraftMessage(null);
                   })
@@ -736,6 +984,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
           </section>
 
           {sqlExecution ? <ScenarioSqlResultPanel result={sqlExecution} /> : null}
+          {pysparkExecution ? <ScenarioPysparkResultPanel result={pysparkExecution} /> : null}
 
           {visibleHints.length > 0 ? (
             <section className="panel rounded-[2rem] p-6">
@@ -870,6 +1119,27 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
             ) : null}
           </div>
 
+          {scenario.productionChecklist?.length ? (
+            <div className="panel rounded-[2rem] p-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-200">
+                On-call checklist
+              </p>
+              <div className="mt-4 space-y-3">
+                {scenario.productionChecklist.map((item, index) => (
+                  <div
+                    key={item}
+                    className="flex gap-3 rounded-2xl border border-slate-800 bg-slate-950/35 p-3 text-sm leading-6 text-slate-300"
+                  >
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-teal-300 text-xs font-black text-slate-950">
+                      {index + 1}
+                    </span>
+                    <span>{item}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
           <div className="panel rounded-[2rem] p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-200">
               Lab checklist
@@ -938,6 +1208,73 @@ function Badge({ children }: { children: ReactNode }) {
   );
 }
 
+function IncidentCommandCenter({ incident }: { incident: ScenarioIncident }) {
+  const incidentStats = [
+    ["Severity", incident.severity],
+    ["Reported by", incident.reportedBy],
+    ["Reported at", incident.reportedAt],
+    ["Pipeline", incident.pipeline],
+    ["Owner", incident.owner],
+    ["Impact", incident.impact]
+  ];
+
+  return (
+    <section
+      id="incident"
+      className="scroll-mt-32 overflow-hidden rounded-[2rem] border border-amber-300/25 bg-slate-950/60 shadow-2xl shadow-slate-950/30"
+    >
+      <div className="border-b border-slate-800 bg-amber-300/10 px-6 py-5">
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-200">
+          Production incident room
+        </p>
+        <div className="mt-3 flex flex-col justify-between gap-3 lg:flex-row lg:items-end">
+          <div>
+            <h2 className="text-2xl font-semibold text-slate-50">{incident.incidentId}</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-300">
+              You are the data engineer on-call. Business is waiting for a clear diagnosis,
+              a safe fix, and a prevention plan.
+            </p>
+          </div>
+          <span className="w-fit rounded-full border border-amber-300/40 bg-amber-300 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-slate-950">
+            Live incident
+          </span>
+        </div>
+      </div>
+      <div className="grid gap-4 p-6 md:grid-cols-2 xl:grid-cols-3">
+        {incidentStats.map(([label, value]) => (
+          <div
+            key={label}
+            className="rounded-3xl border border-slate-800 bg-slate-950/45 p-4"
+          >
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+              {label}
+            </p>
+            <p className="mt-2 text-sm font-semibold leading-6 text-slate-100">{value}</p>
+          </div>
+        ))}
+      </div>
+      <div className="grid gap-4 border-t border-slate-800 p-6 lg:grid-cols-2">
+        <div className="rounded-3xl border border-teal-300/20 bg-teal-300/10 p-5">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-teal-100">
+            Expected business state
+          </p>
+          <p className="mt-3 text-sm font-semibold leading-6 text-slate-100">
+            {incident.expected}
+          </p>
+        </div>
+        <div className="rounded-3xl border border-amber-300/25 bg-amber-300/10 p-5">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-100">
+            Current broken state
+          </p>
+          <p className="mt-3 text-sm font-semibold leading-6 text-slate-100">
+            {incident.actual}
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function ScenarioTablePreview({ table }: { table: ScenarioSampleTable }) {
   return (
     <div className="w-full min-w-0 overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/40">
@@ -1000,6 +1337,66 @@ function ScenarioSqlResultPanel({ result }: { result: BrowserSqlValidationResult
       <div className="mt-5 grid gap-5 xl:grid-cols-2">
         <ResultTable title="Your output" table={result.actual} />
         <ResultTable title="Expected output" table={result.expected} />
+      </div>
+    </section>
+  );
+}
+
+function ScenarioPysparkResultPanel({ result }: { result: PysparkValidationResponse }) {
+  return (
+    <section
+      className={`rounded-[2rem] border p-6 ${
+        result.passed
+          ? "border-teal-300/25 bg-teal-300/10"
+          : "border-amber-300/30 bg-amber-300/10"
+      }`}
+    >
+      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+        <div>
+          <p
+            className={`text-xs font-semibold uppercase tracking-[0.24em] ${
+              result.passed ? "text-teal-100" : "text-amber-100"
+            }`}
+          >
+            {result.passed ? "PySpark tests passed" : "PySpark tests failed"}
+          </p>
+          <p className="mt-3 text-sm leading-6 text-slate-200">{result.message}</p>
+        </div>
+        <span className="w-fit rounded-full border border-slate-700 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-300">
+          {result.mode === "sample" ? "Visible sample" : "Hidden tests"} · {result.execution_engine}
+        </span>
+      </div>
+      <div className="mt-5 grid gap-4">
+        {result.tests.map((test) => (
+          <div
+            key={test.name}
+            className={`rounded-3xl border p-4 ${
+              test.passed
+                ? "border-teal-300/20 bg-slate-950/40"
+                : "border-amber-300/25 bg-slate-950/50"
+            }`}
+          >
+            <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+              <h3 className="text-sm font-semibold text-slate-100">{test.name}</h3>
+              <span
+                className={`w-fit rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] ${
+                  test.passed
+                    ? "bg-teal-300 text-slate-950"
+                    : "bg-amber-300 text-slate-950"
+                }`}
+              >
+                {test.passed ? "Passed" : "Mismatch"}
+              </span>
+            </div>
+            <p className="mt-2 text-sm leading-6 text-slate-300">{test.message}</p>
+            {test.actual_output && test.expected_output ? (
+              <div className="mt-4 grid gap-4 xl:grid-cols-2">
+                <ResultTable title="Your output" table={test.actual_output} />
+                <ResultTable title="Expected output" table={test.expected_output} />
+              </div>
+            ) : null}
+          </div>
+        ))}
       </div>
     </section>
   );

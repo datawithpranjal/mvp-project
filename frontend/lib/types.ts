@@ -335,6 +335,30 @@ export interface ValidationResponse {
   rubric: RubricItem[];
 }
 
+export type PysparkValidationMode = "sample" | "hidden";
+
+export interface PysparkValidationRequest {
+  code: string;
+  mode: PysparkValidationMode;
+}
+
+export interface PysparkTestResult {
+  name: string;
+  passed: boolean;
+  message: string;
+  actual_output: QueryResult | null;
+  expected_output: QueryResult | null;
+}
+
+export interface PysparkValidationResponse {
+  validation_type: "PYSPARK_OUTPUT_MATCH";
+  mode: PysparkValidationMode;
+  passed: boolean;
+  message: string;
+  tests: PysparkTestResult[];
+  execution_engine: "remote" | "local";
+}
+
 export interface AiRubricWeights {
   root_cause: number;
   correctness: number;

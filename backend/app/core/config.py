@@ -40,6 +40,10 @@ class Settings(BaseSettings):
     feedback_store_path: str = "/tmp/data-foundry-product-feedback.jsonl"
     usage_store_path: str = "/tmp/data-foundry-usage-events.jsonl"
     content_audit_store_path: str = "/tmp/data-foundry-content-audits.json"
+    pyspark_runner_url: str | None = None
+    pyspark_runner_token: str | None = None
+    pyspark_execution_enabled: bool = False
+    pyspark_timeout_seconds: float = 25.0
 
     model_config = SettingsConfigDict(
         case_sensitive=False,

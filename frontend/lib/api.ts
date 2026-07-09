@@ -28,6 +28,8 @@ import type {
   PremiumStatusResponse,
   ProductFeedbackRequest,
   ProductFeedbackResponse,
+  PysparkValidationRequest,
+  PysparkValidationResponse,
   RazorpayCreateOrderRequest,
   RazorpayCreateOrderResponse,
   RazorpayVerifyPaymentRequest,
@@ -96,6 +98,18 @@ export function validateScenario(
   authToken?: string | null
 ): Promise<ValidationResponse> {
   return apiFetch<ValidationResponse>(`/api/v1/scenarios/${slug}/validate`, {
+    method: "POST",
+    authToken,
+    body: JSON.stringify(payload)
+  });
+}
+
+export function validatePysparkScenario(
+  slug: string,
+  payload: PysparkValidationRequest,
+  authToken?: string | null
+): Promise<PysparkValidationResponse> {
+  return apiFetch<PysparkValidationResponse>(`/api/v1/pyspark/validate/${slug}`, {
     method: "POST",
     authToken,
     body: JSON.stringify(payload)
