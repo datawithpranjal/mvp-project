@@ -7,6 +7,7 @@ import {
   validateSqlOutput,
   type BrowserSqlResultTable
 } from "../../lib/browser-sql";
+import { validatePysparkScenario } from "../../lib/api";
 import { trackEvent } from "../../lib/analytics";
 import { getCurrentUser } from "../../lib/auth";
 import { getGuestSubmissionStatus, recordGuestSubmission } from "../../lib/guest-submissions";
@@ -21,6 +22,7 @@ import {
   type PythonTestCase,
   type SqlTestCase
 } from "../../lib/coding-labs";
+import type { QueryResult } from "../../lib/types";
 import {
   getCodingLabDrafts,
   getCodingLabProgressMap,
@@ -52,12 +54,21 @@ interface ReviewKeywordResult {
   matched: boolean;
 }
 
+interface PysparkCaseResult {
+  name: string;
+  passed: boolean;
+  message: string;
+  actual?: BrowserSqlResultTable;
+  expected?: BrowserSqlResultTable;
+}
+
 interface LabRunResult {
   passed: boolean | null;
   message: string;
   table?: BrowserSqlResultTable;
   sqlResults?: SqlCaseResult[];
   pythonResults?: PythonTestResult[];
+  pysparkResults?: PysparkCaseResult[];
   score?: number;
   reviewResults?: ReviewKeywordResult[];
 }
@@ -213,6 +224,46 @@ async function runPythonLab(
       ? "Correct. Your Python function passed all validation checks."
       : "Some tests failed. Look at the failing input/output and tighten your edge-case handling.",
     pythonResults
+  };
+}
+
+function queryResultToBrowserTable(table?: QueryResult | null): BrowserSqlResultTable | undefined {
+  if (!table) return undefined;
+  return {
+    columns: table.columns,
+    rows: table.rows
+  };
+}
+
+async function runPysparkLab(
+  lab: CodingLab,
+  answer: string,
+  mode: "sample" | "hidden"
+): Promise<LabRunResult> {
+  const validation = await validatePysparkScenario(lab.slug, {
+    code: answer,
+    mode
+  });
+
+  const pysparkResults: PysparkCaseResult[] = validation.tests.map((test) => ({
+    name: test.name,
+    passed: test.passed,
+    message: test.message,
+    actual: queryResultToBrowserTable(test.actual_output),
+    expected: queryResultToBrowserTable(test.expected_output)
+  }));
+
+  return {
+    passed: validation.passed,
+    message:
+      mode === "sample"
+        ? validation.passed
+          ? "Sample check passed. Submit your answer to run the hidden production-style validation cases."
+          : validation.message
+        : validation.passed
+          ? "Correct. Your PySpark fix passed the hidden validation cases."
+          : validation.message,
+    pysparkResults
   };
 }
 
@@ -452,7 +503,9 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
           ? await runSqlLab(selectedLab, answer)
           : selectedLab.track === "python"
             ? await runPythonLab(selectedLab, answer)
-            : evaluateCodeReviewLab(selectedLab, answer);
+            : selectedLab.validationMode === "pyspark"
+              ? await runPysparkLab(selectedLab, answer, "hidden")
+              : evaluateCodeReviewLab(selectedLab, answer);
       setResult(nextResult);
       setProgressMap(
         recordCodingLabAttempt(selectedLab.slug, selectedLab.track, nextResult.passed === true)
@@ -562,6 +615,12 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
             ? "Sample check passed. Submit your answer to run the full hidden edge-case validation."
             : "Wrong answer on the visible sample case. Fix the failing input/output before submitting."
         });
+        return;
+      }
+
+      if (selectedLab.validationMode === "pyspark") {
+        const sampleResult = await runPysparkLab(selectedLab, answer, "sample");
+        setResult(sampleResult);
         return;
       }
 
@@ -821,6 +880,14 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
                 <p className="mt-2 whitespace-pre-line text-sm leading-6 text-teal-50">
                   {selectedLab.expectedOutcome}
                 </p>
+                {selectedLab.expectedOutputTable ? (
+                  <div className="mt-4">
+                    <MiniResultTable
+                      title="Expected output on sample data"
+                      table={selectedLab.expectedOutputTable}
+                    />
+                  </div>
+                ) : null}
                 {expectedPreview ? (
                   <div className="mt-4">
                     <MiniResultTable title="Expected output on sample data" table={expectedPreview} />
@@ -965,7 +1032,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
                 ? "Inspect the seeded tables, write your query, run it, and submit it for complete validation."
                 : track === "python"
                   ? "Use the sample inputs and outputs, implement the function, and run the validation checks."
-                  : "Review the PySpark issue, propose a production-safe fix, and check it against the expected APIs and reasoning."}
+                  : "Inspect the seeded DataFrames, fix the PySpark code, run it on visible sample data, then submit it against hidden production-style cases."}
             </p>
           </div>
 
@@ -1541,6 +1608,35 @@ function ResultPanel({ result }: { result: LabRunResult }) {
                 <pre className="mt-3 overflow-x-auto text-xs leading-6 text-slate-300">
                   {JSON.stringify({ expected: test.expected, actual: test.actual }, null, 2)}
                 </pre>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {result.pysparkResults ? (
+        <div className="mt-5 space-y-3">
+          {result.pysparkResults.map((test) => (
+            <div key={test.name} className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-slate-100">{test.name}</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-400">{test.message}</p>
+                </div>
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-bold ${
+                    test.passed ? "bg-teal-300 text-slate-950" : "bg-amber-300 text-slate-950"
+                  }`}
+                >
+                  {test.passed ? "pass" : "fail"}
+                </span>
+              </div>
+              {test.actual || test.expected ? (
+                <div className={`mt-4 grid gap-3 ${test.passed ? "" : "lg:grid-cols-2"}`}>
+                  {test.actual ? <MiniResultTable title="Your output" table={test.actual} /> : null}
+                  {!test.passed && test.expected ? (
+                    <MiniResultTable title="Expected output" table={test.expected} />
+                  ) : null}
+                </div>
               ) : null}
             </div>
           ))}

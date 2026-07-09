@@ -7,9 +7,7 @@ import subprocess
 import sys
 import tempfile
 import textwrap
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 import httpx
 
@@ -19,7 +17,7 @@ from app.schemas.pyspark_validation import (
     PysparkValidationMode,
     PysparkValidationResponse,
 )
-from app.schemas.validation import QueryResult
+from app.services.pyspark_specs import PYSPARK_SPECS, PysparkCase, PysparkSpec
 
 
 class PysparkValidationError(RuntimeError):
@@ -34,164 +32,6 @@ class PysparkValidationNotFoundError(PysparkValidationError):
     pass
 
 
-@dataclass(frozen=True)
-class PysparkCase:
-    name: str
-    run_date: str
-    rows: list[dict[str, Any]]
-    expected_rows: list[list[Any]]
-
-
-@dataclass(frozen=True)
-class PysparkScenarioSpec:
-    slug: str
-    output_columns: list[str]
-    sample_cases: list[PysparkCase]
-    hidden_cases: list[PysparkCase]
-
-
-YESTERDAYS_SALES_SPEC = PysparkScenarioSpec(
-    slug="yesterdays-sales-missing-late-source-arrival",
-    output_columns=["business_date", "order_count", "gross_sales"],
-    sample_cases=[
-        PysparkCase(
-            name="visible late-arriving paid sales",
-            run_date="2026-05-07",
-            rows=[
-                {
-                    "order_id": 7001,
-                    "customer_id": 101,
-                    "sale_ts_utc": "2026-05-07 10:15:00",
-                    "amount": 250.0,
-                    "status": "PAID",
-                    "source_file_date": "2026-05-07",
-                    "ingested_at": "2026-05-08 03:22:10",
-                },
-                {
-                    "order_id": 7002,
-                    "customer_id": 102,
-                    "sale_ts_utc": "2026-05-07 18:40:00",
-                    "amount": 170.0,
-                    "status": "PAID",
-                    "source_file_date": "2026-05-07",
-                    "ingested_at": "2026-05-08 03:25:44",
-                },
-                {
-                    "order_id": 7003,
-                    "customer_id": 103,
-                    "sale_ts_utc": "2026-05-08 01:05:00",
-                    "amount": 90.0,
-                    "status": "PAID",
-                    "source_file_date": "2026-05-08",
-                    "ingested_at": "2026-05-08 03:26:01",
-                },
-                {
-                    "order_id": 7004,
-                    "customer_id": 104,
-                    "sale_ts_utc": "2026-05-07 12:30:00",
-                    "amount": 75.0,
-                    "status": "CANCELLED",
-                    "source_file_date": "2026-05-07",
-                    "ingested_at": "2026-05-08 03:23:00",
-                },
-            ],
-            expected_rows=[["2026-05-07", 2, 420.0]],
-        )
-    ],
-    hidden_cases=[
-        PysparkCase(
-            name="hidden duplicate late file should not double count",
-            run_date="2026-05-07",
-            rows=[
-                {
-                    "order_id": 8101,
-                    "customer_id": 201,
-                    "sale_ts_utc": "2026-05-07 09:00:00",
-                    "amount": 300.0,
-                    "status": "PAID",
-                    "source_file_date": "2026-05-07",
-                    "ingested_at": "2026-05-09 01:10:00",
-                },
-                {
-                    "order_id": 8101,
-                    "customer_id": 201,
-                    "sale_ts_utc": "2026-05-07 09:00:00",
-                    "amount": 300.0,
-                    "status": "PAID",
-                    "source_file_date": "2026-05-07",
-                    "ingested_at": "2026-05-09 01:12:00",
-                },
-                {
-                    "order_id": 8102,
-                    "customer_id": 202,
-                    "sale_ts_utc": "2026-05-07 22:35:00",
-                    "amount": 120.0,
-                    "status": "PAID",
-                    "source_file_date": "2026-05-07",
-                    "ingested_at": "2026-05-09 01:13:00",
-                },
-                {
-                    "order_id": 8103,
-                    "customer_id": 203,
-                    "sale_ts_utc": "2026-05-07 12:00:00",
-                    "amount": 70.0,
-                    "status": "CANCELLED",
-                    "source_file_date": "2026-05-07",
-                    "ingested_at": "2026-05-09 01:14:00",
-                },
-                {
-                    "order_id": 8104,
-                    "customer_id": 204,
-                    "sale_ts_utc": "2026-05-08 00:05:00",
-                    "amount": 999.0,
-                    "status": "PAID",
-                    "source_file_date": "2026-05-08",
-                    "ingested_at": "2026-05-09 01:15:00",
-                },
-            ],
-            expected_rows=[["2026-05-07", 2, 420.0]],
-        ),
-        PysparkCase(
-            name="hidden same ingestion day includes wrong business dates",
-            run_date="2026-05-07",
-            rows=[
-                {
-                    "order_id": 8201,
-                    "customer_id": 301,
-                    "sale_ts_utc": "2026-05-06 23:50:00",
-                    "amount": 500.0,
-                    "status": "PAID",
-                    "source_file_date": "2026-05-06",
-                    "ingested_at": "2026-05-07 01:00:00",
-                },
-                {
-                    "order_id": 8202,
-                    "customer_id": 302,
-                    "sale_ts_utc": "2026-05-07 11:45:00",
-                    "amount": 80.0,
-                    "status": "PAID",
-                    "source_file_date": "2026-05-07",
-                    "ingested_at": "2026-05-08 02:00:00",
-                },
-                {
-                    "order_id": 8203,
-                    "customer_id": 303,
-                    "sale_ts_utc": "2026-05-07 19:10:00",
-                    "amount": 140.0,
-                    "status": "PAID",
-                    "source_file_date": "2026-05-07",
-                    "ingested_at": "2026-05-08 02:01:00",
-                },
-            ],
-            expected_rows=[["2026-05-07", 2, 220.0]],
-        ),
-    ],
-)
-
-
-PYSPARK_SPECS = {YESTERDAYS_SALES_SPEC.slug: YESTERDAYS_SALES_SPEC}
-
-
 DISALLOWED_CODE_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (
         re.compile(r"\b(import\s+os|from\s+os\s+import|subprocess|socket|requests|urllib)\b"),
@@ -203,11 +43,11 @@ DISALLOWED_CODE_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     ),
     (
         re.compile(r"\bspark\s*\.\s*read\b|\braw_sales_path\b"),
-        "The runner provides the raw_sales DataFrame directly. Do not read external files.",
+        "The runner provides seeded DataFrames directly. Do not read external files in this validator.",
     ),
     (
         re.compile(r"\.write\b|insertInto\s*\(|saveAsTable\s*\(|\.save\s*\("),
-        "For validation, do not write to a warehouse. Assign the fixed result DataFrame to daily_sales.",
+        "For validation, do not write to a warehouse. Assign the final DataFrame to the expected result variable instead.",
     ),
 ]
 
@@ -225,7 +65,7 @@ class PysparkValidationService:
         spec = PYSPARK_SPECS.get(slug)
         if spec is None:
             raise PysparkValidationNotFoundError(
-                "This scenario does not have executable PySpark validation yet."
+                "This PySpark practice item does not have executable validation yet."
             )
 
         guardrail_error = self._validate_code_guardrails(code)
@@ -255,7 +95,8 @@ class PysparkValidationService:
             )
 
         cases = spec.sample_cases if mode == "sample" else spec.hidden_cases
-        tests = self._run_local(spec=spec, code=code, cases=cases)
+        tests = self._run_code_checks(spec=spec, code=code, mode=mode)
+        tests.extend(self._run_local(spec=spec, code=code, cases=list(cases)))
         passed = all(test.passed for test in tests)
         return PysparkValidationResponse(
             mode=mode,
@@ -305,12 +146,37 @@ class PysparkValidationService:
                 return message
         return None
 
+    def _run_code_checks(
+        self,
+        spec: PysparkSpec,
+        code: str,
+        mode: PysparkValidationMode,
+    ) -> list[PysparkTestResult]:
+        compact_code = "".join(code.lower().split())
+        tests: list[PysparkTestResult] = []
+        for check in spec.code_checks:
+            if mode not in check.modes:
+                continue
+            matched = check.needle in compact_code
+            passed = matched if check.should_contain else not matched
+            tests.append(
+                PysparkTestResult(
+                    name=check.name,
+                    passed=passed,
+                    message="Static code check passed." if passed else check.message,
+                )
+            )
+        return tests
+
     def _run_local(
         self,
-        spec: PysparkScenarioSpec,
+        spec: PysparkSpec,
         code: str,
         cases: list[PysparkCase],
     ) -> list[PysparkTestResult]:
+        if not spec.output_columns or not cases:
+            return []
+
         with tempfile.TemporaryDirectory(prefix="data-foundry-pyspark-") as tmp:
             tmp_path = Path(tmp)
             submission_path = tmp_path / "submission.py"
@@ -360,17 +226,25 @@ class PysparkValidationService:
 
     def _runner_script(
         self,
-        spec: PysparkScenarioSpec,
+        spec: PysparkSpec,
         cases: list[PysparkCase],
         submission_path: Path,
     ) -> str:
         payload = {
-            "output_columns": spec.output_columns,
+            "output_columns": list(spec.output_columns),
+            "output_variable_names": list(spec.output_variable_names),
             "cases": [
                 {
                     "name": case.name,
-                    "run_date": case.run_date,
-                    "rows": case.rows,
+                    "inputs": [
+                        {
+                            "name": input_table.name,
+                            "rows": input_table.rows,
+                            "timestamp_columns": list(input_table.timestamp_columns),
+                        }
+                        for input_table in case.inputs
+                    ],
+                    "context": case.context,
                     "expected_rows": case.expected_rows,
                 }
                 for case in cases
@@ -397,7 +271,9 @@ class PysparkValidationService:
                     value = float(value)
                 if isinstance(value, float):
                     return round(value, 2)
-                if isinstance(value, (_dt.date, _dt.datetime)):
+                if isinstance(value, _dt.datetime):
+                    return value.isoformat(sep=" ")[:19]
+                if isinstance(value, _dt.date):
                     return value.isoformat()[:10]
                 return value
 
@@ -427,26 +303,27 @@ class PysparkValidationService:
                 user_code = open(PAYLOAD["submission_path"], "r", encoding="utf-8").read()
                 for case in PAYLOAD["cases"]:
                     try:
-                        raw_sales = spark.createDataFrame(case["rows"])
-                        raw_sales = (
-                            raw_sales
-                            .withColumn("sale_ts_utc", F.to_timestamp("sale_ts_utc"))
-                            .withColumn("ingested_at", F.to_timestamp("ingested_at"))
-                        )
-                        run_date = case["run_date"]
                         namespace = {{
                             "spark": spark,
                             "F": F,
-                            "raw_sales": raw_sales,
-                            "run_date": run_date,
                         }}
+                        for input_table in case["inputs"]:
+                            df = spark.createDataFrame(input_table["rows"])
+                            for timestamp_column in input_table.get("timestamp_columns", []):
+                                df = df.withColumn(timestamp_column, F.to_timestamp(timestamp_column))
+                            namespace[input_table["name"]] = df
+                        for context_key, context_value in case.get("context", {{}}).items():
+                            namespace[context_key] = context_value
                         exec(compile(user_code, "submission.py", "exec"), namespace, namespace)
-                        output_df = namespace.get("daily_sales")
-                        if output_df is None:
-                            output_df = namespace.get("fixed_daily_sales")
+                        output_df = None
+                        for variable_name in PAYLOAD["output_variable_names"]:
+                            candidate = namespace.get(variable_name)
+                            if isinstance(candidate, DataFrame):
+                                output_df = candidate
+                                break
                         if not isinstance(output_df, DataFrame):
                             raise ValueError(
-                                "Create a Spark DataFrame named daily_sales or fixed_daily_sales."
+                                "Create a Spark DataFrame assigned to one of the expected output variables."
                             )
                         missing_columns = [
                             column for column in PAYLOAD["output_columns"]
@@ -466,7 +343,7 @@ class PysparkValidationService:
                             "message": (
                                 "Output matched expected aggregate."
                                 if passed else
-                                "Output mismatch. Check business_date, duplicate order handling, status filter, and gross_sales."
+                                "Output mismatch. Check the expected grain, filters, deduplication, and projected columns."
                             ),
                             "actual_output": query_result(PAYLOAD["output_columns"], actual_rows),
                             "expected_output": query_result(PAYLOAD["output_columns"], expected_rows),

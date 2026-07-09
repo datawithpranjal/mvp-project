@@ -1,5 +1,9 @@
 import codingLabData from "../data/coding-labs.generated.json";
 import { pysparkLabData } from "../data/pyspark-labs.generated";
+import {
+  PYSPARK_LAB_RUNTIME_OVERRIDES,
+  type PysparkExpectedOutputTable
+} from "../data/pyspark-lab-runtime";
 import publicSqlPracticeData from "../data/public-sql-practice.generated.json";
 import {
   filterLaunchReady,
@@ -48,6 +52,7 @@ export interface CodingLab {
   explanation: string;
   hints: string[];
   tables: CodingLabTable[];
+  expectedOutputTable?: PysparkExpectedOutputTable;
   expectedSql?: string;
   sqlTestCases?: SqlTestCase[];
   functionName?: string;
@@ -55,6 +60,7 @@ export interface CodingLab {
   validationKeywords?: string[];
   commonMistakes?: string[];
   launchReady?: boolean;
+  validationMode?: "sql" | "python" | "pyspark" | "review";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -124,6 +130,10 @@ function normalizeLab(value: unknown): CodingLab | null {
 
   if (!id || !slug || !title) return null;
 
+  const pysparkRuntimeOverride = normalizeTrack(value.track) === "pyspark"
+    ? PYSPARK_LAB_RUNTIME_OVERRIDES[slug]
+    : undefined;
+
   return {
     id,
     slug,
@@ -137,19 +147,26 @@ function normalizeLab(value: unknown): CodingLab | null {
     businessContext: stringValue(value.businessContext),
     problemStatement: stringValue(value.problemStatement),
     expectedOutcome: stringValue(value.expectedOutcome) || undefined,
-    studentTask: stringValue(value.studentTask),
-    starterCode: stringValue(value.starterCode),
-    solutionCode: stringValue(value.solutionCode),
+    studentTask: stringValue(pysparkRuntimeOverride?.studentTask ?? value.studentTask),
+    starterCode: stringValue(pysparkRuntimeOverride?.starterCode ?? value.starterCode),
+    solutionCode: stringValue(pysparkRuntimeOverride?.solutionCode ?? value.solutionCode),
     explanation: stringValue(value.explanation),
     hints: stringArray(value.hints),
     tables: tableArray(value.tables),
+    expectedOutputTable: pysparkRuntimeOverride?.expectedOutputTable,
     expectedSql: stringValue(value.expectedSql) || undefined,
     sqlTestCases: sqlTestCaseArray(value.sqlTestCases),
     functionName: stringValue(value.functionName) || undefined,
     testCases: testCaseArray(value.testCases),
     validationKeywords: stringArray(value.validationKeywords),
     commonMistakes: stringArray(value.commonMistakes),
-    launchReady: isLaunchReadyCodingLab(slug)
+    launchReady: isLaunchReadyCodingLab(slug),
+    validationMode:
+      normalizeTrack(value.track) === "sql"
+        ? "sql"
+        : normalizeTrack(value.track) === "python"
+          ? "python"
+          : "pyspark"
   };
 }
 
