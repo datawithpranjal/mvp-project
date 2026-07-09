@@ -9,8 +9,7 @@ import {
 } from "../../lib/browser-sql";
 import { validatePysparkScenario } from "../../lib/api";
 import { trackEvent } from "../../lib/analytics";
-import { getCurrentUser } from "../../lib/auth";
-import { getGuestSubmissionStatus, recordGuestSubmission } from "../../lib/guest-submissions";
+import { getAuthToken, getCurrentUser } from "../../lib/auth";
 import { sendUsageEvent } from "../../lib/usage";
 import { handleTextareaTabKeyDown } from "../../lib/textarea-tab";
 import {
@@ -238,12 +237,13 @@ function queryResultToBrowserTable(table?: QueryResult | null): BrowserSqlResult
 async function runPysparkLab(
   lab: CodingLab,
   answer: string,
-  mode: "sample" | "hidden"
+  mode: "sample" | "hidden",
+  authToken?: string | null
 ): Promise<LabRunResult> {
   const validation = await validatePysparkScenario(lab.slug, {
     code: answer,
     mode
-  });
+  }, authToken);
 
   const pysparkResults: PysparkCaseResult[] = validation.tests.map((test) => ({
     name: test.name,
@@ -481,17 +481,30 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
     ? "rounded-full bg-teal-300 px-5 py-3 text-sm font-bold text-slate-950 shadow-[0_0_28px_rgba(94,234,212,0.2)] transition hover:bg-teal-200"
     : "rounded-full border border-teal-300/30 px-5 py-3 text-sm font-bold text-teal-100 transition hover:bg-teal-300/10 disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-500";
 
+  function requireLoginForValidation(action: "run" | "submit") {
+    const currentUser = getCurrentUser();
+    const authToken = getAuthToken();
+    if (currentUser && authToken) {
+      return authToken;
+    }
+
+    setWorkspaceMessage(
+      action === "run"
+        ? "Log in or create an account to run this code."
+        : "Log in or create an account to submit this answer."
+    );
+    setIsAuthOpen(true);
+    trackEvent("signup_started", {
+      source: action === "run" ? "coding_lab_run" : "coding_lab_submit",
+      lab: selectedLab.slug
+    });
+    return false;
+  }
+
   async function submitLab() {
     if (!selectedLab) return;
-    const currentUser = getCurrentUser();
-    const guestQuestionKey = `coding:${selectedLab.slug}`;
-    const guestStatus = getGuestSubmissionStatus(guestQuestionKey);
-    if (!currentUser && !guestStatus.canSubmit) {
-      setWorkspaceMessage(
-        "You have used your 3 free guest questions. Log in or create an account to continue."
-      );
-      setIsAuthOpen(true);
-      trackEvent("signup_started", { source: "coding_lab_submit", lab: selectedLab.slug });
+    const authToken = requireLoginForValidation("submit");
+    if (!authToken) {
       return;
     }
 
@@ -504,20 +517,12 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
           : selectedLab.track === "python"
             ? await runPythonLab(selectedLab, answer)
             : selectedLab.validationMode === "pyspark"
-              ? await runPysparkLab(selectedLab, answer, "hidden")
+              ? await runPysparkLab(selectedLab, answer, "hidden", authToken)
               : evaluateCodeReviewLab(selectedLab, answer);
       setResult(nextResult);
       setProgressMap(
         recordCodingLabAttempt(selectedLab.slug, selectedLab.track, nextResult.passed === true)
       );
-      if (!currentUser) {
-        const nextGuestStatus = recordGuestSubmission(guestQuestionKey);
-        setWorkspaceMessage(
-          nextGuestStatus.remaining > 0
-            ? `${nextGuestStatus.remaining} free guest question${nextGuestStatus.remaining === 1 ? "" : "s"} left in this session.`
-            : "You have used your 3 free guest questions. Log in to continue practicing."
-        );
-      }
       sendUsageEvent("coding_lab_submitted", {
         metadata: {
           lab_slug: selectedLab.slug,
@@ -558,6 +563,11 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
   }
 
   async function runSampleCheck() {
+    const authToken = requireLoginForValidation("run");
+    if (!authToken) {
+      return;
+    }
+
     try {
       setIsRunning(true);
       setResult(null);
@@ -619,7 +629,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
       }
 
       if (selectedLab.validationMode === "pyspark") {
-        const sampleResult = await runPysparkLab(selectedLab, answer, "sample");
+        const sampleResult = await runPysparkLab(selectedLab, answer, "sample", authToken);
         setResult(sampleResult);
         return;
       }

@@ -28,7 +28,6 @@ import {
   type ScenarioProgressSummary
 } from "../../lib/progress";
 import { evaluateScenarioAnswer, type ScenarioEvaluationResult } from "../../lib/scenarioEvaluator";
-import { getGuestSubmissionStatus, recordGuestSubmission } from "../../lib/guest-submissions";
 import { sendUsageEvent } from "../../lib/usage";
 import { handleTextareaTabKeyDown } from "../../lib/textarea-tab";
 import type { PysparkValidationResponse } from "../../lib/types";
@@ -220,19 +219,33 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
     setDraftMessage("Draft saved.");
   }
 
-  async function checkAnswer() {
+  function requireLoginForValidation(action: "run" | "submit") {
     const authToken = getAuthToken();
     const currentAuthUser = getCurrentUser();
-    const guestQuestionKey = `scenario:${scenario.slug}`;
-    const guestStatus = getGuestSubmissionStatus(guestQuestionKey);
-    if ((!authToken || !currentAuthUser) && !guestStatus.canSubmit) {
-      setDraftMessage(
-        "You have used your 3 free guest questions. Log in or create an account to continue."
-      );
-      setIsAuthOpen(true);
-      trackEvent("signup_started", { source: "scenario_submit", scenario: scenario.slug });
+
+    if (authToken && currentAuthUser) {
+      return { authToken, currentAuthUser };
+    }
+
+    setDraftMessage(
+      action === "run"
+        ? "Log in or create an account to run this check."
+        : "Log in or create an account to submit this answer."
+    );
+    setIsAuthOpen(true);
+    trackEvent("signup_started", {
+      source: action === "run" ? "scenario_run" : "scenario_submit",
+      scenario: scenario.slug
+    });
+    return null;
+  }
+
+  async function checkAnswer() {
+    const authSession = requireLoginForValidation("submit");
+    if (!authSession) {
       return;
     }
+    const { authToken } = authSession;
 
     const submittedAnswer =
       scenario.scenarioType === "mcq"
@@ -392,14 +405,6 @@ Impact: ${scenario.incident.impact}`
       });
       setEvaluation(nextEvaluation);
       setProgress(summarizeScenarioProgress(nextProgress, scenario.slug));
-      if (!authToken || !currentAuthUser) {
-        const nextGuestStatus = recordGuestSubmission(guestQuestionKey);
-        setEvaluationNotice(
-          nextGuestStatus.remaining > 0
-            ? `Guest attempt saved. ${nextGuestStatus.remaining} free guest question${nextGuestStatus.remaining === 1 ? "" : "s"} left in this session. Sign in anytime for AI evaluation and saved progress.`
-            : "Guest attempt saved. You have used your 3 free guest questions. Log in to continue practicing."
-        );
-      }
       setDraftMessage(aiFallbackMessage);
       sendUsageEvent("scenario_submitted", {
         metadata: {
@@ -475,6 +480,11 @@ Impact: ${scenario.incident.impact}`
   }
 
   async function runSampleCheck() {
+    const authSession = requireLoginForValidation("run");
+    if (!authSession) {
+      return;
+    }
+
     if (
       !canRunPyspark &&
       (!canRunSql || !scenario.sampleTables || !scenario.expectedSql)
@@ -489,7 +499,7 @@ Impact: ${scenario.incident.impact}`
         const result = await validatePysparkScenario(scenario.slug, {
           code: answer,
           mode: "sample"
-        });
+        }, authSession.authToken);
         setPysparkExecution(result);
         setDraftMessage(
           result.passed

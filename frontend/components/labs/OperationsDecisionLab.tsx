@@ -11,9 +11,11 @@ import {
   type OperationsLabTrack
 } from "../../data/platform-operations-labs";
 import { trackEvent } from "../../lib/analytics";
+import { getCurrentUser } from "../../lib/auth";
 import { getOperationsLearningFlow } from "../../lib/learning-flow";
 import { getPremiumAccess, type PremiumAccessRecord } from "../../lib/premium-access";
 import { handleTextareaTabKeyDown } from "../../lib/textarea-tab";
+import { AuthDialog } from "../auth-dialog";
 
 interface SavedOperationsAnswer {
   optionId: string;
@@ -47,6 +49,8 @@ export function OperationsDecisionLab({ track }: { track: OperationsLabTrack }) 
   const [section, setSection] = useState("All");
   const [premiumAccess, setPremiumAccess] = useState<PremiumAccessRecord | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [actionMessage, setActionMessage] = useState("");
 
   const selectedLab = labs.find((lab) => lab.slug === selectedSlug) ?? labs[0];
   const sections = ["All", ...Array.from(new Set(labs.map((lab) => lab.section))).sort()];
@@ -132,6 +136,13 @@ export function OperationsDecisionLab({ track }: { track: OperationsLabTrack }) 
   }
 
   function submitAnswer() {
+    if (!getCurrentUser()) {
+      setActionMessage("Log in or create an account to submit this response.");
+      setIsAuthOpen(true);
+      trackEvent("signup_started", { source: `${track}_lab_submit`, lab: selectedLab.slug });
+      return;
+    }
+
     if (!selectedOption) {
       setResult({
         score: 0,
@@ -143,6 +154,8 @@ export function OperationsDecisionLab({ track }: { track: OperationsLabTrack }) 
       });
       return;
     }
+
+    setActionMessage("");
 
     const evaluation = evaluateAnswer(selectedLab, selectedOption, explanation);
     setResult(evaluation);
@@ -361,6 +374,11 @@ export function OperationsDecisionLab({ track }: { track: OperationsLabTrack }) 
                 <p className="mt-3 text-sm leading-7 text-slate-300">
                   {selectedLab.studentTask}
                 </p>
+                {actionMessage ? (
+                  <p className="mt-4 rounded-2xl border border-amber-300/25 bg-amber-300/10 px-4 py-3 text-sm font-semibold text-amber-100">
+                    {actionMessage}
+                  </p>
+                ) : null}
 
                 <fieldset className="mt-6 space-y-3">
                   <legend className="text-sm font-semibold text-slate-100">
@@ -490,6 +508,7 @@ export function OperationsDecisionLab({ track }: { track: OperationsLabTrack }) 
           </ul>
         </aside>
       </section>
+      <AuthDialog isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
     </main>
   );
 }
