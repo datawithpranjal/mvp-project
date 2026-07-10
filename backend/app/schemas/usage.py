@@ -95,3 +95,56 @@ class UsageVisitorSummaryResponse(BaseModel):
     total_active_seconds: int
     daily_totals: list[UsageVisitorDailyTotal]
     top_pages: list[UsageVisitorTopPage]
+
+
+class UsageEventCount(BaseModel):
+    event_name: str
+    count: int
+
+
+class UsageDailyInsight(BaseModel):
+    date: str
+    page_views: int
+    content_views: int
+    submissions: int
+    completions: int
+    logins: int
+    active_seconds: int
+
+
+class UsageContentInsight(BaseModel):
+    content_id: str
+    content_type: str
+    track: str | None = None
+    views: int
+    submissions: int
+    completions: int
+    completion_rate: float
+    avg_score: float | None = None
+    avg_active_seconds: int
+    last_activity_at: str | None = None
+
+
+class UsageFunnelInsight(BaseModel):
+    anonymous_visitors: int
+    logged_in_users: int
+    total_sessions: int
+    page_views: int
+    content_views: int
+    logins: int
+    submissions: int
+    completions: int
+    completion_rate: float
+    active_seconds: int
+
+
+class UsageAdminInsightsResponse(BaseModel):
+    storage_backend: Literal["postgres", "file"]
+    table_exists: bool
+    days: int
+    total_events: int
+    funnel: UsageFunnelInsight
+    event_counts: list[UsageEventCount]
+    daily: list[UsageDailyInsight]
+    top_content: list[UsageContentInsight]
+    friction_content: list[UsageContentInsight]

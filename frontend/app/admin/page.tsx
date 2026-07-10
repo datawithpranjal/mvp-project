@@ -7,6 +7,7 @@ import {
   getAdminAiStatus,
   getAdminFeedback,
   getAdminPremiumPurchases,
+  getAdminUsageInsights,
   getAdminUsageSummary,
   getAdminVisitorSummary,
   getContentAuditSummary
@@ -15,6 +16,7 @@ import type {
   AdminAiStatusResponse,
   AdminFeedbackResponse,
   AdminPremiumPurchasesResponse,
+  AdminUsageInsightsResponse,
   AdminUsageSummaryResponse,
   AdminVisitorSummaryResponse,
   ContentAuditSummaryResponse
@@ -26,6 +28,7 @@ interface AdminDashboardData {
   aiStatus: AdminAiStatusResponse | null;
   contentAudit: ContentAuditSummaryResponse | null;
   feedback: AdminFeedbackResponse | null;
+  insights: AdminUsageInsightsResponse | null;
   purchases: AdminPremiumPurchasesResponse | null;
   usage: AdminUsageSummaryResponse | null;
   visitors: AdminVisitorSummaryResponse | null;
@@ -35,6 +38,7 @@ const emptyAdminData: AdminDashboardData = {
   aiStatus: null,
   contentAudit: null,
   feedback: null,
+  insights: null,
   purchases: null,
   usage: null,
   visitors: null
@@ -63,6 +67,38 @@ export default function AdminConsolePage() {
     () => data.usage?.rows.reduce((total, row) => total + row.questions_completed, 0) ?? 0,
     [data.usage]
   );
+  const submissions = data.insights?.funnel.submissions ?? 0;
+  const completionRate = data.insights?.funnel.completion_rate ?? 0;
+  const frictionItems = data.insights?.friction_content.length ?? 0;
+  const eventsTracked = data.insights?.total_events ?? 0;
+  const payingCustomers = useMemo(
+    () => new Set(data.purchases?.records.map((record) => record.email) ?? []).size,
+    [data.purchases]
+  );
+  const expiringSoon = useMemo(() => {
+    const now = Date.now();
+    const sevenDaysFromNow = now + 7 * 24 * 60 * 60 * 1000;
+    return (
+      data.purchases?.records.filter((record) => {
+        const expiresAt = new Date(record.access_expires_at).getTime();
+        return Number.isFinite(expiresAt) && expiresAt >= now && expiresAt <= sevenDaysFromNow;
+      }).length ?? 0
+    );
+  }, [data.purchases]);
+  const lowRatingFeedback = useMemo(
+    () => data.feedback?.rows.filter((row) => typeof row.rating === "number" && row.rating <= 2).length ?? 0,
+    [data.feedback]
+  );
+  const inactiveLearners = useMemo(() => {
+    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    return (
+      data.usage?.rows.filter((row) => {
+        if (!row.last_seen_at) return true;
+        const lastSeenAt = new Date(row.last_seen_at).getTime();
+        return Number.isFinite(lastSeenAt) && lastSeenAt < sevenDaysAgo;
+      }).length ?? 0
+    );
+  }, [data.usage]);
 
   async function loadAdminDashboard(token = adminToken) {
     const trimmedToken = token.trim();
@@ -79,6 +115,7 @@ export default function AdminConsolePage() {
       aiStatus: getAdminAiStatus(trimmedToken),
       contentAudit: getContentAuditSummary(trimmedToken),
       feedback: getAdminFeedback(trimmedToken, 25),
+      insights: getAdminUsageInsights(trimmedToken, 30, 25),
       purchases: getAdminPremiumPurchases(trimmedToken),
       usage: getAdminUsageSummary(trimmedToken, 30, 50),
       visitors: getAdminVisitorSummary(trimmedToken, 30, 15)
@@ -201,20 +238,203 @@ export default function AdminConsolePage() {
           hint="Logged-in"
         />
         <MetricCard
-          label="Completed"
-          value={formatNumber(completedQuestions)}
-          hint="Questions"
+          label="Submissions"
+          value={formatNumber(submissions)}
+          hint={`${formatNumber(completedQuestions)} completed`}
         />
+        <MetricCard
+          label="Completion"
+          value={formatPercent(completionRate)}
+          hint={`${frictionItems} friction items`}
+        />
+        <MetricCard
+          label="Events"
+          value={formatNumber(eventsTracked)}
+          hint="Tracked actions"
+        />
+      </section>
+
+      <section className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
         <MetricCard
           label="Revenue"
           value={`Rs ${formatNumber(purchaseRevenue)}`}
           hint={`${data.purchases?.count ?? 0} purchases`}
         />
         <MetricCard
+          label="Paying users"
+          value={formatNumber(payingCustomers)}
+          hint={`${expiringSoon} expiring soon`}
+        />
+        <MetricCard
+          label="Feedback risk"
+          value={formatNumber(lowRatingFeedback)}
+          hint="Low ratings"
+        />
+        <MetricCard
+          label="Inactive"
+          value={formatNumber(inactiveLearners)}
+          hint="No activity 7d"
+        />
+        <MetricCard
+          label="AI"
+          value={data.aiStatus?.configured ? "On" : "Off"}
+          hint={data.aiStatus?.provider ?? "Not loaded"}
+        />
+        <MetricCard
           label="Content score"
           value={data.contentAudit?.average_audit_score ?? 0}
           hint={`${data.contentAudit?.critical_issues ?? 0} critical`}
         />
+      </section>
+
+      <section className="mt-6 grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+        <AdminPanel
+          title="Product funnel"
+          eyebrow="Where users move or drop"
+          error={errors.insights}
+          actionHref={null}
+        >
+          {data.insights ? (
+            <div className="space-y-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <MiniMetric
+                  label="Anonymous visitors"
+                  value={formatNumber(data.insights.funnel.anonymous_visitors)}
+                />
+                <MiniMetric
+                  label="Logged-in users"
+                  value={formatNumber(data.insights.funnel.logged_in_users)}
+                />
+                <MiniMetric
+                  label="Sessions"
+                  value={formatNumber(data.insights.funnel.total_sessions)}
+                />
+                <MiniMetric
+                  label="Active time"
+                  value={formatDuration(data.insights.funnel.active_seconds)}
+                />
+              </div>
+              <div className="space-y-3">
+                <FunnelRow
+                  label="Page views"
+                  value={data.insights.funnel.page_views}
+                  max={Math.max(data.insights.funnel.page_views, 1)}
+                />
+                <FunnelRow
+                  label="Content views"
+                  value={data.insights.funnel.content_views}
+                  max={Math.max(data.insights.funnel.page_views, data.insights.funnel.content_views, 1)}
+                />
+                <FunnelRow
+                  label="Logins"
+                  value={data.insights.funnel.logins}
+                  max={Math.max(data.insights.funnel.content_views, data.insights.funnel.logins, 1)}
+                />
+                <FunnelRow
+                  label="Submissions"
+                  value={data.insights.funnel.submissions}
+                  max={Math.max(data.insights.funnel.content_views, data.insights.funnel.submissions, 1)}
+                />
+                <FunnelRow
+                  label="Completed"
+                  value={data.insights.funnel.completions}
+                  max={Math.max(data.insights.funnel.submissions, data.insights.funnel.completions, 1)}
+                  tone="success"
+                />
+              </div>
+              {data.insights.event_counts.length ? (
+                <div className="rounded-3xl border border-slate-800 bg-slate-950/30 p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+                    Event mix
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {data.insights.event_counts.slice(0, 8).map((event) => (
+                      <span
+                        key={event.event_name}
+                        className="rounded-full border border-slate-700 px-3 py-2 text-[11px] font-semibold text-slate-300"
+                      >
+                        {event.event_name.replace(/_/g, " ")}: {formatNumber(event.count)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <EmptyAdminState label="Load the admin console to see funnel movement." />
+          )}
+        </AdminPanel>
+
+        <AdminPanel
+          title="Daily engagement trend"
+          eyebrow="Last 30 days"
+          error={errors.insights}
+          actionHref={null}
+        >
+          {data.insights?.daily.length ? (
+            <div className="overflow-hidden rounded-3xl border border-slate-800">
+              <div className="grid grid-cols-[1.1fr_repeat(5,minmax(72px,1fr))] gap-0 bg-slate-950/60 px-4 py-3 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">
+                <span>Date</span>
+                <span>Views</span>
+                <span>Content</span>
+                <span>Submit</span>
+                <span>Done</span>
+                <span>Time</span>
+              </div>
+              {data.insights.daily.slice(0, 10).map((day) => (
+                <div
+                  key={day.date}
+                  className="grid grid-cols-[1.1fr_repeat(5,minmax(72px,1fr))] gap-0 border-t border-slate-800 px-4 py-3 text-xs text-slate-300"
+                >
+                  <span className="font-semibold text-slate-100">{day.date}</span>
+                  <span>{formatNumber(day.page_views)}</span>
+                  <span>{formatNumber(day.content_views)}</span>
+                  <span>{formatNumber(day.submissions)}</span>
+                  <span>{formatNumber(day.completions)}</span>
+                  <span>{formatDuration(day.active_seconds)}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyAdminState label="Daily trend will appear after usage events are recorded." />
+          )}
+        </AdminPanel>
+      </section>
+
+      <section className="mt-6 grid gap-6 xl:grid-cols-2">
+        <AdminPanel
+          title="Where learners may be stuck"
+          eyebrow="Low completion after attempts"
+          error={errors.insights}
+          actionHref={null}
+        >
+          {data.insights?.friction_content.length ? (
+            <div className="space-y-2">
+              {data.insights.friction_content.slice(0, 8).map((content) => (
+                <ContentInsightCard key={`${content.content_type}-${content.content_id}`} content={content} />
+              ))}
+            </div>
+          ) : (
+            <EmptyAdminState label="No repeated stuck content detected yet. This is good unless traffic is low." />
+          )}
+        </AdminPanel>
+
+        <AdminPanel
+          title="Most used content"
+          eyebrow="What learners actually open"
+          error={errors.insights}
+          actionHref={null}
+        >
+          {data.insights?.top_content.length ? (
+            <div className="space-y-2">
+              {data.insights.top_content.slice(0, 8).map((content) => (
+                <ContentInsightCard key={`${content.content_type}-${content.content_id}`} content={content} />
+              ))}
+            </div>
+          ) : (
+            <EmptyAdminState label="Top content will appear once learners view or submit labs." />
+          )}
+        </AdminPanel>
       </section>
 
       <section className="mt-6 grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
@@ -279,8 +499,8 @@ export default function AdminConsolePage() {
 
       <section className="mt-6 grid gap-6 xl:grid-cols-2">
         <AdminPanel
-          title="Learner usage"
-          eyebrow="Logged-in users"
+          title="Learner health"
+          eyebrow={`${inactiveLearners} inactive for 7d`}
           error={errors.usage}
           actionHref={null}
         >
@@ -301,7 +521,7 @@ export default function AdminConsolePage() {
 
         <AdminPanel
           title="Payments"
-          eyebrow="Premium purchase ledger"
+          eyebrow={`${payingCustomers} paying users · ${expiringSoon} expiring soon`}
           error={errors.purchases}
           actionHref={null}
         >
@@ -324,7 +544,7 @@ export default function AdminConsolePage() {
       <section className="mt-6 grid gap-6 xl:grid-cols-2">
         <AdminPanel
           title="Customer feedback"
-          eyebrow={`${data.feedback?.count ?? 0} messages`}
+          eyebrow={`${data.feedback?.count ?? 0} messages · ${lowRatingFeedback} low ratings`}
           error={errors.feedback}
           actionHref={null}
         >
@@ -440,6 +660,85 @@ function MiniMetric({
   );
 }
 
+function FunnelRow({
+  label,
+  max,
+  tone = "default",
+  value
+}: {
+  label: string;
+  max: number;
+  tone?: "default" | "success";
+  value: number;
+}) {
+  const width = Math.max(4, Math.min(100, (value / Math.max(max, 1)) * 100));
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-3 text-xs">
+        <span className="font-semibold uppercase tracking-[0.14em] text-slate-500">{label}</span>
+        <span className="font-semibold text-slate-100">{formatNumber(value)}</span>
+      </div>
+      <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-800">
+        <div
+          className={`h-full rounded-full ${tone === "success" ? "bg-teal-300" : "bg-amber-300"}`}
+          style={{ width: `${width}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function ContentInsightCard({ content }: { content: AdminUsageInsightsResponse["top_content"][number] }) {
+  return (
+    <div className="rounded-3xl border border-slate-800 bg-slate-950/35 p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="line-clamp-1 text-sm font-semibold text-slate-100">
+            {humanizeContentId(content.content_id)}
+          </p>
+          <p className="mt-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+            {content.content_type}
+            {content.track ? ` · ${content.track}` : ""}
+          </p>
+        </div>
+        <span
+          className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${
+            content.completion_rate >= 80
+              ? "bg-teal-300 text-slate-950"
+              : content.completion_rate >= 40
+                ? "bg-amber-300 text-slate-950"
+                : "bg-rose-300 text-slate-950"
+          }`}
+        >
+          {formatPercent(content.completion_rate)}
+        </span>
+      </div>
+      <div className="mt-4 grid gap-2 sm:grid-cols-4">
+        <TinyStat label="Views" value={formatNumber(content.views)} />
+        <TinyStat label="Submitted" value={formatNumber(content.submissions)} />
+        <TinyStat label="Done" value={formatNumber(content.completions)} />
+        <TinyStat
+          label="Avg score"
+          value={content.avg_score === null || content.avg_score === undefined ? "NA" : `${content.avg_score}`}
+        />
+      </div>
+      <p className="mt-3 text-xs text-slate-500">
+        Avg time {formatDuration(content.avg_active_seconds)}
+        {content.last_activity_at ? ` · Last activity ${formatDate(content.last_activity_at)}` : ""}
+      </p>
+    </div>
+  );
+}
+
+function TinyStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-3">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">{label}</p>
+      <p className="mt-1 text-sm font-semibold text-slate-100">{value}</p>
+    </div>
+  );
+}
+
 function RowCard({ meta, title }: { meta: string; title: string }) {
   return (
     <div className="rounded-3xl border border-slate-800 bg-slate-950/35 p-4">
@@ -461,6 +760,10 @@ function formatNumber(value: number): string {
   return new Intl.NumberFormat("en-IN").format(value);
 }
 
+function formatPercent(value: number): string {
+  return `${Math.round(value)}%`;
+}
+
 function formatDuration(seconds: number): string {
   if (seconds < 60) return `${seconds}s`;
   const minutes = Math.round(seconds / 60);
@@ -476,4 +779,12 @@ function formatDate(value: string): string {
     month: "short",
     year: "numeric"
   });
+}
+
+function humanizeContentId(value: string): string {
+  return value
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }

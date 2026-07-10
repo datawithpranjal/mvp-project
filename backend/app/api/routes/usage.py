@@ -6,6 +6,7 @@ from fastapi import APIRouter, Header, HTTPException
 from app.core.config import get_settings
 from app.schemas.usage import (
     AnonymousUsageEventRequest,
+    UsageAdminInsightsResponse,
     UsageAdminSummaryResponse,
     UsageEventRequest,
     UsageEventResponse,
@@ -102,4 +103,26 @@ def visitor_usage_summary(
         raise HTTPException(
             status_code=503,
             detail="Visitor usage summary is temporarily unavailable.",
+        ) from exc
+
+
+@router.get("/api/v1/admin/usage/insights", response_model=UsageAdminInsightsResponse)
+@router.get("/v1/admin/usage/insights", response_model=UsageAdminInsightsResponse)
+def usage_insights(
+    x_admin_token: Annotated[str | None, Header()] = None,
+    days: int = 30,
+    limit: int = 25,
+) -> UsageAdminInsightsResponse:
+    if not settings.admin_api_token:
+        raise HTTPException(status_code=503, detail="Admin usage access is not configured.")
+    if not x_admin_token or not secrets.compare_digest(
+        x_admin_token, settings.admin_api_token
+    ):
+        raise HTTPException(status_code=401, detail="Invalid admin token.")
+    try:
+        return usage_store.admin_insights(days=days, limit=limit)
+    except UsageStoreError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Usage insights are temporarily unavailable.",
         ) from exc

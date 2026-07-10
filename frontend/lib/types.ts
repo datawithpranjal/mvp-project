@@ -174,6 +174,59 @@ export interface AdminVisitorSummaryResponse {
   top_pages: AdminVisitorTopPage[];
 }
 
+export interface AdminUsageEventCount {
+  event_name: string;
+  count: number;
+}
+
+export interface AdminUsageDailyInsight {
+  date: string;
+  page_views: number;
+  content_views: number;
+  submissions: number;
+  completions: number;
+  logins: number;
+  active_seconds: number;
+}
+
+export interface AdminUsageContentInsight {
+  content_id: string;
+  content_type: string;
+  track?: string | null;
+  views: number;
+  submissions: number;
+  completions: number;
+  completion_rate: number;
+  avg_score?: number | null;
+  avg_active_seconds: number;
+  last_activity_at?: string | null;
+}
+
+export interface AdminUsageFunnelInsight {
+  anonymous_visitors: number;
+  logged_in_users: number;
+  total_sessions: number;
+  page_views: number;
+  content_views: number;
+  logins: number;
+  submissions: number;
+  completions: number;
+  completion_rate: number;
+  active_seconds: number;
+}
+
+export interface AdminUsageInsightsResponse {
+  storage_backend: "postgres" | "file";
+  table_exists: boolean;
+  days: number;
+  total_events: number;
+  funnel: AdminUsageFunnelInsight;
+  event_counts: AdminUsageEventCount[];
+  daily: AdminUsageDailyInsight[];
+  top_content: AdminUsageContentInsight[];
+  friction_content: AdminUsageContentInsight[];
+}
+
 export interface AdminPremiumPurchaseRecord {
   email: string;
   plan_label: string;

@@ -2,6 +2,7 @@ import { API_BASE_URL } from "./config";
 import type {
   AdminAiStatusResponse,
   AdminFeedbackResponse,
+  AdminUsageInsightsResponse,
   AdminPremiumPurchasesResponse,
   AdminUsageSummaryResponse,
   AdminVisitorSummaryResponse,
@@ -343,6 +344,19 @@ export function getAdminUsageSummary(
 ): Promise<AdminUsageSummaryResponse> {
   return apiFetch<AdminUsageSummaryResponse>(
     `/api/v1/admin/usage/summary?days=${days}&limit=${limit}`,
+    {
+      headers: { "X-Admin-Token": adminToken }
+    }
+  );
+}
+
+export function getAdminUsageInsights(
+  adminToken: string,
+  days: number = 30,
+  limit: number = 25
+): Promise<AdminUsageInsightsResponse> {
+  return apiFetch<AdminUsageInsightsResponse>(
+    `/api/v1/admin/usage/insights?days=${days}&limit=${limit}`,
     {
       headers: { "X-Admin-Token": adminToken }
     }

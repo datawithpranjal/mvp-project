@@ -9,7 +9,12 @@ from app.core.config import DEFAULT_POSTGRES_URL, get_settings
 from app.schemas.auth import AuthUserProfile
 from app.schemas.usage import (
     AnonymousUsageEventRequest,
+    UsageAdminInsightsResponse,
+    UsageContentInsight,
+    UsageDailyInsight,
+    UsageEventCount,
     UsageAdminSummaryResponse,
+    UsageFunnelInsight,
     UsageVisitorDailyTotal,
     UsageVisitorSummaryResponse,
     UsageVisitorTopPage,
@@ -94,6 +99,13 @@ class UsageStore:
         if self.postgres_url:
             return self._visitor_summary_postgres(days=bounded_days, limit=bounded_limit)
         return self._visitor_summary_file(days=bounded_days, limit=bounded_limit)
+
+    def admin_insights(self, days: int = 30, limit: int = 25) -> UsageAdminInsightsResponse:
+        bounded_days = max(1, min(days, 365))
+        bounded_limit = max(1, min(limit, 100))
+        if self.postgres_url:
+            return self._insights_postgres(days=bounded_days, limit=bounded_limit)
+        return self._insights_file(days=bounded_days, limit=bounded_limit)
 
     def _build_record(
         self,
@@ -571,6 +583,305 @@ class UsageStore:
         except Exception as exc:
             raise UsageStoreError("Unable to read visitor usage summary.") from exc
 
+    def _insights_file(self, days: int, limit: int) -> UsageAdminInsightsResponse:
+        if not self.storage_path.exists():
+            return self._empty_insights("file", table_exists=False, days=days)
+
+        window_start = datetime.now(timezone.utc) - timedelta(days=days)
+        records = [
+            record
+            for record in self._read_file_records()
+            if self._parse_datetime(record.get("created_at")) >= window_start
+        ]
+        return self._build_insights_from_records(
+            records=records,
+            storage_backend="file",
+            table_exists=True,
+            days=days,
+            limit=limit,
+        )
+
+    def _insights_postgres(self, days: int, limit: int) -> UsageAdminInsightsResponse:
+        try:
+            import psycopg
+        except ImportError as exc:
+            raise UsageStoreError("Usage storage is unavailable.") from exc
+
+        window_start = datetime.now(timezone.utc) - timedelta(days=days)
+
+        try:
+            with psycopg.connect(self.postgres_url) as connection:
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        "SELECT to_regclass('public.user_usage_events') IS NOT NULL"
+                    )
+                    if not bool(cursor.fetchone()[0]):
+                        return self._empty_insights("postgres", table_exists=False, days=days)
+
+                    cursor.execute(
+                        """
+                        SELECT
+                            user_id, email, full_name, event_name, session_id,
+                            page_url, active_seconds, metadata, created_at
+                        FROM public.user_usage_events
+                        WHERE created_at >= %s
+                        ORDER BY created_at DESC
+                        LIMIT 50000
+                        """,
+                        (window_start,),
+                    )
+                    records = [
+                        {
+                            "user_id": row[0],
+                            "email": row[1],
+                            "full_name": row[2],
+                            "event_name": row[3],
+                            "session_id": row[4],
+                            "page_url": row[5],
+                            "active_seconds": row[6],
+                            "metadata": row[7] if isinstance(row[7], dict) else {},
+                            "created_at": row[8].isoformat() if row[8] else "",
+                        }
+                        for row in cursor.fetchall()
+                    ]
+            return self._build_insights_from_records(
+                records=records,
+                storage_backend="postgres",
+                table_exists=True,
+                days=days,
+                limit=limit,
+            )
+        except Exception as exc:
+            raise UsageStoreError("Unable to read usage insights.") from exc
+
+    def _build_insights_from_records(
+        self,
+        records: list[dict[str, Any]],
+        storage_backend: str,
+        table_exists: bool,
+        days: int,
+        limit: int,
+    ) -> UsageAdminInsightsResponse:
+        event_counts: dict[str, int] = {}
+        daily: dict[str, dict[str, Any]] = {}
+        content: dict[str, dict[str, Any]] = {}
+        anonymous_visitors: set[str] = set()
+        logged_in_users: set[str] = set()
+        sessions: set[str] = set()
+        active_seconds = 0
+
+        for record in records:
+            event_name = str(record.get("event_name") or "")
+            user_id = str(record.get("user_id") or "")
+            session_id = str(record.get("session_id") or "")
+            created_at = self._parse_datetime(record.get("created_at"))
+            date_key = created_at.date().isoformat()
+            metadata = record.get("metadata") if isinstance(record.get("metadata"), dict) else {}
+            record_active_seconds = int(record.get("active_seconds") or 0)
+
+            event_counts[event_name] = event_counts.get(event_name, 0) + 1
+            active_seconds += record_active_seconds
+            if session_id:
+                sessions.add(session_id)
+            if user_id:
+                if self._is_anonymous_user_id(user_id):
+                    anonymous_visitors.add(user_id)
+                else:
+                    logged_in_users.add(user_id)
+
+            daily_row = daily.setdefault(
+                date_key,
+                {
+                    "date": date_key,
+                    "page_views": 0,
+                    "content_views": 0,
+                    "submissions": 0,
+                    "completions": 0,
+                    "logins": 0,
+                    "active_seconds": 0,
+                },
+            )
+            daily_row["active_seconds"] += record_active_seconds
+            if event_name == "page_view":
+                daily_row["page_views"] += 1
+            elif event_name == "content_view":
+                daily_row["content_views"] += 1
+            elif event_name in QUESTION_SUBMITTED_EVENTS:
+                daily_row["submissions"] += 1
+            elif event_name in QUESTION_COMPLETED_EVENTS:
+                daily_row["completions"] += 1
+            elif event_name == "login_success":
+                daily_row["logins"] += 1
+
+            content_key = self._content_key_for_event(event_name, metadata)
+            if not content_key:
+                continue
+
+            content_id, content_type, track = content_key
+            content_row = content.setdefault(
+                f"{content_type}:{content_id}",
+                {
+                    "content_id": content_id,
+                    "content_type": content_type,
+                    "track": track,
+                    "views": 0,
+                    "submissions": 0,
+                    "completions": 0,
+                    "scores": [],
+                    "active_seconds": 0,
+                    "activity_count": 0,
+                    "last_activity_at": None,
+                },
+            )
+            content_row["track"] = content_row["track"] or track
+            content_row["active_seconds"] += record_active_seconds
+            content_row["activity_count"] += 1
+            if not content_row["last_activity_at"] or created_at > content_row["last_activity_at"]:
+                content_row["last_activity_at"] = created_at
+            if event_name == "content_view":
+                content_row["views"] += 1
+            elif event_name in QUESTION_SUBMITTED_EVENTS:
+                content_row["submissions"] += 1
+                score = metadata.get("score")
+                if isinstance(score, (int, float)):
+                    content_row["scores"].append(float(score))
+            elif event_name in QUESTION_COMPLETED_EVENTS:
+                content_row["completions"] += 1
+
+        content_rows = [
+            self._to_content_insight(row)
+            for row in content.values()
+        ]
+        top_content = sorted(
+            content_rows,
+            key=lambda row: (row.submissions + row.completions, row.views, row.last_activity_at or ""),
+            reverse=True,
+        )[:limit]
+        friction_content = sorted(
+            [
+                row
+                for row in content_rows
+                if row.submissions >= 2 and row.completions < row.submissions
+            ],
+            key=lambda row: (row.completion_rate, -row.submissions, row.avg_score or 0),
+        )[:limit]
+
+        submissions = sum(event_counts.get(event, 0) for event in QUESTION_SUBMITTED_EVENTS)
+        completions = sum(event_counts.get(event, 0) for event in QUESTION_COMPLETED_EVENTS)
+
+        return UsageAdminInsightsResponse(
+            storage_backend=storage_backend,  # type: ignore[arg-type]
+            table_exists=table_exists,
+            days=days,
+            total_events=len(records),
+            funnel=UsageFunnelInsight(
+                anonymous_visitors=len(anonymous_visitors),
+                logged_in_users=len(logged_in_users),
+                total_sessions=len(sessions),
+                page_views=event_counts.get("page_view", 0),
+                content_views=event_counts.get("content_view", 0),
+                logins=event_counts.get("login_success", 0),
+                submissions=submissions,
+                completions=completions,
+                completion_rate=self._safe_rate(completions, submissions),
+                active_seconds=active_seconds,
+            ),
+            event_counts=[
+                UsageEventCount(event_name=name, count=count)
+                for name, count in sorted(event_counts.items(), key=lambda item: item[1], reverse=True)
+            ],
+            daily=[
+                UsageDailyInsight(**row)
+                for row in sorted(daily.values(), key=lambda item: item["date"], reverse=True)
+            ],
+            top_content=top_content,
+            friction_content=friction_content,
+        )
+
+    def _empty_insights(
+        self,
+        storage_backend: str,
+        table_exists: bool,
+        days: int,
+    ) -> UsageAdminInsightsResponse:
+        return UsageAdminInsightsResponse(
+            storage_backend=storage_backend,  # type: ignore[arg-type]
+            table_exists=table_exists,
+            days=days,
+            total_events=0,
+            funnel=UsageFunnelInsight(
+                anonymous_visitors=0,
+                logged_in_users=0,
+                total_sessions=0,
+                page_views=0,
+                content_views=0,
+                logins=0,
+                submissions=0,
+                completions=0,
+                completion_rate=0,
+                active_seconds=0,
+            ),
+            event_counts=[],
+            daily=[],
+            top_content=[],
+            friction_content=[],
+        )
+
+    def _content_key_for_event(
+        self,
+        event_name: str,
+        metadata: dict[str, Any],
+    ) -> tuple[str, str, str | None] | None:
+        if event_name == "content_view":
+            content_id = str(metadata.get("content_id") or "").strip()
+            content_type = str(metadata.get("content_type") or "content").strip()
+            track = metadata.get("track")
+            if content_id:
+                return content_id, content_type, str(track) if track else None
+            return None
+
+        if event_name.startswith("coding_lab_"):
+            lab_slug = str(metadata.get("lab_slug") or metadata.get("lab") or "").strip()
+            track = str(metadata.get("track") or "").strip() or None
+            if lab_slug:
+                return lab_slug, "coding_lab", track
+            return None
+
+        if event_name.startswith("scenario_"):
+            scenario_slug = str(metadata.get("scenario_slug") or metadata.get("scenario") or "").strip()
+            scenario_type = str(metadata.get("scenario_type") or metadata.get("type") or "scenario").strip()
+            domain = str(metadata.get("domain") or "").strip() or None
+            if scenario_slug:
+                return scenario_slug, scenario_type, domain
+            return None
+
+        return None
+
+    def _to_content_insight(self, row: dict[str, Any]) -> UsageContentInsight:
+        scores = row.get("scores") or []
+        submissions = int(row["submissions"])
+        completions = int(row["completions"])
+        activity_count = max(1, int(row["activity_count"]))
+        last_activity_at = row.get("last_activity_at")
+        return UsageContentInsight(
+            content_id=str(row["content_id"]),
+            content_type=str(row["content_type"]),
+            track=row.get("track"),
+            views=int(row["views"]),
+            submissions=submissions,
+            completions=completions,
+            completion_rate=self._safe_rate(completions, submissions),
+            avg_score=round(sum(scores) / len(scores), 1) if scores else None,
+            avg_active_seconds=round(int(row["active_seconds"]) / activity_count),
+            last_activity_at=last_activity_at.isoformat() if isinstance(last_activity_at, datetime) else None,
+        )
+
+    @staticmethod
+    def _safe_rate(numerator: int, denominator: int) -> float:
+        if denominator <= 0:
+            return 0
+        return round((numerator / denominator) * 100, 1)
+
     def _ensure_table(self, cursor: object) -> None:
         cursor.execute(
             """
@@ -635,7 +946,7 @@ class UsageStore:
                 continue
             if value is None or isinstance(value, bool):
                 safe[safe_key] = value
-            elif isinstance(value, int | float):
+            elif isinstance(value, (int, float)):
                 safe[safe_key] = value
             else:
                 safe[safe_key] = str(value)[:500]
