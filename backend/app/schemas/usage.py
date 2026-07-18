@@ -102,6 +102,19 @@ class UsageEventCount(BaseModel):
     count: int
 
 
+class UsageBreakdownItem(BaseModel):
+    label: str
+    count: int
+    percentage: float
+
+
+class UsageConversionInsight(BaseModel):
+    page_to_content_rate: float
+    visitor_to_login_rate: float
+    content_to_submission_rate: float
+    submission_to_completion_rate: float
+
+
 class UsageDailyInsight(BaseModel):
     date: str
     page_views: int
@@ -144,7 +157,11 @@ class UsageAdminInsightsResponse(BaseModel):
     days: int
     total_events: int
     funnel: UsageFunnelInsight
+    conversion: UsageConversionInsight
     event_counts: list[UsageEventCount]
+    device_breakdown: list[UsageBreakdownItem]
+    traffic_sources: list[UsageBreakdownItem]
+    track_breakdown: list[UsageBreakdownItem]
     daily: list[UsageDailyInsight]
     top_content: list[UsageContentInsight]
     friction_content: list[UsageContentInsight]

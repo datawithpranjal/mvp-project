@@ -10,7 +10,9 @@ from app.schemas.auth import AuthUserProfile
 from app.schemas.usage import (
     AnonymousUsageEventRequest,
     UsageAdminInsightsResponse,
+    UsageBreakdownItem,
     UsageContentInsight,
+    UsageConversionInsight,
     UsageDailyInsight,
     UsageEventCount,
     UsageAdminSummaryResponse,
@@ -665,6 +667,9 @@ class UsageStore:
         event_counts: dict[str, int] = {}
         daily: dict[str, dict[str, Any]] = {}
         content: dict[str, dict[str, Any]] = {}
+        device_counts: dict[str, int] = {}
+        source_counts: dict[str, int] = {}
+        track_counts: dict[str, int] = {}
         anonymous_visitors: set[str] = set()
         logged_in_users: set[str] = set()
         sessions: set[str] = set()
@@ -713,11 +718,19 @@ class UsageStore:
             elif event_name == "login_success":
                 daily_row["logins"] += 1
 
+            if event_name == "page_view":
+                device_label = str(metadata.get("device") or "unknown").strip().lower() or "unknown"
+                source_label = self._source_label(str(metadata.get("referrer") or ""))
+                device_counts[device_label] = device_counts.get(device_label, 0) + 1
+                source_counts[source_label] = source_counts.get(source_label, 0) + 1
+
             content_key = self._content_key_for_event(event_name, metadata)
             if not content_key:
                 continue
 
             content_id, content_type, track = content_key
+            if track:
+                track_counts[track] = track_counts.get(track, 0) + 1
             content_row = content.setdefault(
                 f"{content_type}:{content_id}",
                 {
@@ -768,6 +781,10 @@ class UsageStore:
 
         submissions = sum(event_counts.get(event, 0) for event in QUESTION_SUBMITTED_EVENTS)
         completions = sum(event_counts.get(event, 0) for event in QUESTION_COMPLETED_EVENTS)
+        page_views = event_counts.get("page_view", 0)
+        content_views = event_counts.get("content_view", 0)
+        logins = event_counts.get("login_success", 0)
+        total_people = len(anonymous_visitors) + len(logged_in_users)
 
         return UsageAdminInsightsResponse(
             storage_backend=storage_backend,  # type: ignore[arg-type]
@@ -778,18 +795,27 @@ class UsageStore:
                 anonymous_visitors=len(anonymous_visitors),
                 logged_in_users=len(logged_in_users),
                 total_sessions=len(sessions),
-                page_views=event_counts.get("page_view", 0),
-                content_views=event_counts.get("content_view", 0),
-                logins=event_counts.get("login_success", 0),
+                page_views=page_views,
+                content_views=content_views,
+                logins=logins,
                 submissions=submissions,
                 completions=completions,
                 completion_rate=self._safe_rate(completions, submissions),
                 active_seconds=active_seconds,
             ),
+            conversion=UsageConversionInsight(
+                page_to_content_rate=self._capped_rate(content_views, page_views),
+                visitor_to_login_rate=self._capped_rate(len(logged_in_users), total_people),
+                content_to_submission_rate=self._capped_rate(submissions, content_views),
+                submission_to_completion_rate=self._capped_rate(completions, submissions),
+            ),
             event_counts=[
                 UsageEventCount(event_name=name, count=count)
                 for name, count in sorted(event_counts.items(), key=lambda item: item[1], reverse=True)
             ],
+            device_breakdown=self._to_breakdown(device_counts),
+            traffic_sources=self._to_breakdown(source_counts),
+            track_breakdown=self._to_breakdown(track_counts),
             daily=[
                 UsageDailyInsight(**row)
                 for row in sorted(daily.values(), key=lambda item: item["date"], reverse=True)
@@ -821,7 +847,16 @@ class UsageStore:
                 completion_rate=0,
                 active_seconds=0,
             ),
+            conversion=UsageConversionInsight(
+                page_to_content_rate=0,
+                visitor_to_login_rate=0,
+                content_to_submission_rate=0,
+                submission_to_completion_rate=0,
+            ),
             event_counts=[],
+            device_breakdown=[],
+            traffic_sources=[],
+            track_breakdown=[],
             daily=[],
             top_content=[],
             friction_content=[],
@@ -876,11 +911,51 @@ class UsageStore:
             last_activity_at=last_activity_at.isoformat() if isinstance(last_activity_at, datetime) else None,
         )
 
+    def _to_breakdown(self, counts: dict[str, int]) -> list[UsageBreakdownItem]:
+        total = sum(counts.values())
+        return [
+            UsageBreakdownItem(
+                label=label,
+                count=count,
+                percentage=self._safe_rate(count, total),
+            )
+            for label, count in sorted(counts.items(), key=lambda item: item[1], reverse=True)
+        ]
+
+    @staticmethod
+    def _source_label(referrer: str) -> str:
+        cleaned = referrer.strip().lower()
+        if not cleaned:
+            return "direct"
+        for prefix in ("https://", "http://"):
+            if cleaned.startswith(prefix):
+                cleaned = cleaned[len(prefix):]
+        domain = cleaned.split("/", 1)[0].replace("www.", "")
+        if not domain:
+            return "direct"
+        if "google." in domain:
+            return "google"
+        if "youtube." in domain or "youtu.be" in domain:
+            return "youtube"
+        if "linkedin." in domain:
+            return "linkedin"
+        if "instagram." in domain:
+            return "instagram"
+        if "datawithpranjal.com" in domain:
+            return "internal"
+        return domain[:80]
+
     @staticmethod
     def _safe_rate(numerator: int, denominator: int) -> float:
         if denominator <= 0:
             return 0
         return round((numerator / denominator) * 100, 1)
+
+    @staticmethod
+    def _capped_rate(numerator: int, denominator: int) -> float:
+        if denominator <= 0:
+            return 0
+        return min(100, round((numerator / denominator) * 100, 1))
 
     def _ensure_table(self, cursor: object) -> None:
         cursor.execute(

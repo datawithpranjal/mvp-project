@@ -56,7 +56,11 @@ export function UsageTracker() {
   useEffect(() => {
     sendUsageEvent("page_view", {
       metadata: {
-        path: pathname
+        device: getDeviceKind(),
+        language: navigator.language,
+        path: pathname,
+        referrer: document.referrer,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
       }
     });
   }, [pathname]);
@@ -101,6 +105,13 @@ export function UsageTracker() {
   }, []);
 
   return null;
+}
+
+function getDeviceKind(): "desktop" | "mobile" | "tablet" {
+  const width = window.innerWidth;
+  if (width < 640) return "mobile";
+  if (width < 1024) return "tablet";
+  return "desktop";
 }
 
 function getContentViewMetadata(pathname: string): Record<string, string | number | boolean | null> | null {

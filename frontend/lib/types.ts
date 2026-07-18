@@ -179,6 +179,19 @@ export interface AdminUsageEventCount {
   count: number;
 }
 
+export interface AdminUsageBreakdownItem {
+  label: string;
+  count: number;
+  percentage: number;
+}
+
+export interface AdminUsageConversionInsight {
+  page_to_content_rate: number;
+  visitor_to_login_rate: number;
+  content_to_submission_rate: number;
+  submission_to_completion_rate: number;
+}
+
 export interface AdminUsageDailyInsight {
   date: string;
   page_views: number;
@@ -221,7 +234,11 @@ export interface AdminUsageInsightsResponse {
   days: number;
   total_events: number;
   funnel: AdminUsageFunnelInsight;
+  conversion: AdminUsageConversionInsight;
   event_counts: AdminUsageEventCount[];
+  device_breakdown: AdminUsageBreakdownItem[];
+  traffic_sources: AdminUsageBreakdownItem[];
+  track_breakdown: AdminUsageBreakdownItem[];
   daily: AdminUsageDailyInsight[];
   top_content: AdminUsageContentInsight[];
   friction_content: AdminUsageContentInsight[];

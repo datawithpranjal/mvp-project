@@ -99,6 +99,42 @@ export default function AdminConsolePage() {
       }).length ?? 0
     );
   }, [data.usage]);
+  const activeLearners7d = useMemo(() => {
+    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    return (
+      data.usage?.rows.filter((row) => {
+        if (!row.last_seen_at) return false;
+        const lastSeenAt = new Date(row.last_seen_at).getTime();
+        return Number.isFinite(lastSeenAt) && lastSeenAt >= sevenDaysAgo;
+      }).length ?? 0
+    );
+  }, [data.usage]);
+  const powerLearners = useMemo(
+    () => data.usage?.rows.filter((row) => row.questions_completed >= 5 || row.sessions_30d >= 5).length ?? 0,
+    [data.usage]
+  );
+  const stuckLearners = useMemo(
+    () =>
+      data.usage?.rows.filter(
+        (row) => row.questions_submitted >= 3 && row.questions_completed === 0
+      ).length ?? 0,
+    [data.usage]
+  );
+  const averageOrderValue = data.purchases?.records.length
+    ? Math.round(purchaseRevenue / data.purchases.records.length)
+    : 0;
+  const yearlyPurchases =
+    data.purchases?.records.filter((record) => record.billing_interval === "yearly").length ?? 0;
+  const monthlyPurchases =
+    data.purchases?.records.filter((record) => record.billing_interval === "monthly").length ?? 0;
+  const couponPurchases =
+    data.purchases?.records.filter((record) => Boolean(record.coupon_code)).length ?? 0;
+  const totalDiscount = data.purchases?.records.reduce(
+    (total, record) => total + record.discount_amount_inr,
+    0
+  ) ?? 0;
+  const razorpayPurchases =
+    data.purchases?.records.filter((record) => record.payment_provider === "razorpay").length ?? 0;
 
   async function loadAdminDashboard(token = adminToken) {
     const trimmedToken = token.trim();
@@ -403,6 +439,59 @@ export default function AdminConsolePage() {
 
       <section className="mt-6 grid gap-6 xl:grid-cols-2">
         <AdminPanel
+          title="Conversion health"
+          eyebrow="Are users reaching the practice loop?"
+          error={errors.insights}
+          actionHref={null}
+        >
+          {data.insights ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <ConversionCard
+                label="Page to content"
+                value={data.insights.conversion.page_to_content_rate}
+                description="Are visitors opening actual labs after landing?"
+              />
+              <ConversionCard
+                label="Visitor to login"
+                value={data.insights.conversion.visitor_to_login_rate}
+                description="Are enough people creating or using accounts?"
+              />
+              <ConversionCard
+                label="Content to submit"
+                value={data.insights.conversion.content_to_submission_rate}
+                description="Are learners attempting instead of only reading?"
+              />
+              <ConversionCard
+                label="Submit to complete"
+                value={data.insights.conversion.submission_to_completion_rate}
+                description="Are labs solvable with the current hints and data?"
+              />
+            </div>
+          ) : (
+            <EmptyAdminState label="Load insights to see conversion health." />
+          )}
+        </AdminPanel>
+
+        <AdminPanel
+          title="Audience signals"
+          eyebrow="Source, device, and content interest"
+          error={errors.insights}
+          actionHref={null}
+        >
+          {data.insights ? (
+            <div className="grid gap-5 lg:grid-cols-3">
+              <BreakdownList title="Traffic sources" rows={data.insights.traffic_sources} />
+              <BreakdownList title="Devices" rows={data.insights.device_breakdown} />
+              <BreakdownList title="Tracks" rows={data.insights.track_breakdown} />
+            </div>
+          ) : (
+            <EmptyAdminState label="Audience breakdowns will appear after page views are tracked." />
+          )}
+        </AdminPanel>
+      </section>
+
+      <section className="mt-6 grid gap-6 xl:grid-cols-2">
+        <AdminPanel
           title="Where learners may be stuck"
           eyebrow="Low completion after attempts"
           error={errors.insights}
@@ -505,14 +594,30 @@ export default function AdminConsolePage() {
           actionHref={null}
         >
           {data.usage?.rows.length ? (
-            <div className="space-y-2">
-              {data.usage.rows.slice(0, 8).map((learner) => (
-                <RowCard
-                  key={learner.user_id}
-                  title={learner.full_name || learner.email}
-                  meta={`${learner.email} · ${learner.questions_completed} completed · ${formatDuration(learner.total_active_seconds)} active · ${learner.logins_30d} logins/30d`}
+            <div className="space-y-5">
+              <div className="grid gap-3 sm:grid-cols-4">
+                <MiniMetric label="Active 7d" value={formatNumber(activeLearners7d)} />
+                <MiniMetric label="Power users" value={formatNumber(powerLearners)} />
+                <MiniMetric
+                  label="Stuck users"
+                  value={formatNumber(stuckLearners)}
+                  tone={stuckLearners > 0 ? "warning" : "default"}
                 />
-              ))}
+                <MiniMetric
+                  label="Inactive 7d"
+                  value={formatNumber(inactiveLearners)}
+                  tone={inactiveLearners > 0 ? "warning" : "default"}
+                />
+              </div>
+              <div className="space-y-2">
+                {data.usage.rows.slice(0, 8).map((learner) => (
+                  <RowCard
+                    key={learner.user_id}
+                    title={learner.full_name || learner.email}
+                    meta={`${learner.email} · ${learner.questions_completed} completed · ${learner.questions_submitted} submitted · ${formatDuration(learner.total_active_seconds)} active · ${learner.sessions_30d} sessions/30d · ${learner.logins_30d} logins/30d`}
+                  />
+                ))}
+              </div>
             </div>
           ) : (
             <EmptyAdminState label="No logged-in learner usage loaded yet." />
@@ -526,14 +631,26 @@ export default function AdminConsolePage() {
           actionHref={null}
         >
           {data.purchases?.records.length ? (
-            <div className="space-y-2">
-              {data.purchases.records.slice(0, 8).map((purchase) => (
-                <RowCard
-                  key={`${purchase.payment_provider}-${purchase.payment_reference}`}
-                  title={`${purchase.email} · Rs ${formatNumber(purchase.amount_inr)}`}
-                  meta={`${purchase.plan_label} · ${purchase.payment_provider} · paid ${formatDate(purchase.purchased_at)} · valid till ${formatDate(purchase.access_expires_at)}`}
-                />
-              ))}
+            <div className="space-y-5">
+              <div className="grid gap-3 sm:grid-cols-4">
+                <MiniMetric label="AOV" value={`Rs ${formatNumber(averageOrderValue)}`} />
+                <MiniMetric label="Yearly" value={formatNumber(yearlyPurchases)} />
+                <MiniMetric label="Monthly" value={formatNumber(monthlyPurchases)} />
+                <MiniMetric label="Coupons" value={formatNumber(couponPurchases)} />
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <MiniMetric label="Razorpay" value={formatNumber(razorpayPurchases)} />
+                <MiniMetric label="Discount given" value={`Rs ${formatNumber(totalDiscount)}`} />
+              </div>
+              <div className="space-y-2">
+                {data.purchases.records.slice(0, 8).map((purchase) => (
+                  <RowCard
+                    key={`${purchase.payment_provider}-${purchase.payment_reference}`}
+                    title={`${purchase.email} · Rs ${formatNumber(purchase.amount_inr)}`}
+                    meta={`${purchase.plan_label} · ${purchase.billing_interval} · ${purchase.payment_provider} · ${purchase.coupon_code ? `coupon ${purchase.coupon_code} · ` : ""}paid ${formatDate(purchase.purchased_at)} · valid till ${formatDate(purchase.access_expires_at)}`}
+                  />
+                ))}
+              </div>
             </div>
           ) : (
             <EmptyAdminState label="No purchase records loaded yet." />
@@ -656,6 +773,72 @@ function MiniMetric({
     <div className={`rounded-3xl border p-4 ${toneClass}`}>
       <p className="text-[10px] font-semibold uppercase tracking-[0.16em] opacity-70">{label}</p>
       <p className="mt-2 text-xl font-semibold">{value}</p>
+    </div>
+  );
+}
+
+function ConversionCard({
+  description,
+  label,
+  value
+}: {
+  description: string;
+  label: string;
+  value: number;
+}) {
+  const tone =
+    value >= 55 ? "bg-teal-300 text-slate-950" : value >= 25 ? "bg-amber-300 text-slate-950" : "bg-rose-300 text-slate-950";
+  return (
+    <div className="rounded-3xl border border-slate-800 bg-slate-950/35 p-4">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">{label}</p>
+        <span className={`rounded-full px-3 py-1 text-xs font-bold ${tone}`}>{formatPercent(value)}</span>
+      </div>
+      <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-800">
+        <div
+          className={value >= 55 ? "h-full rounded-full bg-teal-300" : value >= 25 ? "h-full rounded-full bg-amber-300" : "h-full rounded-full bg-rose-300"}
+          style={{ width: `${Math.max(4, Math.min(100, value))}%` }}
+        />
+      </div>
+      <p className="mt-3 text-xs leading-5 text-slate-500">{description}</p>
+    </div>
+  );
+}
+
+function BreakdownList({
+  rows,
+  title
+}: {
+  rows: AdminUsageInsightsResponse["device_breakdown"];
+  title: string;
+}) {
+  return (
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">{title}</p>
+      {rows.length ? (
+        <div className="mt-3 space-y-3">
+          {rows.slice(0, 6).map((row) => (
+            <div key={row.label}>
+              <div className="flex items-center justify-between gap-3 text-xs">
+                <span className="line-clamp-1 font-semibold capitalize text-slate-200">{row.label}</span>
+                <span className="text-slate-500">
+                  {formatNumber(row.count)} · {formatPercent(row.percentage)}
+                </span>
+              </div>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-800">
+                <div
+                  className="h-full rounded-full bg-teal-300"
+                  style={{ width: `${Math.max(4, Math.min(100, row.percentage))}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-3 rounded-2xl border border-dashed border-slate-800 p-3 text-xs text-slate-500">
+          No data yet
+        </p>
+      )}
     </div>
   );
 }
