@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 
 import codingLabGenerated from "../frontend/data/coding-labs.generated.json";
+import { originalPythonLabData } from "../frontend/data/python-original-labs.generated";
 import publicSqlPracticeGenerated from "../frontend/data/public-sql-practice.generated.json";
 import { pysparkLabData } from "../frontend/data/pyspark-labs.generated";
 import { pysparkPdfLabData } from "../frontend/data/pyspark-pdf-labs.generated";
@@ -77,6 +78,7 @@ const SQL_WASM_DIR = path.join(FRONTEND_DIR, "node_modules", "sql.js", "dist");
 const frontendRequire = createRequire(path.join(FRONTEND_DIR, "package.json"));
 const VALIDATED_FILES = [
   "frontend/data/coding-labs.generated.json",
+  "frontend/data/python-original-labs.generated.ts",
   "frontend/data/public-sql-practice.generated.json",
   "frontend/data/pyspark-labs.generated.ts",
   "frontend/data/pyspark-pdf-labs.generated.ts",
@@ -153,6 +155,9 @@ function launchSection(item: ValidationItem): string {
   }
   if (item.kind === "coding-lab" && item.source.includes("coding-labs.generated")) {
     return item.slug.startsWith("sql-") ? "SQL labs" : "Python labs";
+  }
+  if (item.kind === "coding-lab" && item.source.includes("python-original-labs.generated")) {
+    return "Original Python labs";
   }
   if (item.kind === "coding-lab" && item.source.includes("pyspark-labs.generated")) {
     return "PySpark labs";
@@ -760,6 +765,9 @@ async function main() {
   const generatedSqlLabs = (codingLabGenerated as unknown[])
     .map((lab) => normalizeCodingLab(lab, "frontend/data/coding-labs.generated.json"))
     .filter((lab): lab is ValidationItem => Boolean(lab));
+  const originalPythonLabs = (originalPythonLabData as unknown[])
+    .map((lab) => normalizeCodingLab(lab, "frontend/data/python-original-labs.generated.ts"))
+    .filter((lab): lab is ValidationItem => Boolean(lab));
   const publicSqlPracticeLabs = (publicSqlPracticeGenerated as unknown[])
     .map((lab) => normalizeCodingLab(lab, "frontend/data/public-sql-practice.generated.json"))
     .filter((lab): lab is ValidationItem => Boolean(lab));
@@ -775,6 +783,7 @@ async function main() {
 
   const items = [
     ...generatedSqlLabs,
+    ...originalPythonLabs,
     ...publicSqlPracticeLabs,
     ...generatedPySparkLabs,
     ...generatedPySparkPdfLabs,
@@ -784,6 +793,7 @@ async function main() {
   ];
   const itemsBySource = new Map<string, ValidationItem[]>([
     ["frontend/data/coding-labs.generated.json", generatedSqlLabs],
+    ["frontend/data/python-original-labs.generated.ts", originalPythonLabs],
     ["frontend/data/public-sql-practice.generated.json", publicSqlPracticeLabs],
     ["frontend/data/pyspark-labs.generated.ts", generatedPySparkLabs],
     ["frontend/data/pyspark-pdf-labs.generated.ts", generatedPySparkPdfLabs],
@@ -799,6 +809,7 @@ async function main() {
 
   const codingItems = [
     ...generatedSqlLabs,
+    ...originalPythonLabs,
     ...publicSqlPracticeLabs,
     ...generatedPySparkLabs,
     ...generatedPySparkPdfLabs
@@ -812,7 +823,7 @@ async function main() {
   }
 
   console.log(
-    `Validated ${items.length} records: ${generatedSqlLabs.length} generated SQL/Python labs, ${publicSqlPracticeLabs.length} SQL coverage labs, ${generatedPySparkLabs.length} generated PySpark labs, ${generatedPySparkPdfLabs.length} PySpark PDF labs, ${scenarioItems.length} scenarios, ${operationsItems.length} operations labs, ${systemDesignItems.length} system-design cases.`
+    `Validated ${items.length} records: ${generatedSqlLabs.length} generated SQL/Python labs, ${originalPythonLabs.length} original Python labs, ${publicSqlPracticeLabs.length} SQL coverage labs, ${generatedPySparkLabs.length} generated PySpark labs, ${generatedPySparkPdfLabs.length} PySpark PDF labs, ${scenarioItems.length} scenarios, ${operationsItems.length} operations labs, ${systemDesignItems.length} system-design cases.`
   );
   printReport(items);
 }

@@ -429,6 +429,36 @@ export interface PysparkValidationResponse {
   execution_engine: "remote" | "local";
 }
 
+export type PythonValidationMode = "sample" | "hidden";
+
+export interface PythonValidationRequest {
+  code: string;
+  mode: PythonValidationMode;
+}
+
+export interface PythonTestResult {
+  name: string;
+  passed: boolean;
+  message: string;
+  actual: unknown;
+  expected: unknown;
+}
+
+export interface PythonValidationResponse {
+  validation_type: "PYTHON_OUTPUT_MATCH";
+  mode: PythonValidationMode;
+  passed: boolean;
+  message: string;
+  tests: PythonTestResult[];
+  execution_engine: "subprocess";
+}
+
+export interface PythonLabSolutionResponse {
+  slug: string;
+  solution_code: string;
+  explanation: string;
+}
+
 export interface AiRubricWeights {
   root_cause: number;
   correctness: number;

@@ -29,6 +29,9 @@ import type {
   PremiumStatusResponse,
   ProductFeedbackRequest,
   ProductFeedbackResponse,
+  PythonLabSolutionResponse,
+  PythonValidationRequest,
+  PythonValidationResponse,
   PysparkValidationRequest,
   PysparkValidationResponse,
   RazorpayCreateOrderRequest,
@@ -114,6 +117,27 @@ export function validatePysparkScenario(
     method: "POST",
     authToken,
     body: JSON.stringify(payload)
+  });
+}
+
+export function validatePythonLab(
+  slug: string,
+  payload: PythonValidationRequest,
+  authToken?: string | null
+): Promise<PythonValidationResponse> {
+  return apiFetch<PythonValidationResponse>(`/api/v1/python/validate/${slug}`, {
+    method: "POST",
+    authToken,
+    body: JSON.stringify(payload)
+  });
+}
+
+export function getPythonLabSolution(
+  slug: string,
+  authToken?: string | null
+): Promise<PythonLabSolutionResponse> {
+  return apiFetch<PythonLabSolutionResponse>(`/api/v1/python/labs/${slug}/solution`, {
+    authToken
   });
 }
 
