@@ -7,7 +7,11 @@ import {
   validateSqlOutput,
   type BrowserSqlResultTable
 } from "../../lib/browser-sql";
-import { validatePysparkScenario } from "../../lib/api";
+import {
+  getPythonLabSolution,
+  validatePysparkScenario,
+  validatePythonLab
+} from "../../lib/api";
 import { trackEvent } from "../../lib/analytics";
 import { getAuthToken, getCurrentUser } from "../../lib/auth";
 import { sendUsageEvent } from "../../lib/usage";
@@ -36,6 +40,7 @@ import { AuthDialog } from "../auth-dialog";
 interface PythonTestResult {
   name: string;
   passed: boolean;
+  message?: string;
   actual: unknown;
   expected: unknown;
 }
@@ -203,8 +208,30 @@ json.dumps(_results, default=str)
 async function runPythonLab(
   lab: CodingLab,
   answer: string,
-  testCases: PythonTestCase[] = lab.testCases ?? []
+  testCases: PythonTestCase[] = lab.testCases ?? [],
+  mode: "sample" | "hidden" = "sample",
+  authToken?: string | null
 ): Promise<LabRunResult> {
+  if (lab.serverValidation === "python") {
+    const validation = await validatePythonLab(lab.slug, {
+      code: answer,
+      mode
+    }, authToken);
+
+    return {
+      passed: validation.passed,
+      message:
+        mode === "sample"
+          ? validation.passed
+            ? "Sample check passed. Submit your answer to run hidden edge-case validation."
+            : validation.message
+          : validation.passed
+            ? "Correct. Your Python function passed the visible sample and hidden edge-case checks."
+            : validation.message,
+      pythonResults: validation.tests
+    };
+  }
+
   if (!lab.functionName || !testCases.length) {
     return {
       passed: null,
@@ -318,6 +345,11 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
   const [draftsLoaded, setDraftsLoaded] = useState(false);
   const [saveStatus, setSaveStatus] = useState("Saved");
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [serverSolutions, setServerSolutions] = useState<
+    Record<string, { solutionCode: string; explanation: string }>
+  >({});
+  const [isLoadingSolution, setIsLoadingSolution] = useState(false);
+  const [solutionError, setSolutionError] = useState("");
 
   const topics = useMemo(() => {
     const all = new Set<string>();
@@ -515,7 +547,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
         selectedLab.track === "sql"
           ? await runSqlLab(selectedLab, answer)
           : selectedLab.track === "python"
-            ? await runPythonLab(selectedLab, answer)
+            ? await runPythonLab(selectedLab, answer, selectedLab.testCases ?? [], "hidden", authToken)
             : selectedLab.validationMode === "pyspark"
               ? await runPysparkLab(selectedLab, answer, "hidden", authToken)
               : evaluateCodeReviewLab(selectedLab, answer);
@@ -609,6 +641,12 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
       }
 
       if (selectedLab.track === "python") {
+        if (selectedLab.serverValidation === "python") {
+          const sampleResult = await runPythonLab(selectedLab, answer, [], "sample", authToken);
+          setResult(sampleResult);
+          return;
+        }
+
         const sampleCase = selectedLab.testCases?.[0];
         if (!sampleCase) {
           setResult({
@@ -673,6 +711,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
     setShowSolution(false);
     setResult(null);
     setWorkspaceMessage("");
+    setSolutionError("");
   }
 
   function goToNextLab() {
@@ -686,7 +725,38 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
     setShowSolution(false);
     setResult(null);
     setWorkspaceMessage("");
+    setSolutionError("");
     window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  async function toggleSolution() {
+    if (showSolution) {
+      setShowSolution(false);
+      return;
+    }
+
+    setSolutionError("");
+    if (selectedLab.serverValidation === "python" && !serverSolutions[selectedLab.slug]) {
+      try {
+        setIsLoadingSolution(true);
+        const solution = await getPythonLabSolution(selectedLab.slug, getAuthToken());
+        setServerSolutions((current) => ({
+          ...current,
+          [selectedLab.slug]: {
+            solutionCode: solution.solution_code,
+            explanation: solution.explanation
+          }
+        }));
+      } catch (error) {
+        setSolutionError(
+          error instanceof Error ? error.message : "The model answer could not load."
+        );
+      } finally {
+        setIsLoadingSolution(false);
+      }
+    }
+
+    setShowSolution(true);
   }
 
   return (
@@ -1079,17 +1149,33 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
           <div className="panel rounded-[2rem] p-6">
             <button
               type="button"
-              onClick={() => setShowSolution((value) => !value)}
+              onClick={toggleSolution}
+              disabled={isLoadingSolution}
               className="w-full rounded-full bg-teal-300 px-5 py-3 text-sm font-bold text-slate-950 transition hover:bg-teal-200"
             >
-              {showSolution ? "Hide solution" : "Reveal model answer"}
+              {showSolution
+                ? "Hide solution"
+                : isLoadingSolution
+                  ? "Loading solution..."
+                  : "Reveal model answer"}
             </button>
+            {solutionError ? (
+              <p className="mt-3 text-sm leading-6 text-amber-100">{solutionError}</p>
+            ) : null}
             {showSolution ? (
               <div className="mt-5 space-y-4">
                 <pre className="max-h-[420px] overflow-auto rounded-3xl border border-slate-800 bg-slate-950/70 p-4 text-xs leading-6 text-teal-50">
-                  <code>{selectedLab.solutionCode}</code>
+                  <code>
+                    {selectedLab.serverValidation === "python"
+                      ? serverSolutions[selectedLab.slug]?.solutionCode ?? "Model answer is loading."
+                      : selectedLab.solutionCode}
+                  </code>
                 </pre>
-                <p className="text-sm leading-6 text-slate-300">{selectedLab.explanation}</p>
+                <p className="text-sm leading-6 text-slate-300">
+                  {selectedLab.serverValidation === "python"
+                    ? serverSolutions[selectedLab.slug]?.explanation ?? selectedLab.explanation
+                    : selectedLab.explanation}
+                </p>
                 {selectedLab.commonMistakes?.length ? (
                   <div className="rounded-3xl border border-amber-300/20 bg-amber-300/10 p-4">
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-100">
@@ -1614,6 +1700,9 @@ function ResultPanel({ result }: { result: LabRunResult }) {
                   {test.passed ? "pass" : "fail"}
                 </span>
               </div>
+              {test.message ? (
+                <p className="mt-2 text-xs leading-5 text-slate-400">{test.message}</p>
+              ) : null}
               {!test.passed ? (
                 <pre className="mt-3 overflow-x-auto text-xs leading-6 text-slate-300">
                   {JSON.stringify({ expected: test.expected, actual: test.actual }, null, 2)}

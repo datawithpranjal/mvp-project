@@ -1,4 +1,5 @@
 import codingLabData from "../data/coding-labs.generated.json";
+import { originalPythonLabData } from "../data/python-original-labs.generated";
 import { pysparkLabData } from "../data/pyspark-labs.generated";
 import { pysparkPdfLabData } from "../data/pyspark-pdf-labs.generated";
 import {
@@ -62,6 +63,7 @@ export interface CodingLab {
   commonMistakes?: string[];
   launchReady?: boolean;
   validationMode?: "sql" | "python" | "pyspark" | "review";
+  serverValidation?: "python";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -172,6 +174,7 @@ function normalizeLab(value: unknown): CodingLab | null {
     validationKeywords: stringArray(value.validationKeywords),
     commonMistakes: stringArray(value.commonMistakes),
     launchReady: isLaunchReadyCodingLab(slug),
+    serverValidation: value.serverValidation === "python" ? "python" : undefined,
     validationMode:
       normalizeTrack(value.track) === "sql"
         ? "sql"
@@ -183,6 +186,7 @@ function normalizeLab(value: unknown): CodingLab | null {
 
 export const ALL_CODING_LABS = [
   ...(codingLabData as unknown[]),
+  ...(originalPythonLabData as unknown[]),
   ...(pysparkLabData as unknown[]),
   ...(pysparkPdfLabData as unknown[]),
   ...(publicSqlPracticeData as unknown[])
