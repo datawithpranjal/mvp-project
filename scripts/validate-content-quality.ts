@@ -5,6 +5,7 @@ import path from "node:path";
 import codingLabGenerated from "../frontend/data/coding-labs.generated.json";
 import publicSqlPracticeGenerated from "../frontend/data/public-sql-practice.generated.json";
 import { pysparkLabData } from "../frontend/data/pyspark-labs.generated";
+import { pysparkPdfLabData } from "../frontend/data/pyspark-pdf-labs.generated";
 import {
   ALL_OPERATIONS_LABS,
   type OperationsLab
@@ -78,6 +79,7 @@ const VALIDATED_FILES = [
   "frontend/data/coding-labs.generated.json",
   "frontend/data/public-sql-practice.generated.json",
   "frontend/data/pyspark-labs.generated.ts",
+  "frontend/data/pyspark-pdf-labs.generated.ts",
   "frontend/lib/scenarios.ts",
   "frontend/data/platform-operations-labs.ts",
   "frontend/lib/system-design.ts"
@@ -154,6 +156,9 @@ function launchSection(item: ValidationItem): string {
   }
   if (item.kind === "coding-lab" && item.source.includes("pyspark-labs.generated")) {
     return "PySpark labs";
+  }
+  if (item.kind === "coding-lab" && item.source.includes("pyspark-pdf-labs.generated")) {
+    return "PySpark PDF labs";
   }
   if (item.kind === "operations-lab" && item.slug.startsWith("airflow-")) {
     return "Airflow labs";
@@ -761,6 +766,9 @@ async function main() {
   const generatedPySparkLabs = (pysparkLabData as unknown[])
     .map((lab) => normalizeCodingLab(lab, "frontend/data/pyspark-labs.generated.ts"))
     .filter((lab): lab is ValidationItem => Boolean(lab));
+  const generatedPySparkPdfLabs = (pysparkPdfLabData as unknown[])
+    .map((lab) => normalizeCodingLab(lab, "frontend/data/pyspark-pdf-labs.generated.ts"))
+    .filter((lab): lab is ValidationItem => Boolean(lab));
   const scenarioItems = ALL_SCENARIOS.map(itemFromScenario);
   const operationsItems = ALL_OPERATIONS_LABS.map(itemFromOperationsLab);
   const systemDesignItems = ALL_SYSTEM_DESIGN_CASES.map(itemFromSystemDesignCase);
@@ -769,6 +777,7 @@ async function main() {
     ...generatedSqlLabs,
     ...publicSqlPracticeLabs,
     ...generatedPySparkLabs,
+    ...generatedPySparkPdfLabs,
     ...scenarioItems,
     ...operationsItems,
     ...systemDesignItems
@@ -777,6 +786,7 @@ async function main() {
     ["frontend/data/coding-labs.generated.json", generatedSqlLabs],
     ["frontend/data/public-sql-practice.generated.json", publicSqlPracticeLabs],
     ["frontend/data/pyspark-labs.generated.ts", generatedPySparkLabs],
+    ["frontend/data/pyspark-pdf-labs.generated.ts", generatedPySparkPdfLabs],
     ["frontend/lib/scenarios.ts", scenarioItems],
     ["frontend/data/platform-operations-labs.ts", operationsItems],
     ["frontend/lib/system-design.ts", systemDesignItems]
@@ -787,7 +797,12 @@ async function main() {
   items.forEach(validateSemanticMatch);
   items.forEach(validateHints);
 
-  const codingItems = [...generatedSqlLabs, ...publicSqlPracticeLabs, ...generatedPySparkLabs];
+  const codingItems = [
+    ...generatedSqlLabs,
+    ...publicSqlPracticeLabs,
+    ...generatedPySparkLabs,
+    ...generatedPySparkPdfLabs
+  ];
   codingItems.forEach(validateSqlReferences);
   validateDuplicateSolutions(codingItems);
 
@@ -797,7 +812,7 @@ async function main() {
   }
 
   console.log(
-    `Validated ${items.length} records: ${generatedSqlLabs.length} generated SQL/Python labs, ${publicSqlPracticeLabs.length} SQL coverage labs, ${generatedPySparkLabs.length} generated PySpark labs, ${scenarioItems.length} scenarios, ${operationsItems.length} operations labs, ${systemDesignItems.length} system-design cases.`
+    `Validated ${items.length} records: ${generatedSqlLabs.length} generated SQL/Python labs, ${publicSqlPracticeLabs.length} SQL coverage labs, ${generatedPySparkLabs.length} generated PySpark labs, ${generatedPySparkPdfLabs.length} PySpark PDF labs, ${scenarioItems.length} scenarios, ${operationsItems.length} operations labs, ${systemDesignItems.length} system-design cases.`
   );
   printReport(items);
 }

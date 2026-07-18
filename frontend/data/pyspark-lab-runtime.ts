@@ -94,6 +94,14 @@ result_df = hourly_orders`,
 # .partitionBy("order_date")
 # .option("maxRecordsPerFile", 500000)
 # compact older small files per order_date`,
+    expectedOutputTable: {
+      columns: ["order_id", "order_date", "amount", "source_hour"],
+      rows: [
+        [1, "2026-05-30", 100.0, "00"],
+        [2, "2026-05-30", 150.0, "01"],
+        [3, "2026-05-31", 90.0, "00"]
+      ]
+    }
   },
   "pyspark-cache-everything-memory-pressure": {
     studentTask:
@@ -237,24 +245,15 @@ result_df = orders.select(
     F.explode_outer("items").alias("item")
 ).select(
     "order_id",
-    F.col("item.sku").alias("sku"),
-    F.col("item.qty").alias("qty")
-)
-
-order_promotions = orders.select(
-    "order_id",
-    F.explode_outer("promotions").alias("promotion")
-).select(
-    "order_id",
-    F.col("promotion.promo_id").alias("promo_id"),
-    F.col("promotion.amount").alias("promo_amount")
+    F.col("item")["sku"].alias("sku"),
+    F.col("item")["qty"].cast("int").alias("qty")
 )`,
     expectedOutputTable: {
       columns: ["order_id", "sku", "qty"],
       rows: [
-        [501, "SKU-1", 1],
-        [501, "SKU-2", 2],
-        [502, "SKU-9", 1]
+        [1, "A", 2],
+        [1, "B", 1],
+        [2, "C", 3]
       ]
     }
   },
@@ -341,6 +340,14 @@ result_df = events`,
 # .partitionBy("event_date")
 # .option("maxRecordsPerFile", 500000)
 # cluster or sort by user_id inside files if the table format supports it`,
+    expectedOutputTable: {
+      columns: ["event_id", "event_date", "user_id", "event_type"],
+      rows: [
+        ["e1", "2026-05-30", "u1", "view"],
+        ["e2", "2026-05-30", "u2", "click"],
+        ["e3", "2026-05-31", "u1", "purchase"]
+      ]
+    }
   },
   "pyspark-late-arriving-partition-overwrite": {
     studentTask:
@@ -376,39 +383,26 @@ result_df = window_orders.groupBy("order_date").agg(
   },
   "pyspark-watermark-too-tight": {
     studentTask:
-      "Use a safer watermark, aggregate the seeded streaming-style events, flatten the output, and assign the final DataFrame to result_df.",
+      "Use a safer lateness tolerance, aggregate the seeded streaming-style events, and assign the final DataFrame to result_df.",
     starterCode: `from pyspark.sql import functions as F
 
 # events is already available in the runner.
+# Broken: 10 minutes is too tight for this source delay pattern.
+kept_events = events.filter(F.col("arrival_delay_minutes") <= 10)
 
-agg = events.withWatermark("event_time", "10 minutes") \
-    .groupBy(F.window("event_time", "1 hour"), "country") \
-    .agg(F.sum("amount").alias("revenue"))
-
-result_df = agg.select(
-    F.col("window.start").cast("string").alias("window_start"),
-    F.col("window.end").cast("string").alias("window_end"),
-    "country",
-    "revenue"
+result_df = kept_events.groupBy("event_hour", "country").agg(
+    F.sum("amount").alias("revenue")
 )`,
     solutionCode: `from pyspark.sql import functions as F
 
-agg = events.withWatermark("event_time", "2 hours") \
-    .groupBy(F.window("event_time", "1 hour"), "country") \
-    .agg(F.sum("amount").alias("revenue"))
+kept_events = events.filter(F.col("arrival_delay_minutes") <= 120)
 
-result_df = agg.select(
-    F.col("window.start").cast("string").alias("window_start"),
-    F.col("window.end").cast("string").alias("window_end"),
-    "country",
-    "revenue"
+result_df = kept_events.groupBy("event_hour", "country").agg(
+    F.sum("amount").alias("revenue")
 )`,
     expectedOutputTable: {
-      columns: ["window_start", "window_end", "country", "revenue"],
-      rows: [
-        ["2026-05-30 10:00:00", "2026-05-30 11:00:00", "IN", 220.0],
-        ["2026-05-30 11:00:00", "2026-05-30 12:00:00", "IN", 80.0]
-      ]
+      columns: ["event_hour", "country", "revenue"],
+      rows: [["2026-05-30 10:00:00", "IN", 180.0]]
     }
   },
   "pyspark-count-distinct-expensive": {
@@ -490,6 +484,13 @@ result_df = daily_export.coalesce(1)`,
 # Production write plan:
 # .option("maxRecordsPerFile", 500000)
 # publish a manifest for downstream consumers instead of forcing one giant file`,
+    expectedOutputTable: {
+      columns: ["order_id", "order_date", "amount"],
+      rows: [
+        [1, "2026-05-30", 100.0],
+        [2, "2026-05-30", 220.0]
+      ]
+    }
   }
 };
 

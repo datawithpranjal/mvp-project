@@ -1,5 +1,6 @@
 import codingLabData from "../data/coding-labs.generated.json";
 import { pysparkLabData } from "../data/pyspark-labs.generated";
+import { pysparkPdfLabData } from "../data/pyspark-pdf-labs.generated";
 import {
   PYSPARK_LAB_RUNTIME_OVERRIDES,
   type PysparkExpectedOutputTable
@@ -89,6 +90,16 @@ function tableArray(value: unknown): CodingLabTable[] {
   })).filter((table) => table.name && table.columns.length > 0);
 }
 
+function expectedOutputTableValue(value: unknown): PysparkExpectedOutputTable | undefined {
+  if (!isRecord(value)) return undefined;
+  const columns = stringArray(value.columns);
+  const rows = Array.isArray(value.rows)
+    ? value.rows.filter(Array.isArray) as PysparkExpectedOutputTable["rows"]
+    : [];
+
+  return columns.length > 0 ? { columns, rows } : undefined;
+}
+
 function testCaseArray(value: unknown): PythonTestCase[] {
   if (!Array.isArray(value)) return [];
 
@@ -153,7 +164,7 @@ function normalizeLab(value: unknown): CodingLab | null {
     explanation: stringValue(value.explanation),
     hints: stringArray(value.hints),
     tables: tableArray(value.tables),
-    expectedOutputTable: pysparkRuntimeOverride?.expectedOutputTable,
+    expectedOutputTable: pysparkRuntimeOverride?.expectedOutputTable ?? expectedOutputTableValue(value.expectedOutputTable),
     expectedSql: stringValue(value.expectedSql) || undefined,
     sqlTestCases: sqlTestCaseArray(value.sqlTestCases),
     functionName: stringValue(value.functionName) || undefined,
@@ -173,6 +184,7 @@ function normalizeLab(value: unknown): CodingLab | null {
 export const ALL_CODING_LABS = [
   ...(codingLabData as unknown[]),
   ...(pysparkLabData as unknown[]),
+  ...(pysparkPdfLabData as unknown[]),
   ...(publicSqlPracticeData as unknown[])
 ]
   .map(normalizeLab)

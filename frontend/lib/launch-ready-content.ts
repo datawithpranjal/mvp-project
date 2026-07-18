@@ -165,6 +165,7 @@ export function shouldUseCuratedLaunchSubset() {
 }
 
 export function isLaunchReadyCodingLab(slug: string) {
+  if (slug.startsWith("pyspark-")) return true;
   return !shouldUseCuratedLaunchSubset() || LAUNCH_READY_CODING_LABS.has(slug);
 }
 
