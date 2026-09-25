@@ -15,6 +15,7 @@ from app.api.routes.pyspark_validation import router as pyspark_validation_route
 from app.api.routes.scenarios import router as scenarios_router
 from app.api.routes.usage import router as usage_router
 from app.api.routes.validation import router as validation_router
+from app.api.routes.learner_progress import router as learner_progress_router
 from app.core.config import get_settings
 
 settings = get_settings()
@@ -46,7 +47,7 @@ app.add_middleware(
     allow_origins=settings.backend_cors_origins,
     allow_origin_regex=settings.backend_cors_origin_regex,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "OPTIONS"],
     allow_headers=["*"],
 )
 app.include_router(health_router)
@@ -61,3 +62,4 @@ app.include_router(pyspark_validation_router)
 app.include_router(scenarios_router)
 app.include_router(usage_router)
 app.include_router(validation_router)
+app.include_router(learner_progress_router)

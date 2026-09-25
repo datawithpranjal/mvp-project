@@ -83,6 +83,61 @@ export interface ProductFeedbackResponse {
   message: string;
 }
 
+export interface LearnerAttemptRecord {
+  id: string;
+  idempotency_key: string;
+  answer: string;
+  passed: boolean | null;
+  message: string;
+  result: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface LearnerProgressRecord {
+  content_type: string;
+  content_id: string;
+  draft_answer: string;
+  draft_interview_answer: string;
+  hints_revealed: number;
+  completed: boolean;
+  completed_at: string | null;
+  latest_result: Record<string, unknown> | null;
+  ai_feedback: Record<string, unknown> | null;
+  draft_revision: number;
+  updated_at: string;
+  attempts: LearnerAttemptRecord[];
+}
+
+export interface LearnerProgressListResponse {
+  items: LearnerProgressRecord[];
+}
+
+export interface LearnerDraftRequest {
+  draft_answer: string;
+  draft_interview_answer: string;
+  hints_revealed: number;
+  client_revision: number;
+  completed?: boolean;
+}
+
+export interface LearnerDraftResponse {
+  item: LearnerProgressRecord;
+}
+
+export interface LearnerAttemptRequest {
+  idempotency_key: string;
+  answer: string;
+  passed: boolean | null;
+  message: string;
+  result: Record<string, unknown> | null;
+  ai_feedback: Record<string, unknown> | null;
+}
+
+export interface LearnerAttemptResponse {
+  item: LearnerProgressRecord;
+  duplicate: boolean;
+}
+
 export type UsageEventName =
   | "session_start"
   | "session_heartbeat"

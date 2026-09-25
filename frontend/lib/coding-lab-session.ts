@@ -1,4 +1,5 @@
 import type { CodingLabTrack } from "./coding-labs";
+import { getCurrentUser } from "./auth";
 
 export interface CodingLabDraft {
   code: string;
@@ -11,6 +12,7 @@ export interface CodingLabProgress {
   lastAttemptedAt?: string;
   attemptCount: number;
   track: CodingLabTrack;
+  lastResult?: unknown;
 }
 
 interface CodingLabSessionStore {
@@ -20,6 +22,18 @@ interface CodingLabSessionStore {
 
 const STORAGE_KEY = "data-foundry-coding-lab-session-v1";
 const PROGRESS_STORAGE_KEY = "data-foundry-coding-lab-progress";
+
+function storageSuffix(): string {
+  return getCurrentUser()?.id ? `user-${getCurrentUser()?.id}` : "guest";
+}
+
+function sessionStorageKey(): string {
+  return `${STORAGE_KEY}:${storageSuffix()}`;
+}
+
+function progressStorageKey(): string {
+  return `${PROGRESS_STORAGE_KEY}:${storageSuffix()}`;
+}
 
 function emptyStore(): CodingLabSessionStore {
   return {
@@ -36,7 +50,7 @@ function readStore(): CodingLabSessionStore {
   if (!canUseStorage()) return emptyStore();
 
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = window.localStorage.getItem(sessionStorageKey());
     if (!raw) return emptyStore();
     const parsed = JSON.parse(raw) as Partial<CodingLabSessionStore>;
     return {
@@ -54,7 +68,7 @@ function readStore(): CodingLabSessionStore {
 
 function writeStore(store: CodingLabSessionStore): void {
   if (!canUseStorage()) return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+  window.localStorage.setItem(sessionStorageKey(), JSON.stringify(store));
 }
 
 export function getCodingLabDrafts(): Record<string, CodingLabDraft> {
@@ -125,7 +139,8 @@ function normalizeProgressMap(value: unknown): Record<string, CodingLabProgress>
                   ? progress.completedAt
                   : undefined,
             attemptCount,
-            track
+            track,
+            lastResult: progress.lastResult
           }
         ];
       })
@@ -137,7 +152,7 @@ export function getCodingLabProgressMap(): Record<string, CodingLabProgress> {
 
   try {
     return normalizeProgressMap(
-      JSON.parse(window.localStorage.getItem(PROGRESS_STORAGE_KEY) ?? "{}")
+      JSON.parse(window.localStorage.getItem(progressStorageKey()) ?? "{}")
     );
   } catch {
     return {};
@@ -147,7 +162,8 @@ export function getCodingLabProgressMap(): Record<string, CodingLabProgress> {
 export function recordCodingLabAttempt(
   slug: string,
   track: CodingLabTrack,
-  passed: boolean
+  passed: boolean,
+  lastResult?: unknown
 ): Record<string, CodingLabProgress> {
   const progressMap = getCodingLabProgressMap();
   const existing = progressMap[slug];
@@ -157,7 +173,8 @@ export function recordCodingLabAttempt(
     completedAt: existing?.completedAt ?? (passed ? attemptedAt : undefined),
     lastAttemptedAt: attemptedAt,
     attemptCount: (existing?.attemptCount ?? 0) + 1,
-    track
+    track,
+    lastResult: lastResult ?? existing?.lastResult
   };
 
   const nextProgressMap = {
@@ -166,7 +183,7 @@ export function recordCodingLabAttempt(
   };
 
   if (canUseStorage()) {
-    window.localStorage.setItem(PROGRESS_STORAGE_KEY, JSON.stringify(nextProgressMap));
+    window.localStorage.setItem(progressStorageKey(), JSON.stringify(nextProgressMap));
   }
 
   return nextProgressMap;

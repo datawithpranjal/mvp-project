@@ -8,12 +8,16 @@ import {
   type BrowserSqlResultTable
 } from "../../lib/browser-sql";
 import {
+  getLearnerProgress,
   getPythonLabSolution,
+  saveLearnerAttempt,
+  saveLearnerDraft,
   validatePysparkScenario,
   validatePythonLab
 } from "../../lib/api";
 import { trackEvent } from "../../lib/analytics";
-import { getAuthToken, getCurrentUser } from "../../lib/auth";
+import { AUTH_UPDATED_EVENT, getAuthToken, getCurrentUser } from "../../lib/auth";
+import { codingProgressFromRemote } from "../../lib/learner-progress";
 import { sendUsageEvent } from "../../lib/usage";
 import { handleTextareaTabKeyDown } from "../../lib/textarea-tab";
 import {
@@ -350,6 +354,21 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
   >({});
   const [isLoadingSolution, setIsLoadingSolution] = useState(false);
   const [solutionError, setSolutionError] = useState("");
+  const [persistenceReady, setPersistenceReady] = useState(false);
+  const [authEpoch, setAuthEpoch] = useState(0);
+  const [remoteProgress, setRemoteProgress] = useState<Record<string, { latestResult?: unknown }>>({});
+  const draftRevisionRef = useRef<Record<string, number>>({});
+  const pendingAttemptRef = useRef<{ slug: string; answer: string; key: string } | null>(null);
+
+  useEffect(() => {
+    const syncAuth = () => setAuthEpoch((value) => value + 1);
+    window.addEventListener(AUTH_UPDATED_EVENT, syncAuth);
+    window.addEventListener("storage", syncAuth);
+    return () => {
+      window.removeEventListener(AUTH_UPDATED_EVENT, syncAuth);
+      window.removeEventListener("storage", syncAuth);
+    };
+  }, []);
 
   const topics = useMemo(() => {
     const all = new Set<string>();
@@ -420,6 +439,9 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
   }, [selectedLab]);
 
   useEffect(() => {
+    let cancelled = false;
+    const authToken = getAuthToken();
+    setPersistenceReady(!authToken);
     const requestedSlug = new URLSearchParams(window.location.search).get("lab");
     if (requestedSlug && labs.some((lab) => lab.slug === requestedSlug)) {
       setSelectedSlug(requestedSlug);
@@ -436,9 +458,56 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
         Object.entries(savedDrafts).map(([slug, draft]) => [slug, draft.code])
       )
     );
-    setProgressMap(getCodingLabProgressMap());
+    const localProgress = getCodingLabProgressMap();
+    setProgressMap(localProgress);
     setDraftsLoaded(true);
-  }, [labs, track]);
+    setRemoteProgress(
+      Object.fromEntries(
+        Object.entries(localProgress).map(([slug, item]) => [slug, { latestResult: item.lastResult }])
+      )
+    );
+
+    if (!authToken) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    getLearnerProgress(authToken)
+      .then((response) => {
+        if (cancelled) return;
+        const records = response.items.filter((item) => item.content_type === `coding_lab:${track}`);
+        const nextAnswers: Record<string, string> = {};
+        const nextProgress: Record<string, CodingLabProgress> = {};
+        const nextRemote: Record<string, { latestResult?: unknown }> = {};
+        records.forEach((record) => {
+          nextAnswers[record.content_id] = record.draft_answer;
+          nextProgress[record.content_id] = codingProgressFromRemote(record);
+          nextRemote[record.content_id] = { latestResult: record.latest_result ?? undefined };
+        });
+        setAnswers((current) => ({ ...current, ...nextAnswers }));
+        setProgressMap((current) => ({ ...current, ...nextProgress }));
+        setRemoteProgress(nextRemote);
+      })
+      .catch(() => {
+        if (!cancelled) setSaveStatus("Save failed — using local recovery copy");
+      })
+      .finally(() => {
+        if (!cancelled) setPersistenceReady(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authEpoch, labs, track]);
+
+  useEffect(() => {
+    if (!draftsLoaded || !selectedLab) return;
+    const remote = remoteProgress[selectedLab.slug];
+    if (remote?.latestResult && !result) {
+      setResult(remote.latestResult as LabRunResult);
+    }
+  }, [draftsLoaded, remoteProgress, result, selectedLab]);
 
   useEffect(() => {
     if (!draftsLoaded || !selectedLab) return;
@@ -446,23 +515,51 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
   }, [draftsLoaded, selectedLab, track]);
 
   useEffect(() => {
-    if (!draftsLoaded || !selectedLab) return;
+    if (!draftsLoaded || !persistenceReady || !selectedLab) return;
     const currentAnswer = answers[selectedLab.slug];
     if (typeof currentAnswer !== "string") return;
 
     setSaveStatus("Saving...");
+    const slug = selectedLab.slug;
+    const revision = Date.now();
+    draftRevisionRef.current[slug] = Math.max(draftRevisionRef.current[slug] ?? 0, revision);
     const timer = window.setTimeout(() => {
       const draft = saveCodingLabDraft(selectedLab.slug, currentAnswer);
-      setSaveStatus(
-        `Saved at ${new Intl.DateTimeFormat(undefined, {
-          hour: "numeric",
-          minute: "2-digit"
-        }).format(new Date(draft.savedAt))}`
-      );
+      const authToken = getAuthToken();
+      if (!authToken) {
+        setSaveStatus(
+          `Saved at ${new Intl.DateTimeFormat(undefined, {
+            hour: "numeric",
+            minute: "2-digit"
+          }).format(new Date(draft.savedAt))}`
+        );
+        return;
+      }
+      saveLearnerDraft(authToken, `coding_lab:${track}`, slug, {
+        draft_answer: currentAnswer,
+        draft_interview_answer: "",
+        hints_revealed: 0,
+        client_revision: revision
+      })
+        .then(() => {
+          if (draftRevisionRef.current[slug] === revision) {
+            setSaveStatus(
+              `Saved at ${new Intl.DateTimeFormat(undefined, {
+                hour: "numeric",
+                minute: "2-digit"
+              }).format(new Date())}`
+            );
+          }
+        })
+        .catch(() => {
+          if (draftRevisionRef.current[slug] === revision) {
+            setSaveStatus("Save failed — retry save");
+          }
+        });
     }, 500);
 
     return () => window.clearTimeout(timer);
-  }, [answers, draftsLoaded, selectedLab]);
+  }, [answers, draftsLoaded, persistenceReady, selectedLab, track]);
 
   useEffect(() => {
     if (isLibraryMode || workspaceFocusNonce === 0) return;
@@ -513,6 +610,45 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
     ? "rounded-full bg-teal-300 px-5 py-3 text-sm font-bold text-slate-950 shadow-[0_0_28px_rgba(94,234,212,0.2)] transition hover:bg-teal-200"
     : "rounded-full border border-teal-300/30 px-5 py-3 text-sm font-bold text-teal-100 transition hover:bg-teal-300/10 disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-500";
 
+  async function saveDraftNow(code: string = answer, slug: string = selectedLab.slug) {
+    const draft = saveCodingLabDraft(slug, code);
+    const authToken = getAuthToken();
+    if (!authToken) {
+      setSaveStatus(
+        `Saved at ${new Intl.DateTimeFormat(undefined, {
+          hour: "numeric",
+          minute: "2-digit"
+        }).format(new Date(draft.savedAt))}`
+      );
+      return;
+    }
+
+    setSaveStatus("Saving...");
+    const revision = Date.now();
+    draftRevisionRef.current[slug] = revision;
+    try {
+      await saveLearnerDraft(authToken, `coding_lab:${track}`, slug, {
+        draft_answer: code,
+        draft_interview_answer: "",
+        hints_revealed: 0,
+        client_revision: revision
+      });
+      setSaveStatus("Saved");
+    } catch {
+      setSaveStatus("Save failed — retry save");
+    }
+  }
+
+  function getAttemptKey(slug: string, code: string): string {
+    const pending = pendingAttemptRef.current;
+    if (pending?.slug === slug && pending.answer === code) return pending.key;
+    const key = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `attempt-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    pendingAttemptRef.current = { slug, answer: code, key };
+    return key;
+  }
+
   function requireLoginForValidation(action: "run" | "submit") {
     const currentUser = getCurrentUser();
     const authToken = getAuthToken();
@@ -550,11 +686,43 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
             ? await runPythonLab(selectedLab, answer, selectedLab.testCases ?? [], "hidden", authToken)
             : selectedLab.validationMode === "pyspark"
               ? await runPysparkLab(selectedLab, answer, "hidden", authToken)
-              : evaluateCodeReviewLab(selectedLab, answer);
+          : evaluateCodeReviewLab(selectedLab, answer);
       setResult(nextResult);
-      setProgressMap(
-        recordCodingLabAttempt(selectedLab.slug, selectedLab.track, nextResult.passed === true)
+      const nextProgressMap = recordCodingLabAttempt(
+        selectedLab.slug,
+        selectedLab.track,
+        nextResult.passed === true,
+        nextResult
       );
+      setProgressMap(nextProgressMap);
+      if (authToken && persistenceReady) {
+        try {
+          const persisted = await saveLearnerAttempt(
+            authToken,
+            `coding_lab:${selectedLab.track}`,
+            selectedLab.slug,
+            {
+              idempotency_key: getAttemptKey(selectedLab.slug, answer),
+              answer,
+              passed: nextResult.passed,
+              message: nextResult.message,
+              result: nextResult as unknown as Record<string, unknown>,
+              ai_feedback: null
+            }
+          );
+          setProgressMap((current) => ({
+            ...current,
+            [selectedLab.slug]: codingProgressFromRemote(persisted.item)
+          }));
+          setRemoteProgress((current) => ({
+            ...current,
+            [selectedLab.slug]: { latestResult: persisted.item.latest_result ?? undefined }
+          }));
+          pendingAttemptRef.current = null;
+        } catch {
+          setWorkspaceMessage("Result shown, but it could not be saved to your account. Please retry submit.");
+        }
+      }
       sendUsageEvent("coding_lab_submitted", {
         metadata: {
           lab_slug: selectedLab.slug,
@@ -1016,9 +1184,18 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
             {workspaceMessage ? (
               <p className="mt-3 text-sm font-semibold text-teal-100">{workspaceMessage}</p>
             ) : null}
-            <p className="mt-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-              {saveStatus}
-            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+              <span>{saveStatus}</span>
+              {saveStatus.toLowerCase().includes("retry") ? (
+                <button
+                  type="button"
+                  onClick={() => void saveDraftNow()}
+                  className="rounded-full border border-amber-300/40 px-3 py-1 text-[10px] text-amber-100 transition hover:bg-amber-300/10"
+                >
+                  Retry save
+                </button>
+              ) : null}
+            </div>
             <textarea
               value={answer}
               onChange={(event) =>
