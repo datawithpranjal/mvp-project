@@ -30,6 +30,7 @@ export interface ScenarioProgressEntry {
   aiFeedback: ScenarioAiFeedback | null;
   completedAt: string | null;
   revisitAt: string | null;
+  latestResult: unknown | null;
 }
 
 export interface ScenarioProgressSummary {
@@ -44,12 +45,26 @@ export interface ScenarioProgressSummary {
   aiScore: number | null;
   completedAt: string | null;
   revisitAt: string | null;
+  latestResult: unknown | null;
 }
 
 type ScenarioProgressStore = Record<string, Partial<ScenarioProgressEntry>>;
 
 const STORAGE_KEY = "data-engineering-scenario-playground-progress-v1";
 export const SCENARIO_PROGRESS_UPDATED_EVENT = "scenario-progress-updated";
+
+function storageKey(): string {
+  try {
+    const rawSession = window.localStorage.getItem("data-engineering-scenario-playground-auth-session-v1");
+    if (rawSession) {
+      const session = JSON.parse(rawSession) as { user?: { id?: string } };
+      if (session.user?.id) return `${STORAGE_KEY}:user-${session.user.id}`;
+    }
+  } catch {
+    // Fall back to the isolated guest namespace when the auth cache is malformed.
+  }
+  return `${STORAGE_KEY}:guest`;
+}
 
 function buildAttemptId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -69,7 +84,7 @@ function readStore(): ScenarioProgressStore {
   }
 
   try {
-    const value = window.localStorage.getItem(STORAGE_KEY);
+    const value = window.localStorage.getItem(storageKey());
     if (!value) {
       return {};
     }
@@ -86,7 +101,7 @@ function writeStore(store: ScenarioProgressStore): void {
     return;
   }
 
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+  window.localStorage.setItem(storageKey(), JSON.stringify(store));
   window.dispatchEvent(new Event(SCENARIO_PROGRESS_UPDATED_EVENT));
 }
 
@@ -165,7 +180,8 @@ function normalizeEntry(slug: string, value?: Partial<ScenarioProgressEntry>): S
     aiFeedback: normalizeAiFeedback(value?.aiFeedback),
     completedAt:
       typeof value?.completedAt === "string" && value.completedAt ? value.completedAt : null,
-    revisitAt: typeof value?.revisitAt === "string" && value.revisitAt ? value.revisitAt : null
+    revisitAt: typeof value?.revisitAt === "string" && value.revisitAt ? value.revisitAt : null,
+    latestResult: value?.latestResult ?? null
   };
 }
 
@@ -186,7 +202,8 @@ export function summarizeScenarioProgress(
     selfRating: progress.selfRating,
     aiScore: progress.aiScore,
     completedAt: progress.completedAt,
-    revisitAt: progress.revisitAt
+    revisitAt: progress.revisitAt,
+    latestResult: progress.latestResult
   };
 }
 
@@ -211,6 +228,7 @@ export function recordScenarioAttempt(
   attempt: Omit<AttemptHistoryEntry, "id" | "attemptedAt"> & {
     id?: string;
     attemptedAt?: string;
+    latestResult?: unknown;
   }
 ): ScenarioProgressEntry {
   const store = readStore();
@@ -227,7 +245,8 @@ export function recordScenarioAttempt(
     completed: existing.completed || attempt.passed === true,
     completedAt:
       existing.completedAt ?? (attempt.passed === true ? nextAttempt.attemptedAt : null),
-    attempts: [nextAttempt, ...existing.attempts]
+    attempts: [nextAttempt, ...existing.attempts],
+    latestResult: attempt.latestResult ?? existing.latestResult
   };
 
   writeStore({

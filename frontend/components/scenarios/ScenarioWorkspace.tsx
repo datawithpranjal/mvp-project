@@ -1,11 +1,17 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 import { trackEvent } from "../../lib/analytics";
-import { evaluateScenarioWithAi, validatePysparkScenario } from "../../lib/api";
+import {
+  evaluateScenarioWithAi,
+  getLearnerProgress,
+  saveLearnerAttempt,
+  saveLearnerDraft,
+  validatePysparkScenario
+} from "../../lib/api";
 import {
   AUTH_UPDATED_EVENT,
   getAuthToken,
@@ -27,6 +33,7 @@ import {
   summarizeScenarioProgress,
   type ScenarioProgressSummary
 } from "../../lib/progress";
+import { scenarioProgressFromRemote } from "../../lib/learner-progress";
 import { evaluateScenarioAnswer, type ScenarioEvaluationResult } from "../../lib/scenarioEvaluator";
 import { sendUsageEvent } from "../../lib/usage";
 import { handleTextareaTabKeyDown } from "../../lib/textarea-tab";
@@ -94,8 +101,25 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
   const [showRevealConfirmation, setShowRevealConfirmation] = useState(false);
   const [hydratedScenarioSlug, setHydratedScenarioSlug] = useState<string | null>(null);
   const [autoSaveStatus, setAutoSaveStatus] = useState("Saved");
+  const [persistenceReady, setPersistenceReady] = useState(false);
+  const [authEpoch, setAuthEpoch] = useState(0);
+  const draftRevisionRef = useRef(0);
+  const pendingAttemptRef = useRef({ slug: "", answer: "", key: "" });
 
   useEffect(() => {
+    const syncAuth = () => setAuthEpoch((value) => value + 1);
+    window.addEventListener(AUTH_UPDATED_EVENT, syncAuth);
+    window.addEventListener("storage", syncAuth);
+    return () => {
+      window.removeEventListener(AUTH_UPDATED_EVENT, syncAuth);
+      window.removeEventListener("storage", syncAuth);
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const authToken = getAuthToken();
+    setPersistenceReady(!authToken);
     setHydratedScenarioSlug(null);
     const savedProgress = getScenarioProgress(scenario.slug);
     const savedAnswer = savedProgress.draftAnswer;
@@ -118,11 +142,60 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
     setEvaluation(null);
     setEvaluationNotice(null);
     setModelSolutionVisible(false);
-    setHydratedScenarioSlug(scenario.slug);
-  }, [scenario]);
+
+    if (!authToken) {
+      setHydratedScenarioSlug(scenario.slug);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    getLearnerProgress(authToken)
+      .then((response) => {
+        if (cancelled) return;
+        const record = response.items.find(
+          (item) => item.content_type === "scenario" && item.content_id === scenario.slug
+        );
+        if (record) {
+          const remoteProgress = scenarioProgressFromRemote(record);
+          const remoteSummary = summarizeScenarioProgress(remoteProgress, scenario.slug);
+          if (scenario.scenarioType === "mcq" && scenario.mcqOptions?.some((option) => option.id === record.draft_answer)) {
+            setSelectedOptionId(record.draft_answer);
+          } else if (record.draft_answer) {
+            setAnswer(record.draft_answer);
+          }
+          setInterviewAnswer(record.draft_interview_answer);
+          setHintsRevealed(Math.min(record.hints_revealed, scenario.hints.length));
+          setProgress(remoteSummary);
+          const snapshot = record.latest_result as {
+            evaluation?: ScenarioEvaluationResult;
+            sqlExecution?: BrowserSqlValidationResult | null;
+            pysparkExecution?: PysparkValidationResponse | null;
+            evaluationNotice?: string | null;
+          } | null;
+          if (snapshot) {
+            setEvaluation(snapshot.evaluation ?? null);
+            setSqlExecution(snapshot.sqlExecution ?? null);
+            setPysparkExecution(snapshot.pysparkExecution ?? null);
+            setEvaluationNotice(snapshot.evaluationNotice ?? null);
+          }
+        }
+      })
+      .catch(() => setAutoSaveStatus("Save failed — using local recovery copy"))
+      .finally(() => {
+        if (!cancelled) {
+          setPersistenceReady(true);
+          setHydratedScenarioSlug(scenario.slug);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authEpoch, scenario]);
 
   useEffect(() => {
-    if (hydratedScenarioSlug !== scenario.slug) return;
+    if (hydratedScenarioSlug !== scenario.slug || !persistenceReady) return;
     const draft =
       scenario.scenarioType === "mcq" ? selectedOptionId : answer;
     setAutoSaveStatus("Saving...");
@@ -139,6 +212,23 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
           minute: "2-digit"
         }).format(new Date(nextProgress.draftSavedAt ?? Date.now()))}`
       );
+      const authToken = getAuthToken();
+      if (authToken) {
+        const revision = Date.now();
+        draftRevisionRef.current = revision;
+        saveLearnerDraft(authToken, "scenario", scenario.slug, {
+          draft_answer: draft,
+          draft_interview_answer: interviewAnswer,
+          hints_revealed: hintsRevealed,
+          client_revision: revision
+        })
+          .then(() => {
+            if (draftRevisionRef.current === revision) setAutoSaveStatus("Saved");
+          })
+          .catch(() => {
+            if (draftRevisionRef.current === revision) setAutoSaveStatus("Save failed — retry save");
+          });
+      }
     }, 500);
 
     return () => window.clearTimeout(timer);
@@ -146,6 +236,8 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
     answer,
     hydratedScenarioSlug,
     interviewAnswer,
+    hintsRevealed,
+    persistenceReady,
     scenario.scenarioType,
     scenario.slug,
     selectedOptionId
@@ -209,6 +301,16 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
     setHintsRevealed(nextCount);
     const nextProgress = setScenarioHintsRevealed(scenario.slug, nextCount);
     setProgress(summarizeScenarioProgress(nextProgress, scenario.slug));
+    const authToken = getAuthToken();
+    if (authToken && persistenceReady) {
+      const draft = scenario.scenarioType === "mcq" ? selectedOptionId : answer;
+      saveLearnerDraft(authToken, "scenario", scenario.slug, {
+        draft_answer: draft,
+        draft_interview_answer: interviewAnswer,
+        hints_revealed: nextCount,
+        client_revision: Date.now()
+      }).catch(() => setAutoSaveStatus("Save failed — retry save"));
+    }
     trackEvent("hint_used", { scenario: scenario.slug, hint_number: nextCount });
   }
 
@@ -216,7 +318,32 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
     const draft = scenario.scenarioType === "mcq" ? selectedOptionId : answer;
     const nextProgress = saveScenarioDraft(scenario.slug, draft, interviewAnswer);
     setProgress(summarizeScenarioProgress(nextProgress, scenario.slug));
-    setDraftMessage("Draft saved.");
+    const authToken = getAuthToken();
+    if (!authToken) {
+      setDraftMessage("Draft saved.");
+      return;
+    }
+    setAutoSaveStatus("Saving...");
+    saveLearnerDraft(authToken, "scenario", scenario.slug, {
+      draft_answer: draft,
+      draft_interview_answer: interviewAnswer,
+      hints_revealed: hintsRevealed,
+      client_revision: Date.now()
+    })
+      .then(() => setAutoSaveStatus("Saved"))
+      .then(() => setDraftMessage("Draft saved."))
+      .catch(() => setAutoSaveStatus("Save failed — retry save"));
+  }
+
+  function getAttemptKey(answerText: string): string {
+    if (pendingAttemptRef.current.slug === scenario.slug && pendingAttemptRef.current.answer === answerText) {
+      return pendingAttemptRef.current.key;
+    }
+    const key = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `attempt-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    pendingAttemptRef.current = { slug: scenario.slug, answer: answerText, key };
+    return key;
   }
 
   function requireLoginForValidation(action: "run" | "submit") {
@@ -372,12 +499,7 @@ Impact: ${scenario.incident.impact}`
         : runnablePysparkResult
           ? `${runnablePysparkResult.passed ? "PySpark hidden tests passed" : "PySpark hidden tests failed"} · ${nextEvaluation.score}/100 explanation score`
         : `${nextEvaluation.verdict} · ${nextEvaluation.score}/100`;
-      const nextProgress = recordScenarioAttempt(scenario.slug, {
-        passed,
-        answer: submittedAnswer,
-        message
-      });
-      recordScenarioAiFeedback(scenario.slug, {
+      const aiFeedback = {
         totalScore:
           runnableSqlResult?.passed || runnablePysparkResult?.passed
             ? Math.max(nextEvaluation.score, 85)
@@ -401,11 +523,43 @@ Impact: ${scenario.incident.impact}`
                   ]
                 : nextEvaluation.gaps,
         improvedAnswer: nextEvaluation.improvedAnswer,
-        followUpQuestions: scenario.followUps
+        followUpQuestions: scenario.followUps,
+        evaluatedAt: new Date().toISOString()
+      };
+      const latestResult = {
+        evaluation: nextEvaluation,
+        sqlExecution: runnableSqlResult,
+        pysparkExecution: runnablePysparkResult,
+        evaluationNotice: aiFallbackMessage
+      };
+      const nextProgress = recordScenarioAttempt(scenario.slug, {
+        passed,
+        answer: submittedAnswer,
+        message,
+        latestResult
       });
+      const feedbackEntry = recordScenarioAiFeedback(scenario.slug, aiFeedback);
       setEvaluation(nextEvaluation);
-      setProgress(summarizeScenarioProgress(nextProgress, scenario.slug));
+      setProgress(summarizeScenarioProgress(feedbackEntry ?? nextProgress, scenario.slug));
       setDraftMessage(aiFallbackMessage);
+      if (authToken && persistenceReady) {
+        try {
+          const persisted = await saveLearnerAttempt(authToken, "scenario", scenario.slug, {
+            idempotency_key: getAttemptKey(submittedAnswer),
+            answer: submittedAnswer,
+            passed,
+            message,
+            result: latestResult,
+            ai_feedback: aiFeedback
+          });
+          const persistedProgress = scenarioProgressFromRemote(persisted.item);
+          setProgress(summarizeScenarioProgress(persistedProgress, scenario.slug));
+          pendingAttemptRef.current = { slug: "", answer: "", key: "" };
+        } catch {
+          setDraftMessage("Feedback is shown, but it could not be saved to your account. Please retry submit.");
+          setAutoSaveStatus("Save failed — retry save");
+        }
+      }
       sendUsageEvent("scenario_submitted", {
         metadata: {
           scenario_slug: scenario.slug,
@@ -472,6 +626,25 @@ Impact: ${scenario.incident.impact}`
           actual: { columns: [], rows: [] },
           expected: { columns: [], rows: [] }
         });
+      }
+      if (authToken && persistenceReady) {
+        try {
+          await saveLearnerAttempt(authToken, "scenario", scenario.slug, {
+            idempotency_key: getAttemptKey(submittedAnswer),
+            answer: submittedAnswer,
+            passed: false,
+            message,
+            result: {
+              evaluation: null,
+              sqlExecution: null,
+              pysparkExecution: null,
+              evaluationNotice: message
+            },
+            ai_feedback: null
+          });
+        } catch {
+          setAutoSaveStatus("Save failed — retry save");
+        }
       }
       setDraftMessage(null);
     } finally {
@@ -567,6 +740,17 @@ Impact: ${scenario.incident.impact}`
   function completeLab() {
     const nextProgress = markScenarioCompleted(scenario.slug);
     setProgress(summarizeScenarioProgress(nextProgress, scenario.slug));
+    const authToken = getAuthToken();
+    if (authToken && persistenceReady) {
+      const draft = scenario.scenarioType === "mcq" ? selectedOptionId : answer;
+      saveLearnerDraft(authToken, "scenario", scenario.slug, {
+        draft_answer: draft,
+        draft_interview_answer: interviewAnswer,
+        hints_revealed: hintsRevealed,
+        client_revision: Date.now(),
+        completed: true
+      }).catch(() => setAutoSaveStatus("Save failed — retry save"));
+    }
     sendUsageEvent("scenario_completed", {
       metadata: {
         scenario_slug: scenario.slug,
@@ -884,9 +1068,18 @@ Impact: ${scenario.incident.impact}`
               />
             )}
 
-            <p className="mt-4 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-              {autoSaveStatus}
-            </p>
+            <div className="mt-4 flex flex-wrap items-center gap-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+              <span>{autoSaveStatus}</span>
+              {autoSaveStatus.toLowerCase().includes("retry") ? (
+                <button
+                  type="button"
+                  onClick={saveDraft}
+                  className="rounded-full border border-amber-300/40 px-3 py-1 text-[10px] text-amber-100 transition hover:bg-amber-300/10"
+                >
+                  Retry save
+                </button>
+              ) : null}
+            </div>
             <div
               id="explanation"
               className="mt-5 scroll-mt-32 rounded-3xl border border-slate-800 bg-slate-950/35 p-5"
