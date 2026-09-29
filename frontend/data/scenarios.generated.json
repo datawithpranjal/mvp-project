@@ -1023,26 +1023,26 @@
     ],
     "businessContext": "A Spark SQL job reads a large partitioned table and filters to what looks like one day of data before joining to dimensions and aggregating results.",
     "problemStatement": "Even though the code appears selective, the scan bytes remain huge and runtime barely changes compared with a full-table read.",
-    "requirement": "Fix the PySpark code so the pipeline is correct, scalable, and safe to rerun.",
-    "schema": "DataFrames depend on the scenario. Assume large production-scale inputs, skewed keys, retries, and partitioned lake storage.",
-    "sampleInput": "Use the code comments and logs to infer the input shape. Focus on the production failure mode, not local toy execution.",
-    "brokenCode": "from pyspark.sql import functions as F\n\nsource_df = spark.read.parquet(source_path)\n\n# Broken: this code is functionally plausible but unsafe for production scale/reruns.\nresult_df = (source_df\n  .join(reference_df, on='id', how='left')\n  .groupBy('id')\n  .agg(F.count('*').alias('record_count')))\n\nresult_df.write.mode('append').parquet(output_path)",
-    "actualOutput": "",
-    "expectedOutput": "Corrected PySpark code or approach should reduce the failure mode, preserve correctness, and include validation/monitoring.",
-    "logs": "[Spark] The Partition Pruning Mirage\nStage progress: most tasks finished, one or more tasks are long-running.\nMetrics to inspect: shuffle read, spill, skew ratio, executor lost count, file count.\nEven though the code appears selective, the scan bytes remain huge and runtime barely changes\ncompared with a full-table read.",
+    "requirement": "Read only the requested event_date partition, aggregate that day's paid events by customer_id, and explain how you would verify pruning from the physical plan and scan metrics.",
+    "schema": "events is stored as Parquet partitioned by event_date.\nevents(event_id STRING, event_ts TIMESTAMP, event_date DATE, customer_id STRING, status STRING, amount DECIMAL(12,2))\n\nrun_date is an ISO date string such as '2026-09-28'.",
+    "sampleInput": "Partition folders: event_date=2026-09-27, event_date=2026-09-28, ...\nRequested run_date: 2026-09-28\nOnly rows with event_date = 2026-09-28 and status = 'PAID' should be scanned and aggregated.",
+    "brokenCode": "from pyspark.sql import functions as F\n\nevents_df = spark.read.parquet(events_path)\n\n# Broken: deriving the business day from event_ts does not target the physical\n# event_date partition column, so Spark scans every date partition.\ndaily_paid = (\n    events_df\n    .filter(F.to_date(F.col(\"event_ts\")) == F.lit(run_date))\n    .filter(F.col(\"status\") == F.lit(\"PAID\"))\n    .groupBy(\"customer_id\")\n    .agg(F.sum(\"amount\").alias(\"paid_amount\"))\n)\n\ndaily_paid.write.mode(\"overwrite\").parquet(output_path)",
+    "actualOutput": "Physical plan excerpt:\nFileScan parquet ...\nPartitionFilters: []\nDataFilters: [isnotnull(event_ts), (cast(event_ts as date) = 2026-09-28), (status = PAID)]\nFiles read: 365/365 partitions\nBytes scanned: 4.8 TB",
+    "expectedOutput": "Filter the raw event_date partition column before other transformations. The physical plan should show event_date in PartitionFilters, read 1/365 partitions, and return customer_id plus paid_amount for run_date.",
+    "logs": "[Spark] The Partition Pruning Mirage\nRequested event_date: 2026-09-28\nCatalog partitions available: 365\nPartitions selected: 365\nBytes scanned: 4.8 TB\nExpected partitions selected: 1\nThe result values are correct, but runtime barely changes from a full-table scan.",
     "mcqOptions": [],
     "hints": [
-      "Whether you can connect logical filter intent with the physical conditions required for actual pruning.",
-      "The filter is applied to a derived expression instead of the raw partition column.",
-      "Inspect the scan plan and verify which partitions were actually read rather than trusting the SQL text."
+      "Compare the column used in the filter with the physical partition column in the schema.",
+      "Filtering to_date(event_ts) expresses the right business day but does not directly constrain event_date.",
+      "After rewriting the predicate, inspect PartitionFilters and the number of partitions and bytes scanned."
     ],
     "tasks": [
       "Diagnose the issue.",
       "Fix the broken PySpark code sample.",
       "Explain the answer in interview style."
     ],
-    "modelSolution": "Fix the PySpark pipeline by addressing the root production issue, not just adding resources. • Inspect the scan plan and verify which partitions were actually read rather than trusting the SQL text. • Rewrite predicates to target the physical partition column directly and as early as possible. • Check whether the view or upstream transformation is preventing pushdown or pruning. • Document the difference between business-time logic and storage partition logic so analysts and engineers use the right filter shape.",
-    "productionExplanation": "The problem is that a filter can be present in code without being useful for pruning. If the expression wraps the partition column, uses the wrong timezone, or applies the predicate after a view transformation, Spark may still touch far more data than expected. Trade-offs: • Physical partitioning improves scan efficiency, but only when queries are written to exploit it. • Abstracted views are convenient, but they can hide critical storage details if teams never inspect plans. • Designing around storage dates may be operationally efficient, though it requires care when business reporting uses local time. Monitoring and testing: • Track scan bytes, partitions touched, filter selectivity, and plan operators showing whether pruning occurred. • Add query examples or linting for common partitioned datasets so teams do not wrap partition columns in non-prunable expressions. • Compare estimated versus actual partitions scanned after schema or view changes.",
+    "modelSolution": "from pyspark.sql import functions as F\n\nevents_df = spark.read.parquet(events_path)\n\ndaily_paid = (\n    events_df\n    .filter(F.col(\"event_date\") == F.to_date(F.lit(run_date)))\n    .filter(F.col(\"status\") == F.lit(\"PAID\"))\n    .groupBy(\"customer_id\")\n    .agg(F.sum(\"amount\").alias(\"paid_amount\"))\n)\n\n(daily_paid\n    .write\n    .mode(\"overwrite\")\n    .parquet(output_path))\n\nVerify with daily_paid.explain(\"formatted\"): event_date must appear under PartitionFilters. Compare partitions selected and bytes scanned before and after the change, and reconcile the paid-event count and amount for run_date.",
+    "productionExplanation": "The original predicate is logically selective but targets a value derived from event_ts rather than the physical event_date partition column. Spark therefore has no event_date constraint for directory pruning and opens all 365 partitions. Filtering event_date directly and early allows Spark to select the single required partition; the status predicate can then reduce rows inside it. Confirm the fix from the formatted physical plan, partitions selected, files opened, and bytes scanned—never from the presence of a filter in source code alone. If business day and storage day use different time zones, derive the intended partition dates explicitly and test boundary events instead of wrapping the partition column in the scan predicate.",
     "commonMistakes": [
       "The filter is applied to a derived expression instead of the raw partition column.",
       "A view or UDF hides the partition column and prevents effective pruning.",
