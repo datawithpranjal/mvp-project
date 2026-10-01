@@ -327,6 +327,57 @@ function evaluateCodeReviewLab(lab: CodingLab, answer: string): LabRunResult {
   };
 }
 
+function formatPythonValue(value: unknown): string {
+  if (value === null) return "None";
+  if (typeof value === "boolean") return value ? "True" : "False";
+  if (typeof value === "string") return JSON.stringify(value);
+  if (typeof value === "number") return String(value);
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => formatPythonValue(item)).join(", ")}]`;
+  }
+  if (typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>);
+    return `{${entries
+      .map(([key, item]) => `${JSON.stringify(key)}: ${formatPythonValue(item)}`)
+      .join(", ")}}`;
+  }
+  return String(value);
+}
+
+function formatPythonCall(functionName: string | undefined, args: unknown[]): string {
+  return `${functionName || "solution"}(${args
+    .map((argument) => formatPythonValue(argument))
+    .join(", ")})`;
+}
+
+function getReferenceLabels(track: CodingLabTrack) {
+  if (track === "python") {
+    return {
+      tab: "Examples",
+      sourceTitle: "Sample input",
+      sourceDescription: "Visible function calls your solution should handle.",
+      targetTitle: "Expected output",
+      targetDescription: "What each visible function call should return."
+    };
+  }
+  if (track === "pyspark") {
+    return {
+      tab: "DataFrames",
+      sourceTitle: "Input DataFrame(s)",
+      sourceDescription: "The input rows and schema available to your transformation.",
+      targetTitle: "Expected DataFrame",
+      targetDescription: "The rows, columns, and behavior your transformation should produce."
+    };
+  }
+  return {
+    tab: "Data",
+    sourceTitle: "Source tables",
+    sourceDescription: "The tables and rows available to your query.",
+    targetTitle: "Expected result",
+    targetDescription: "The exact result set your query should return."
+  };
+}
+
 export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
   const labs = useMemo(() => getCodingLabs(track), [track]);
   const workspaceRef = useRef<HTMLElement | null>(null);
@@ -361,6 +412,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
   const [remoteProgress, setRemoteProgress] = useState<Record<string, { latestResult?: unknown }>>({});
   const draftRevisionRef = useRef<Record<string, number>>({});
   const pendingAttemptRef = useRef<{ slug: string; answer: string; key: string } | null>(null);
+  const referenceLabels = getReferenceLabels(track);
 
   useEffect(() => {
     const syncAuth = () => setAuthEpoch((value) => value + 1);
@@ -1050,7 +1102,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
         </div>
       </header>
 
-      {mobileReferenceOpen ? <button type="button" aria-label="Close task and data" onClick={() => setMobileReferenceOpen(false)} className="fixed inset-0 z-40 bg-slate-950/80 backdrop-blur-sm md:hidden" /> : null}
+      {mobileReferenceOpen ? <button type="button" aria-label="Close reference" onClick={() => setMobileReferenceOpen(false)} className="fixed inset-0 z-40 bg-slate-950/80 backdrop-blur-sm md:hidden" /> : null}
 
       <section
         ref={workspaceRef}
@@ -1062,7 +1114,10 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
             <button type="button" onClick={() => setMobileReferenceOpen(false)} className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-300 md:hidden">Close</button>
           </div>
           <div className="grid grid-cols-3 gap-1 border-b border-slate-800 p-2" role="tablist" aria-label="Lab reference">
-            {(["task", "data", "help"] as const).map((tab) => <button key={tab} type="button" role="tab" aria-selected={referenceTab === tab} onClick={() => setReferenceTab(tab)} className={`rounded-xl px-3 py-2.5 text-xs font-semibold capitalize transition ${referenceTab === tab ? "bg-teal-300 text-slate-950" : "text-slate-400 hover:bg-slate-900 hover:text-slate-100"}`}>{tab}</button>)}
+            {(["task", "data", "help"] as const).map((tab) => {
+              const label = tab === "data" ? referenceLabels.tab : tab === "task" ? "Task" : "Help";
+              return <button key={tab} type="button" role="tab" aria-selected={referenceTab === tab} onClick={() => setReferenceTab(tab)} className={`rounded-xl px-3 py-2.5 text-xs font-semibold transition ${referenceTab === tab ? "bg-teal-300 text-slate-950" : "text-slate-400 hover:bg-slate-900 hover:text-slate-100"}`}>{label}</button>;
+            })}
           </div>
           <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4 sm:p-5">
             {referenceTab === "task" ? <>
@@ -1074,22 +1129,22 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
 
             {referenceTab === "data" ? <>
               <section>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-teal-200">Source / raw data</p>
-                <p className="mt-2 text-xs leading-5 text-slate-500">Inputs available to your query or function.</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-teal-200">{referenceLabels.sourceTitle}</p>
+                <p className="mt-2 text-xs leading-5 text-slate-500">{referenceLabels.sourceDescription}</p>
                 <div className="mt-4 space-y-4">
                   {selectedLab.tables.map((table) => <TablePreview key={table.name} table={table} />)}
-                  {selectedLab.track === "python" && selectedLab.testCases?.length ? selectedLab.testCases.map((testCase) => <div key={testCase.name} className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4"><p className="text-xs font-semibold text-slate-400">{testCase.name}</p><pre className="mt-2 overflow-x-auto text-xs leading-5 text-slate-200"><code>{JSON.stringify(testCase.args, null, 2)}</code></pre></div>) : null}
+                  {selectedLab.track === "python" && selectedLab.testCases?.length ? selectedLab.testCases.map((testCase, index) => <div key={`${testCase.name}-${index}`} className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4"><p className="text-xs font-semibold text-slate-500">Example {index + 1}</p><pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-words text-xs leading-5 text-slate-100"><code>{formatPythonCall(selectedLab.functionName, testCase.args)}</code></pre></div>) : null}
                   {!selectedLab.tables.length && !(selectedLab.track === "python" && selectedLab.testCases?.length) ? <p className="rounded-2xl border border-slate-800 p-4 text-sm text-slate-400">Use the starter code and task contract as the input for this review question.</p> : null}
                 </div>
               </section>
               <section className="border-t border-slate-800 pt-5">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-200">Target / result data</p>
-                <p className="mt-2 text-xs leading-5 text-slate-500">The exact result or behavior your solution should produce.</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-200">{referenceLabels.targetTitle}</p>
+                <p className="mt-2 text-xs leading-5 text-slate-500">{referenceLabels.targetDescription}</p>
                 <div className="mt-4 space-y-4">
                   {selectedLab.expectedOutputTable ? <MiniResultTable title="Expected output on sample data" table={selectedLab.expectedOutputTable} /> : null}
                   {expectedPreview ? <MiniResultTable title="Expected output on sample data" table={expectedPreview} /> : null}
-                  {selectedLab.track === "python" && selectedLab.testCases?.length ? selectedLab.testCases.map((testCase) => <div key={testCase.name} className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4"><p className="text-xs font-semibold text-slate-400">{testCase.name}</p><pre className="mt-2 overflow-x-auto text-xs leading-5 text-teal-100"><code>{JSON.stringify(testCase.expected, null, 2)}</code></pre></div>) : null}
-                  {selectedLab.expectedOutcome ? <p className="rounded-2xl border border-slate-800 p-4 whitespace-pre-line text-sm leading-6 text-slate-300">{selectedLab.expectedOutcome}</p> : null}
+                  {selectedLab.track === "python" && selectedLab.testCases?.length ? selectedLab.testCases.map((testCase, index) => <div key={`${testCase.name}-${index}`} className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4"><p className="text-xs font-semibold text-slate-500">Example {index + 1}</p><pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-words text-xs leading-5 text-teal-100"><code>{formatPythonValue(testCase.expected)}</code></pre></div>) : null}
+                  {selectedLab.track !== "python" && selectedLab.expectedOutcome ? <p className="rounded-2xl border border-slate-800 p-4 whitespace-pre-line text-sm leading-6 text-slate-300">{selectedLab.expectedOutcome}</p> : null}
                   {expectedPreviewError ? <p className="text-xs leading-5 text-amber-100">Expected output preview is unavailable: {expectedPreviewError}</p> : null}
                 </div>
               </section>
@@ -1118,7 +1173,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
                       : "Fix the PySpark code or write the production-safe approach. Your answer is checked for concepts, APIs, and trade-offs."}
                 </p>
               </div>
-              <button type="button" onClick={() => setMobileReferenceOpen(true)} className="rounded-full border border-teal-300/35 px-4 py-2 text-sm font-semibold text-teal-100 md:hidden">Open task & data</button>
+              <button type="button" onClick={() => setMobileReferenceOpen(true)} className="rounded-full border border-teal-300/35 px-4 py-2 text-sm font-semibold text-teal-100 md:hidden">Open task & {referenceLabels.tab.toLowerCase()}</button>
             </div>
             {workspaceMessage ? (
               <p className="mt-3 text-sm font-semibold text-teal-100">{workspaceMessage}</p>
