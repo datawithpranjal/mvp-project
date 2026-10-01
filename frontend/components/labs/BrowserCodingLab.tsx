@@ -41,6 +41,7 @@ import {
   type CodingLabProgress
 } from "../../lib/coding-lab-session";
 import { AuthDialog } from "../auth-dialog";
+import { getPracticeStatus, PracticeStatusBadge } from "../practice-status-badge";
 
 interface PythonTestResult {
   name: string;
@@ -82,7 +83,7 @@ interface LabRunResult {
   reviewResults?: ReviewKeywordResult[];
 }
 
-type ProgressFilter = "All" | "Attempted" | "Completed" | "Not started";
+type ProgressFilter = "All" | "In progress" | "Done" | "New";
 
 declare global {
   interface Window {
@@ -329,11 +330,11 @@ function evaluateCodeReviewLab(lab: CodingLab, answer: string): LabRunResult {
 export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
   const labs = useMemo(() => getCodingLabs(track), [track]);
   const workspaceRef = useRef<HTMLElement | null>(null);
-  const questionListRef = useRef<HTMLDivElement | null>(null);
-  const activeQuestionRef = useRef<HTMLDivElement | null>(null);
   const [selectedSlug, setSelectedSlug] = useState(labs[0]?.slug ?? "");
   const selectedLab = labs.find((lab) => lab.slug === selectedSlug) ?? labs[0];
   const [isLibraryMode, setIsLibraryMode] = useState(true);
+  const [referenceTab, setReferenceTab] = useState<"task" | "data" | "help">("task");
+  const [mobileReferenceOpen, setMobileReferenceOpen] = useState(false);
   const [workspaceFocusNonce, setWorkspaceFocusNonce] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [hintCount, setHintCount] = useState(0);
@@ -378,25 +379,23 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
   }, [labs]);
 
   const progressStats = useMemo(() => {
-    const attempted = labs.filter((lab) => (progressMap[lab.slug]?.attemptCount ?? 0) > 0).length;
     const completed = labs.filter((lab) => progressMap[lab.slug]?.completed).length;
-    const drafted = labs.filter(
-      (lab) => !progressMap[lab.slug]?.attemptCount && Boolean(answers[lab.slug])
+    const attempted = labs.filter((lab) =>
+      !progressMap[lab.slug]?.completed &&
+      ((progressMap[lab.slug]?.attemptCount ?? 0) > 0 || Boolean(answers[lab.slug]))
     ).length;
-
     return {
       attempted,
       completed,
-      notStarted: Math.max(0, labs.length - attempted - drafted),
-      drafted
+      notStarted: Math.max(0, labs.length - attempted - completed)
     };
   }, [answers, labs, progressMap]);
 
   const progressFilterOptions: Array<{ label: ProgressFilter; count: number }> = [
     { label: "All", count: labs.length },
-    { label: "Attempted", count: progressStats.attempted },
-    { label: "Completed", count: progressStats.completed },
-    { label: "Not started", count: progressStats.notStarted }
+    { label: "In progress", count: progressStats.attempted },
+    { label: "Done", count: progressStats.completed },
+    { label: "New", count: progressStats.notStarted }
   ];
 
   const filteredLabs = labs.filter((lab) => {
@@ -407,12 +406,11 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
     const hasDraft = Boolean(answers[lab.slug]);
     const progressMatches =
       progressFilter === "All" ||
-      (progressFilter === "Attempted" && attemptCount > 0) ||
-      (progressFilter === "Completed" && Boolean(labProgress?.completed)) ||
-      (progressFilter === "Not started" && attemptCount === 0 && !hasDraft);
+      (progressFilter === "In progress" && !labProgress?.completed && (attemptCount > 0 || hasDraft)) ||
+      (progressFilter === "Done" && Boolean(labProgress?.completed)) ||
+      (progressFilter === "New" && !labProgress?.completed && attemptCount === 0 && !hasDraft);
     return topicMatches && difficultyMatches && progressMatches;
   });
-  const filteredLabSignature = filteredLabs.map((lab) => lab.slug).join("|");
 
   useEffect(() => {
     let cancelled = false;
@@ -635,23 +633,6 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
     });
   }, [isLibraryMode, workspaceFocusNonce]);
 
-  useEffect(() => {
-    if (isLibraryMode) return;
-
-    window.requestAnimationFrame(() => {
-      const questionList = questionListRef.current;
-      const activeQuestion = activeQuestionRef.current;
-      if (!questionList || !activeQuestion) return;
-
-      const centeredTop =
-        activeQuestion.offsetTop - questionList.clientHeight / 2 + activeQuestion.clientHeight / 2;
-      questionList.scrollTo({
-        top: Math.max(0, centeredTop),
-        behavior: "smooth"
-      });
-    });
-  }, [filteredLabSignature, isLibraryMode, selectedSlug]);
-
   if (!selectedLab) {
     return (
       <main className="mx-auto min-h-screen max-w-7xl px-6 py-10 sm:px-10">
@@ -671,6 +652,10 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
       : activeLabQueue[0] ?? null;
   const selectedProgress = progressMap[selectedLab.slug];
   const selectedCompleted = Boolean(selectedProgress?.completed);
+  const selectedStatus = getPracticeStatus(
+    selectedCompleted,
+    (selectedProgress?.attemptCount ?? 0) > 0 || Boolean(answers[selectedLab.slug])
+  );
   const canGoNext = Boolean(nextLab && selectedCompleted);
   const nextQuestionButtonClass = canGoNext
     ? "rounded-full bg-teal-300 px-5 py-3 text-sm font-bold text-slate-950 shadow-[0_0_28px_rgba(94,234,212,0.2)] transition hover:bg-teal-200"
@@ -940,6 +925,8 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
   function switchLab(slug: string) {
     setSelectedSlug(slug);
     setIsLibraryMode(false);
+    setReferenceTab("task");
+    setMobileReferenceOpen(false);
     setWorkspaceFocusNonce((count) => count + 1);
     setHintCount(0);
     setShowSolution(false);
@@ -995,7 +982,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
 
   return (
     <main className="mx-auto min-h-screen max-w-[1600px] px-4 py-8 sm:px-8">
-      <section className="panel rounded-[2rem] p-7">
+      <section className={`${isLibraryMode ? "" : "hidden"} panel rounded-[2rem] p-7`}>
         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-200">
           {formatTrackLabel(track)} Lab
         </p>
@@ -1012,8 +999,8 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
           </div>
           <div className="grid grid-cols-2 gap-3 text-center sm:grid-cols-4">
             <Stat label="Labs" value={labs.length} />
-            <Stat label="Attempted" value={progressStats.attempted} />
-            <Stat label="Completed" value={progressStats.completed} />
+            <Stat label="In progress" value={progressStats.attempted} />
+            <Stat label="Done" value={progressStats.completed} />
             <Stat label="Free" value={labs.filter((lab) => lab.isFree).length} />
           </div>
         </div>
@@ -1039,200 +1026,85 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
       ) : (
         <>
 
+      <header className="mt-0 rounded-[2rem] border border-slate-800 bg-slate-950/45 p-5 sm:p-6">
+        <div className="flex flex-col justify-between gap-5 xl:flex-row xl:items-start">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <PracticeStatusBadge status={selectedStatus} />
+              <span className="badge rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]">{selectedLab.difficulty}</span>
+              <span className="rounded-full border border-slate-700 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-300">{formatTrackLabel(track)}</span>
+              {selectedLab.topicTags.slice(0, 2).map((tag) => <span key={tag} className="hidden rounded-full border border-slate-700 px-3 py-1 text-xs font-semibold text-slate-400 sm:inline-flex">{tag}</span>)}
+            </div>
+            <h1 className="mt-4 text-2xl font-semibold tracking-tight text-slate-50 sm:text-3xl">{selectedLab.title}</h1>
+            <p className="mt-2 hidden max-w-4xl text-sm leading-6 text-slate-300 sm:block">{selectedLab.studentTask}</p>
+          </div>
+          <div className="flex w-full shrink-0 flex-col gap-2 xl:w-80">
+            <label>
+              <span className="mb-2 hidden text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 sm:block">Choose question</span>
+              <select value={selectedLab.slug} onChange={(event) => switchLab(event.target.value)} className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:border-teal-300/50">
+                {labs.map((lab) => <option key={lab.slug} value={lab.slug}>{lab.title}</option>)}
+              </select>
+            </label>
+            <button type="button" onClick={returnToLibrary} className="hidden self-start text-xs font-semibold text-slate-400 underline decoration-slate-700 underline-offset-4 hover:text-teal-100 sm:block">Back to all questions</button>
+          </div>
+        </div>
+      </header>
+
+      {mobileReferenceOpen ? <button type="button" aria-label="Close task and data" onClick={() => setMobileReferenceOpen(false)} className="fixed inset-0 z-40 bg-slate-950/80 backdrop-blur-sm md:hidden" /> : null}
+
       <section
         ref={workspaceRef}
-        className="mt-6 scroll-mt-28 grid gap-6 md:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)] 2xl:grid-cols-[320px_minmax(0,1fr)_320px]"
+        className="mt-5 scroll-mt-28 grid min-w-0 gap-5 md:grid-cols-[minmax(300px,0.85fr)_minmax(0,1.4fr)] md:items-start"
       >
-        <aside className="panel h-fit rounded-[2rem] p-5 md:sticky md:top-24 md:max-h-[calc(100vh-7rem)] md:overflow-hidden">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-teal-200">
-                Questions
-              </p>
-              <p className="mt-1 text-xs leading-5 text-slate-500">
-                Jump directly to another lab.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={returnToLibrary}
-              className="rounded-full border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-300 transition hover:border-amber-300/40 hover:text-amber-100"
-            >
-              All cards
-            </button>
+        <aside className={`${mobileReferenceOpen ? "fixed inset-x-3 bottom-3 top-16 z-50 flex" : "hidden"} min-w-0 flex-col overflow-hidden rounded-[2rem] border border-slate-800 bg-slate-950 shadow-2xl md:sticky md:top-24 md:flex md:max-h-[calc(100vh-7rem)]`}>
+          <div className="flex items-center justify-between border-b border-slate-800 px-4 py-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-teal-200">Reference</p>
+            <button type="button" onClick={() => setMobileReferenceOpen(false)} className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-300 md:hidden">Close</button>
           </div>
-          <div
-            ref={questionListRef}
-            className="mt-4 max-h-[420px] space-y-3 overflow-y-auto pr-1 md:max-h-[calc(100vh-18rem)]"
-          >
-            {filteredLabs.length > 0 ? (
-              filteredLabs.map((lab) => {
-                const isActive = lab.slug === selectedLab.slug;
-                return (
-                  <div key={lab.slug} ref={isActive ? activeQuestionRef : null}>
-                    <LabListButton
-                      lab={lab}
-                      active={isActive}
-                      progress={progressMap[lab.slug]}
-                      hasDraft={Boolean(answers[lab.slug])}
-                      onSelect={() => switchLab(lab.slug)}
-                    />
-                  </div>
-                );
-              })
-            ) : (
-              <div className="rounded-3xl border border-slate-800 bg-slate-950/30 p-4">
-                <p className="text-sm font-semibold text-slate-200">No questions found.</p>
-                <p className="mt-2 text-xs leading-5 text-slate-400">
-                  Try another progress tab, topic, or difficulty filter.
-                </p>
-              </div>
-            )}
+          <div className="grid grid-cols-3 gap-1 border-b border-slate-800 p-2" role="tablist" aria-label="Lab reference">
+            {(["task", "data", "help"] as const).map((tab) => <button key={tab} type="button" role="tab" aria-selected={referenceTab === tab} onClick={() => setReferenceTab(tab)} className={`rounded-xl px-3 py-2.5 text-xs font-semibold capitalize transition ${referenceTab === tab ? "bg-teal-300 text-slate-950" : "text-slate-400 hover:bg-slate-900 hover:text-slate-100"}`}>{tab}</button>)}
           </div>
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4 sm:p-5">
+            {referenceTab === "task" ? <>
+              <div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Business context</p><p className="mt-2 text-sm leading-6 text-slate-300">{selectedLab.businessContext}</p></div>
+              <div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Problem</p><p className="mt-2 text-sm leading-6 text-slate-200">{selectedLab.problemStatement}</p></div>
+              <div className="rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-100">Your task</p><p className="mt-2 text-sm font-semibold leading-6 text-amber-50">{selectedLab.studentTask}</p></div>
+              {selectedLab.expectedOutcome ? <div className="rounded-2xl border border-teal-300/20 bg-teal-300/10 p-4"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-teal-100">Outcome contract</p><p className="mt-2 whitespace-pre-line text-sm leading-6 text-teal-50">{selectedLab.expectedOutcome}</p></div> : null}
+            </> : null}
 
-          <div className="mt-5 border-t border-slate-800 pt-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-              Refine list
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {["All", "beginner", "intermediate", "advanced"].map((item) => (
-              <button
-                key={item}
-                type="button"
-                onClick={() => setDifficulty(item)}
-                className={`rounded-full px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] ${
-                  difficulty === item
-                    ? "bg-teal-300 text-slate-950"
-                    : "border border-slate-700 bg-slate-950/40 text-slate-300"
-                }`}
-              >
-                {item}
-              </button>
-            ))}
-            </div>
-            <select
-              value={topic}
-              onChange={(event) => setTopic(event.target.value)}
-              className="mt-4 w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100"
-            >
-              {topics.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="mt-4 rounded-3xl border border-slate-800 bg-slate-950/30 p-3">
-            <p className="px-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-              Progress
-            </p>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              {progressFilterOptions.map((item) => (
-                <button
-                  key={item.label}
-                  type="button"
-                  onClick={() => setProgressFilter(item.label)}
-                  className={`rounded-2xl border px-3 py-3 text-left text-xs transition ${
-                    progressFilter === item.label
-                      ? "border-amber-300/60 bg-amber-300/15 text-amber-50"
-                      : "border-slate-800 bg-slate-950/30 text-slate-300 hover:border-amber-300/30"
-                  }`}
-                >
-                  <span className="block font-semibold">{item.label}</span>
-                  <span className="mt-1 block text-lg font-bold">{item.count}</span>
-                </button>
-              ))}
-            </div>
-            <p className="mt-3 px-2 text-xs leading-5 text-slate-500">
-              Drafts autosave. Completed status updates after a successful submit.
-            </p>
+            {referenceTab === "data" ? <>
+              <section>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-teal-200">Source / raw data</p>
+                <p className="mt-2 text-xs leading-5 text-slate-500">Inputs available to your query or function.</p>
+                <div className="mt-4 space-y-4">
+                  {selectedLab.tables.map((table) => <TablePreview key={table.name} table={table} />)}
+                  {selectedLab.track === "python" && selectedLab.testCases?.length ? selectedLab.testCases.map((testCase) => <div key={testCase.name} className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4"><p className="text-xs font-semibold text-slate-400">{testCase.name}</p><pre className="mt-2 overflow-x-auto text-xs leading-5 text-slate-200"><code>{JSON.stringify(testCase.args, null, 2)}</code></pre></div>) : null}
+                  {!selectedLab.tables.length && !(selectedLab.track === "python" && selectedLab.testCases?.length) ? <p className="rounded-2xl border border-slate-800 p-4 text-sm text-slate-400">Use the starter code and task contract as the input for this review question.</p> : null}
+                </div>
+              </section>
+              <section className="border-t border-slate-800 pt-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-200">Target / result data</p>
+                <p className="mt-2 text-xs leading-5 text-slate-500">The exact result or behavior your solution should produce.</p>
+                <div className="mt-4 space-y-4">
+                  {selectedLab.expectedOutputTable ? <MiniResultTable title="Expected output on sample data" table={selectedLab.expectedOutputTable} /> : null}
+                  {expectedPreview ? <MiniResultTable title="Expected output on sample data" table={expectedPreview} /> : null}
+                  {selectedLab.track === "python" && selectedLab.testCases?.length ? selectedLab.testCases.map((testCase) => <div key={testCase.name} className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4"><p className="text-xs font-semibold text-slate-400">{testCase.name}</p><pre className="mt-2 overflow-x-auto text-xs leading-5 text-teal-100"><code>{JSON.stringify(testCase.expected, null, 2)}</code></pre></div>) : null}
+                  {selectedLab.expectedOutcome ? <p className="rounded-2xl border border-slate-800 p-4 whitespace-pre-line text-sm leading-6 text-slate-300">{selectedLab.expectedOutcome}</p> : null}
+                  {expectedPreviewError ? <p className="text-xs leading-5 text-amber-100">Expected output preview is unavailable: {expectedPreviewError}</p> : null}
+                </div>
+              </section>
+            </> : null}
+
+            {referenceTab === "help" ? <>
+              {selectedLab.tables.length ? <div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Table schema</p><div className="mt-3"><TableSchemaReference tables={selectedLab.tables} /></div></div> : null}
+              <div><div className="flex items-center justify-between gap-3"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Hints</p><button type="button" onClick={() => setHintCount((count) => Math.min(count + 1, selectedLab.hints.length))} className="rounded-full border border-teal-300/30 px-3 py-2 text-xs font-semibold text-teal-100">Get hint</button></div><div className="mt-3 space-y-3">{selectedLab.hints.slice(0, hintCount).map((hint, index) => <div key={hint} className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4"><p className="text-xs font-semibold text-teal-200">Hint {index + 1}</p><p className="mt-2 text-sm leading-6 text-slate-300">{hint}</p></div>)}{hintCount === 0 ? <p className="text-sm leading-6 text-slate-400">Try once, then reveal one hint at a time.</p> : null}</div></div>
+              <div className="border-t border-slate-800 pt-5"><button type="button" onClick={toggleSolution} disabled={isLoadingSolution} className="w-full rounded-full bg-amber-300 px-5 py-3 text-sm font-bold text-slate-950">{showSolution ? "Hide model answer" : isLoadingSolution ? "Loading solution..." : "Reveal model answer"}</button>{solutionError ? <p className="mt-3 text-sm leading-6 text-amber-100">{solutionError}</p> : null}{showSolution ? <div className="mt-4 space-y-4"><pre className="max-h-[420px] overflow-auto rounded-2xl border border-slate-800 bg-slate-950/70 p-4 text-xs leading-6 text-teal-50"><code>{selectedLab.serverValidation === "python" ? serverSolutions[selectedLab.slug]?.solutionCode ?? "Model answer is loading." : selectedLab.solutionCode}</code></pre><p className="text-sm leading-6 text-slate-300">{selectedLab.serverValidation === "python" ? serverSolutions[selectedLab.slug]?.explanation ?? selectedLab.explanation : selectedLab.explanation}</p>{selectedLab.commonMistakes?.length ? <div className="rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-100">Common mistakes</p><ul className="mt-3 space-y-2 text-sm leading-6 text-amber-50">{selectedLab.commonMistakes.map((mistake) => <li key={mistake}>{mistake}</li>)}</ul></div> : null}</div> : null}</div>
+            </> : null}
           </div>
         </aside>
 
-        <section className="min-w-0 space-y-6">
-          <div className="panel rounded-[2rem] p-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="badge rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em]">
-                  {selectedLab.difficulty}
-                </span>
-                {selectedLab.topicTags.slice(0, 4).map((tag) => (
-                  <span
-                    key={tag}
-                    className="rounded-full border border-slate-700 bg-slate-950/40 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-300"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-              <button
-                type="button"
-                onClick={goToNextLab}
-                disabled={!canGoNext}
-                className={nextQuestionButtonClass}
-              >
-                {selectedCompleted ? "Next question" : "Complete to continue"}
-              </button>
-            </div>
-            <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-50">
-              {selectedLab.title}
-            </h2>
-            <p className="mt-4 text-sm leading-7 text-slate-300">
-              {selectedLab.businessContext}
-            </p>
-            <div className="mt-5 rounded-3xl border border-amber-300/20 bg-amber-300/10 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-100">
-                Data engineer task
-              </p>
-              <p className="mt-2 text-sm leading-6 text-amber-50">{selectedLab.studentTask}</p>
-            </div>
-            {selectedLab.expectedOutcome ? (
-              <div className="mt-4 rounded-3xl border border-teal-300/20 bg-teal-300/10 p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-teal-100">
-                  Expected outcome
-                </p>
-                <p className="mt-2 whitespace-pre-line text-sm leading-6 text-teal-50">
-                  {selectedLab.expectedOutcome}
-                </p>
-                {selectedLab.expectedOutputTable ? (
-                  <div className="mt-4">
-                    <MiniResultTable
-                      title="Expected output on sample data"
-                      table={selectedLab.expectedOutputTable}
-                    />
-                  </div>
-                ) : null}
-                {expectedPreview ? (
-                  <div className="mt-4">
-                    <MiniResultTable title="Expected output on sample data" table={expectedPreview} />
-                  </div>
-                ) : null}
-                {expectedPreviewError ? (
-                  <p className="mt-3 text-xs leading-5 text-amber-100">
-                    Expected output preview is unavailable: {expectedPreviewError}
-                  </p>
-                ) : null}
-              </div>
-            ) : null}
-            {selectedLab.track === "python" && selectedLab.testCases?.length ? (
-              <PythonExamplesPanel lab={selectedLab} testCases={selectedLab.testCases} />
-            ) : null}
-          </div>
-
-          {selectedLab.tables.length > 0 ? (
-            <div className="panel rounded-[2rem] p-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
-                Sample production data
-              </p>
-              <div className="mt-4 grid min-w-0 gap-4">
-                {selectedLab.tables.map((table) => (
-                  <TablePreview key={table.name} table={table} />
-                ))}
-              </div>
-            </div>
-          ) : null}
-
-          <div className="panel rounded-[2rem] p-6">
+        <section className="min-w-0 space-y-5">
+          <div className="panel rounded-[2rem] p-4 sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.22em] text-teal-200">
@@ -1246,6 +1118,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
                       : "Fix the PySpark code or write the production-safe approach. Your answer is checked for concepts, APIs, and trade-offs."}
                 </p>
               </div>
+              <button type="button" onClick={() => setMobileReferenceOpen(true)} className="rounded-full border border-teal-300/35 px-4 py-2 text-sm font-semibold text-teal-100 md:hidden">Open task & data</button>
             </div>
             {workspaceMessage ? (
               <p className="mt-3 text-sm font-semibold text-teal-100">{workspaceMessage}</p>
@@ -1262,16 +1135,6 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
                 </button>
               ) : null}
             </div>
-            {selectedLab.tables.length > 0 ? (
-              <details className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/35 p-4 2xl:hidden">
-                <summary className="cursor-pointer text-sm font-semibold text-teal-100">
-                  Table and column reference
-                </summary>
-                <div className="mt-3">
-                  <TableSchemaReference tables={selectedLab.tables} />
-                </div>
-              </details>
-            ) : null}
             <textarea
               value={answer}
               onChange={(event) =>
@@ -1319,6 +1182,20 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={() => void saveDraftNow()}
+                    className="rounded-full border border-slate-700 px-4 py-3 text-sm font-semibold text-slate-300 transition hover:border-teal-300/40"
+                  >
+                    Save draft
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setReferenceTab("help"); setMobileReferenceOpen(true); }}
+                    className="rounded-full border border-slate-700 px-4 py-3 text-sm font-semibold text-slate-300 transition hover:border-amber-300/40 md:hidden"
+                  >
+                    Hints & answer
+                  </button>
                   {track === "sql" ? (
                     <button
                       type="button"
@@ -1360,112 +1237,6 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
           {result ? <ResultPanel result={result} /> : null}
         </section>
 
-        <aside className="space-y-6 md:col-start-2 2xl:sticky 2xl:top-24 2xl:col-start-auto 2xl:self-start">
-          {selectedLab.tables.length > 0 ? (
-            <div className="panel hidden rounded-[2rem] p-6 2xl:block">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-teal-200">
-                Table reference
-              </p>
-              <p className="mt-2 text-xs leading-5 text-slate-400">
-                Keep the schema visible while you write.
-              </p>
-              <div className="mt-4 max-h-[260px] overflow-y-auto pr-1">
-                <TableSchemaReference tables={selectedLab.tables} />
-              </div>
-            </div>
-          ) : null}
-          <div className="panel rounded-[2rem] p-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
-              Practice workflow
-            </p>
-            <h3 className="mt-3 text-xl font-semibold text-slate-50">
-              Attempt, validate, improve
-            </h3>
-            <p className="mt-3 text-sm leading-6 text-slate-300">
-              {track === "sql"
-                ? "Inspect the seeded tables, write your query, run it, and submit it for complete validation."
-                : track === "python"
-                  ? "Use the sample inputs and outputs, implement the function, and run the validation checks."
-                  : "Inspect the seeded DataFrames, fix the PySpark code, run it on visible sample data, then submit it against hidden production-style cases."}
-            </p>
-          </div>
-
-          <div className="panel rounded-[2rem] p-6">
-            <div className="flex items-center justify-between gap-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
-                Hints
-              </p>
-              <button
-                type="button"
-                onClick={() => setHintCount((count) => Math.min(count + 1, selectedLab.hints.length))}
-                className="rounded-full border border-teal-300/30 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-teal-100"
-              >
-                Get hint
-              </button>
-            </div>
-            <div className="mt-4 space-y-3">
-              {selectedLab.hints.slice(0, hintCount).map((hint, index) => (
-                <div key={hint} className="rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-teal-200">
-                    Hint {index + 1}
-                  </p>
-                  <p className="mt-2 text-sm leading-6 text-slate-300">{hint}</p>
-                </div>
-              ))}
-              {hintCount === 0 ? (
-                <p className="text-sm leading-6 text-slate-400">
-                  Try first. Then reveal hints one at a time like an interviewer nudging you.
-                </p>
-              ) : null}
-            </div>
-          </div>
-
-          <div className="panel rounded-[2rem] p-6">
-            <button
-              type="button"
-              onClick={toggleSolution}
-              disabled={isLoadingSolution}
-              className="w-full rounded-full bg-teal-300 px-5 py-3 text-sm font-bold text-slate-950 transition hover:bg-teal-200"
-            >
-              {showSolution
-                ? "Hide solution"
-                : isLoadingSolution
-                  ? "Loading solution..."
-                  : "Reveal model answer"}
-            </button>
-            {solutionError ? (
-              <p className="mt-3 text-sm leading-6 text-amber-100">{solutionError}</p>
-            ) : null}
-            {showSolution ? (
-              <div className="mt-5 space-y-4">
-                <pre className="max-h-[420px] overflow-auto rounded-3xl border border-slate-800 bg-slate-950/70 p-4 text-xs leading-6 text-teal-50">
-                  <code>
-                    {selectedLab.serverValidation === "python"
-                      ? serverSolutions[selectedLab.slug]?.solutionCode ?? "Model answer is loading."
-                      : selectedLab.solutionCode}
-                  </code>
-                </pre>
-                <p className="text-sm leading-6 text-slate-300">
-                  {selectedLab.serverValidation === "python"
-                    ? serverSolutions[selectedLab.slug]?.explanation ?? selectedLab.explanation
-                    : selectedLab.explanation}
-                </p>
-                {selectedLab.commonMistakes?.length ? (
-                  <div className="rounded-3xl border border-amber-300/20 bg-amber-300/10 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-100">
-                      Common mistake
-                    </p>
-                    <ul className="mt-3 space-y-2 text-sm leading-6 text-amber-50">
-                      {selectedLab.commonMistakes.map((mistake) => (
-                        <li key={mistake}>{mistake}</li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
-        </aside>
       </section>
         </>
       )}
@@ -1611,22 +1382,7 @@ function LabLibraryCard({
 }) {
   const isCompleted = Boolean(progress?.completed);
   const isAttempted = (progress?.attemptCount ?? 0) > 0;
-  const status =
-    isCompleted
-      ? "Completed"
-      : isAttempted
-        ? "Attempted"
-        : hasDraft
-          ? "Draft saved"
-          : "Not started";
-  const statusTone =
-    status === "Completed"
-      ? "bg-teal-300 text-slate-950"
-      : status === "Attempted"
-        ? "bg-amber-300 text-slate-950"
-        : status === "Draft saved"
-          ? "border border-sky-300/40 text-sky-100"
-          : "border border-slate-700 text-slate-400";
+  const status = getPracticeStatus(isCompleted, isAttempted || hasDraft);
   const cardClass = isCompleted
     ? "group flex min-h-[280px] flex-col rounded-[2rem] border border-teal-300/55 bg-teal-300/10 p-5 text-left shadow-[0_0_0_1px_rgba(94,234,212,0.12),0_22px_80px_rgba(20,184,166,0.12)] transition hover:-translate-y-1 hover:border-teal-200/70 hover:bg-teal-300/15"
     : isAttempted
@@ -1643,9 +1399,7 @@ function LabLibraryCard({
         <span className="rounded-full border border-slate-700 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
           {lab.section}
         </span>
-        <span className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${statusTone}`}>
-          {status}
-        </span>
+        <PracticeStatusBadge status={status} />
       </div>
       <h3 className="mt-5 text-xl font-semibold leading-7 text-slate-50">{lab.title}</h3>
       <p className="mt-3 line-clamp-4 text-sm leading-6 text-slate-400">
@@ -1680,156 +1434,6 @@ function LabLibraryCard({
       </div>
     </button>
   );
-}
-
-function LabListButton({
-  lab,
-  active,
-  progress,
-  hasDraft,
-  onSelect
-}: {
-  lab: CodingLab;
-  active: boolean;
-  progress?: CodingLabProgress;
-  hasDraft: boolean;
-  onSelect: () => void;
-}) {
-  const isCompleted = Boolean(progress?.completed);
-  const isAttempted = (progress?.attemptCount ?? 0) > 0;
-  const status =
-    isCompleted
-      ? "Completed"
-      : isAttempted
-        ? "Attempted"
-        : hasDraft
-          ? "Draft saved"
-          : "Not started";
-  const statusClass =
-    status === "Completed"
-      ? "bg-teal-300 text-slate-950"
-      : status === "Attempted"
-        ? "bg-amber-300 text-slate-950"
-        : status === "Draft saved"
-          ? "border border-sky-300/40 text-sky-100"
-          : "border border-slate-700 text-slate-400";
-
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className={`w-full rounded-3xl border p-4 text-left transition ${
-        active && isCompleted
-          ? "border-teal-300/70 bg-teal-300/15 shadow-[0_0_0_1px_rgba(94,234,212,0.12)]"
-          : active && isAttempted
-            ? "border-amber-300/70 bg-amber-300/15 shadow-[0_0_0_1px_rgba(251,191,36,0.12)]"
-          : active
-            ? "border-teal-300/70 bg-teal-300/15 shadow-[0_0_0_1px_rgba(94,234,212,0.12)]"
-          : isCompleted
-            ? "border-teal-300/45 bg-teal-300/10 hover:border-teal-200/60 hover:bg-teal-300/15"
-            : isAttempted
-              ? "border-amber-300/45 bg-amber-300/10 hover:border-amber-200/60 hover:bg-amber-300/15"
-            : "border-slate-800 bg-slate-950/30 hover:border-teal-300/30"
-      }`}
-    >
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-          {lab.section}
-        </span>
-        <span className="rounded-full border border-slate-700 px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-slate-400">
-          {lab.estimatedMinutes}m
-        </span>
-      </div>
-      <p className="mt-2 text-sm font-semibold leading-5 text-slate-100">{lab.title}</p>
-      <p className="mt-2 text-xs leading-5 text-slate-400">{lab.problemStatement}</p>
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <span className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${statusClass}`}>
-          {status}
-        </span>
-        {(progress?.attemptCount ?? 0) > 0 ? (
-          <span className="rounded-full border border-slate-700 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-            {progress?.attemptCount} attempt{progress?.attemptCount === 1 ? "" : "s"}
-          </span>
-        ) : null}
-      </div>
-    </button>
-  );
-}
-
-function PythonExamplesPanel({
-  lab,
-  testCases
-}: {
-  lab: CodingLab;
-  testCases: PythonTestCase[];
-}) {
-  return (
-    <div className="mt-4 rounded-3xl border border-sky-300/20 bg-sky-300/10 p-4">
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-100">
-          Sample input and output
-        </p>
-        <p className="text-xs leading-5 text-slate-400">
-          Return the value from your function. Do not print it.
-        </p>
-      </div>
-      <div className="mt-4 grid gap-3">
-        {testCases.slice(0, 3).map((testCase) => (
-          <div
-            key={testCase.name}
-            className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/60"
-          >
-            <div className="border-b border-slate-800 px-4 py-2">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
-                {testCase.name}
-              </p>
-            </div>
-            <div className="grid gap-0 md:grid-cols-2">
-              <ExampleBlock
-                label="Input"
-                value={`${lab.functionName ?? "your_function"}(${testCase.args
-                  .map(formatPythonLiteral)
-                  .join(", ")})`}
-              />
-              <ExampleBlock label="Expected output" value={formatPythonLiteral(testCase.expected)} />
-            </div>
-          </div>
-        ))}
-      </div>
-      <p className="mt-3 text-xs leading-5 text-slate-400">
-        The full validation may also include similar edge cases, so keep your solution general.
-      </p>
-    </div>
-  );
-}
-
-function ExampleBlock({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="border-t border-slate-800 p-4 first:border-t-0 md:border-l md:border-t-0 md:first:border-l-0">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-        {label}
-      </p>
-      <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-words text-xs leading-6 text-slate-200">
-        <code>{value}</code>
-      </pre>
-    </div>
-  );
-}
-
-function formatPythonLiteral(value: unknown): string {
-  if (value === null || typeof value === "undefined") return "None";
-  if (typeof value === "boolean") return value ? "True" : "False";
-  if (typeof value === "number") return Number.isFinite(value) ? String(value) : "None";
-  if (typeof value === "string") return JSON.stringify(value);
-  if (Array.isArray(value)) {
-    return `[${value.map(formatPythonLiteral).join(", ")}]`;
-  }
-  if (typeof value === "object") {
-    return `{${Object.entries(value as Record<string, unknown>)
-      .map(([key, item]) => `${JSON.stringify(key)}: ${formatPythonLiteral(item)}`)
-      .join(", ")}}`;
-  }
-  return JSON.stringify(value);
 }
 
 function Stat({ label, value }: { label: string; value: string | number }) {

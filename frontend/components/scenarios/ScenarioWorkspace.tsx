@@ -44,7 +44,6 @@ import {
   formatDomain,
   formatScenarioType,
   getScenarios,
-  type ScenarioIncident,
   type ScenarioSampleTable,
   type Scenario
 } from "../../lib/scenarios";
@@ -52,6 +51,7 @@ import { CodeBlock } from "./CodeBlock";
 import { EvaluationPanel } from "./EvaluationPanel";
 import { RubricBreakdown } from "./RubricBreakdown";
 import { AuthDialog } from "../auth-dialog";
+import { getPracticeStatus, PracticeStatusBadge } from "../practice-status-badge";
 
 interface ScenarioWorkspaceProps {
   scenario: Scenario;
@@ -83,6 +83,9 @@ daily_sales = (
 
 export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
   const router = useRouter();
+  const [referenceTab, setReferenceTab] = useState<"task" | "data" | "broken">("task");
+  const [workspaceStep, setWorkspaceStep] = useState<"fix" | "explain" | "review">("fix");
+  const [mobileReferenceOpen, setMobileReferenceOpen] = useState(false);
   const [answer, setAnswer] = useState("");
   const [interviewAnswer, setInterviewAnswer] = useState("");
   const [selectedOptionId, setSelectedOptionId] = useState("");
@@ -367,13 +370,26 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
     Boolean(scenario.expectedSql && scenario.sampleTables?.length) &&
     (scenario.scenarioType === "broken_sql" || scenario.scenarioType === "output_mismatch");
   const canRunPyspark = EXECUTABLE_PYSPARK_SCENARIOS.has(scenario.slug);
+  const allScenarios = useMemo(() => getScenarios(), []);
   const nextScenario = useMemo(() => {
-    const scenarios = getScenarios();
-    const index = scenarios.findIndex((item) => item.slug === scenario.slug);
-    if (index < 0 || scenarios.length <= 1) return null;
-    return scenarios[(index + 1) % scenarios.length];
-  }, [scenario.slug]);
+    const index = allScenarios.findIndex((item) => item.slug === scenario.slug);
+    if (index < 0 || allScenarios.length <= 1) return null;
+    return allScenarios[(index + 1) % allScenarios.length];
+  }, [allScenarios, scenario.slug]);
   const scenarioCompleted = Boolean(progress?.completed);
+  const initialAnswer =
+    EXECUTABLE_PYSPARK_STARTERS[scenario.slug] ?? scenario.brokenCode ?? "";
+  const scenarioInProgress = Boolean(
+    (progress?.attemptCount ?? 0) > 0 ||
+      hintsRevealed > 0 ||
+      selectedDiagnosisId ||
+      selectedOptionId ||
+      interviewAnswer.trim() ||
+      evaluation ||
+      modelSolutionVisible ||
+      (scenario.scenarioType !== "mcq" && answer.trim() !== initialAnswer.trim())
+  );
+  const scenarioStatus = getPracticeStatus(scenarioCompleted, scenarioInProgress);
   const completionButtonLabel =
     completionStatus === "saving"
       ? "Saving..."
@@ -408,6 +424,10 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
     if (scenario.scenarioType === "mcq") return "Submit answer";
     return "Submit answer";
   }, [canRunPyspark, canRunSql, scenario.scenarioType]);
+
+  useEffect(() => {
+    if (evaluation) setWorkspaceStep("review");
+  }, [evaluation]);
 
   function revealHint() {
     const nextCount = Math.min(hintsRevealed + 1, scenario.hints.length);
@@ -929,6 +949,7 @@ Impact: ${scenario.incident.impact}`
   function revealModelSolution() {
     setModelSolutionVisible(true);
     setShowRevealConfirmation(false);
+    setWorkspaceStep("review");
     trackEvent("model_solution_revealed", { scenario: scenario.slug });
   }
 
@@ -942,640 +963,335 @@ Impact: ${scenario.incident.impact}`
     setActiveFollowUpIndex((current) => (current + 1) % Math.max(1, scenario.followUps.length));
     setEvaluation(null);
     setModelSolutionVisible(false);
+    setWorkspaceStep("fix");
   }
 
-  const scenarioSections = [
-    ...(scenario.incident ? [["Incident", "#incident"] as const] : []),
-    ["Context", "#context"] as const,
-    ...(scenario.evidence?.length ? [["Evidence", "#evidence"] as const] : []),
-    ...(scenario.diagnosisOptions?.length ? [["Diagnosis", "#diagnosis"] as const] : []),
-    ["Data", "#data"] as const,
-    ["Broken code", "#broken-code"] as const,
-    ["Attempt", "#attempt"] as const,
-    ["Explanation", "#explanation"] as const,
-    ["Rubric", "#rubric"] as const
-  ];
-
   return (
-    <main className="mx-auto min-h-screen max-w-7xl px-6 py-10 sm:px-10">
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="space-y-6">
-          <section className="panel rounded-[2rem] p-8">
-            <div className="flex flex-wrap gap-2">
-              <Badge>{formatDomain(scenario.domain)}</Badge>
-              <Badge>{formatDifficulty(scenario.difficulty)}</Badge>
-              <Badge>{formatScenarioType(scenario.scenarioType)}</Badge>
-              <span
-                className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] ${
-                  scenario.isFree
-                    ? "border-teal-300/25 bg-teal-300/10 text-teal-100"
-                    : "border-amber-300/25 bg-amber-300/10 text-amber-100"
-                }`}
-              >
+    <main className="mx-auto min-h-screen max-w-[1600px] px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
+      <header className="mb-3 rounded-[2rem] border border-slate-800 bg-slate-950/45 p-4 sm:mb-5 sm:p-6">
+        <div className="flex flex-col justify-between gap-3 sm:gap-5 xl:flex-row xl:items-start">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <PracticeStatusBadge status={scenarioStatus} />
+              <div className="hidden flex-wrap items-center gap-2 sm:flex">
+                <Badge>{formatDomain(scenario.domain)}</Badge>
+                <Badge>{formatDifficulty(scenario.difficulty)}</Badge>
+                <Badge>{formatScenarioType(scenario.scenarioType)}</Badge>
+              </div>
+              <span className={`hidden rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] sm:inline-flex ${scenario.isFree ? "border-teal-300/25 bg-teal-300/10 text-teal-100" : "border-amber-300/25 bg-amber-300/10 text-amber-100"}`}>
                 {scenario.isFree ? "Free" : "Premium"}
               </span>
             </div>
-            <h1 className="mt-5 text-4xl font-semibold tracking-tight text-slate-50">
+            <h1 className="mt-3 text-xl font-semibold tracking-tight text-slate-50 sm:mt-4 sm:text-3xl">
               {scenario.title}
             </h1>
-            <p className="mt-4 text-sm leading-7 text-slate-300">
-              {scenario.businessContext}
+            <p className="mt-2 hidden max-w-4xl text-sm leading-6 text-slate-300 sm:block">
+              {scenario.requirement || scenario.businessContext}
             </p>
-            <nav
-              aria-label="Scenario sections"
-              className="mt-6 flex flex-wrap gap-2 border-t border-slate-800 pt-5"
+          </div>
+          <label className="block w-full shrink-0 xl:w-80">
+            <span className="mb-2 hidden text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 sm:block">
+              Choose scenario
+            </span>
+            <select
+              value={scenario.slug}
+              onChange={(event) => router.push(`/scenarios/${event.target.value}`)}
+              aria-label="Choose scenario"
+              className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm font-semibold text-slate-100 outline-none transition focus:border-teal-300/50 sm:py-3"
             >
-              {scenarioSections.map(([label, href]) => (
-                <a
-                  key={href}
-                  href={href}
-                  className="rounded-full border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-300 transition hover:border-teal-300/40 hover:text-teal-100"
-                >
-                  {label}
-                </a>
+              {allScenarios.map((item) => (
+                <option key={item.slug} value={item.slug}>{item.title}</option>
               ))}
-            </nav>
-          </section>
+            </select>
+          </label>
+        </div>
+      </header>
 
-          {scenario.incident ? <IncidentCommandCenter incident={scenario.incident} /> : null}
+      {mobileReferenceOpen ? (
+        <button
+          type="button"
+          aria-label="Close reference panel"
+          onClick={() => setMobileReferenceOpen(false)}
+          className="fixed inset-0 z-40 bg-slate-950/80 backdrop-blur-sm lg:hidden"
+        />
+      ) : null}
 
-          <InfoSection id="context" title="Scenario context" body={scenario.problemStatement} />
-          <InfoSection title="Business requirement" body={scenario.requirement ?? ""} />
-
-          {scenario.evidence?.length ? (
-            <section id="evidence" className="panel scroll-mt-32 rounded-[2rem] p-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-200">
-                Production evidence board
-              </p>
-              <h2 className="mt-3 text-2xl font-semibold text-slate-50">
-                Inspect the artifacts before touching code
-              </h2>
-              <p className="mt-2 text-sm leading-6 text-slate-400">
-                This is how real incidents feel: business ticket, orchestration logs,
-                source freshness, code review, and warehouse validation all point to the answer.
-              </p>
-              <div className="mt-5 grid gap-4 md:grid-cols-2">
-                {scenario.evidence.map((item, index) => (
-                  <div
-                    key={`${item.title}-${index}`}
-                    className="rounded-3xl border border-slate-800 bg-slate-950/40 p-5"
-                  >
+      <section className="grid min-w-0 gap-5 lg:grid-cols-[minmax(320px,0.88fr)_minmax(0,1.35fr)] lg:items-start">
+        <aside className={`${mobileReferenceOpen ? "fixed inset-x-3 bottom-3 top-16 z-50 flex" : "hidden"} min-w-0 flex-col overflow-hidden rounded-[2rem] border border-slate-800 bg-slate-950 shadow-2xl lg:sticky lg:top-24 lg:flex lg:max-h-[calc(100vh-7rem)]`}>
+          <div className="flex items-center justify-between border-b border-slate-800 px-4 py-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-teal-200">Reference</p>
+            <button
+              type="button"
+              onClick={() => setMobileReferenceOpen(false)}
+              className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-300 lg:hidden"
+            >
+              Close
+            </button>
+          </div>
+          <div className="grid grid-cols-3 gap-1 border-b border-slate-800 p-2" role="tablist" aria-label="Scenario reference">
+            {(["task", "data", "broken"] as const).map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                role="tab"
+                aria-selected={referenceTab === tab}
+                onClick={() => setReferenceTab(tab)}
+                className={`rounded-xl px-3 py-2.5 text-xs font-semibold capitalize transition ${referenceTab === tab ? "bg-teal-300 text-slate-950" : "text-slate-400 hover:bg-slate-900 hover:text-slate-100"}`}
+              >
+                {tab === "broken" ? "Broken code" : tab}
+              </button>
+            ))}
+          </div>
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4 sm:p-5">
+            {referenceTab === "task" ? (
+              <>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Problem</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-200">{scenario.problemStatement}</p>
+                </div>
+                <div className="rounded-2xl border border-teal-300/20 bg-teal-300/10 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-teal-100">Required outcome</p>
+                  <p className="mt-2 text-sm font-semibold leading-6 text-slate-100">{scenario.requirement || scenario.businessContext}</p>
+                </div>
+                {scenario.incident ? (
+                  <div className="rounded-2xl border border-amber-300/25 bg-amber-300/10 p-4">
                     <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-semibold text-slate-50">{item.title}</p>
-                      <span className="rounded-full border border-teal-300/25 bg-teal-300/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-teal-100">
-                        {item.type}
-                      </span>
+                      <p className="text-sm font-semibold text-amber-100">{scenario.incident.incidentId}</p>
+                      <span className="text-xs font-bold uppercase tracking-[0.16em] text-amber-200">{scenario.incident.severity}</span>
                     </div>
-                    <p className="mt-3 text-sm font-semibold leading-6 text-slate-200">
-                      {item.summary}
-                    </p>
-                    <p className="mt-2 text-sm leading-6 text-slate-400">
-                      {item.details}
-                    </p>
+                    <p className="mt-3 text-sm leading-6 text-slate-200">{scenario.incident.impact}</p>
+                    <p className="mt-2 text-xs leading-5 text-slate-400">Pipeline: {scenario.incident.pipeline} · Owner: {scenario.incident.owner}</p>
                   </div>
-                ))}
-              </div>
-            </section>
-          ) : null}
-
-          {scenario.diagnosisOptions?.length ? (
-            <section id="diagnosis" className="panel scroll-mt-32 rounded-[2rem] p-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-200">
-                Step 1: diagnose like on-call
-              </p>
-              <h2 className="mt-3 text-2xl font-semibold text-slate-50">
-                What is the most likely root cause?
-              </h2>
-              <p className="mt-2 text-sm leading-6 text-slate-400">
-                Choose your diagnosis before writing the fix. This builds the production
-                judgment interviewers are actually testing.
-              </p>
-              <div className="mt-5 grid gap-3">
-                {scenario.diagnosisOptions.map((option) => {
-                  const isSelected = selectedDiagnosisId === option.id;
-                  const showResult = Boolean(selectedDiagnosisId && isSelected);
-                  return (
-                    <button
-                      key={option.id}
-                      type="button"
-                      onClick={() => setSelectedDiagnosisId(option.id)}
-                      className={`rounded-3xl border p-4 text-left transition ${
-                        isSelected
-                          ? option.isCorrect
-                            ? "border-teal-300/55 bg-teal-300/10"
-                            : "border-amber-300/55 bg-amber-300/10"
-                          : "border-slate-800 bg-slate-950/35 hover:border-teal-300/30"
-                      }`}
-                    >
-                      <p className="text-sm font-semibold leading-6 text-slate-100">
-                        {option.id}. {option.text}
-                      </p>
-                      {showResult ? (
-                        <p
-                          className={`mt-3 text-sm leading-6 ${
-                            option.isCorrect ? "text-teal-100" : "text-amber-100"
-                          }`}
-                        >
-                          {option.isCorrect ? "Good diagnosis. " : "Not the primary issue. "}
-                          {option.explanation}
-                        </p>
-                      ) : null}
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-          ) : null}
-
-          {scenario.sampleTables?.length ? (
-            <section id="data" className="panel scroll-mt-32 rounded-[2rem] p-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-200">
-                Sample production data
-              </p>
-              <p className="mt-3 text-sm leading-6 text-slate-400">
-                Use these small tables to reason about the bug before writing the fix.
-                This data is used for the visible sample check when you click Run.
-              </p>
-              <div className="mt-5 grid min-w-0 gap-5">
-                {scenario.sampleTables.map((table) => (
-                  <ScenarioTablePreview key={table.name} table={table} />
-                ))}
-              </div>
-            </section>
-          ) : null}
-
-          <div id="broken-code" className="grid scroll-mt-32 gap-5 lg:grid-cols-2">
-            <CodeBlock title="Schema" code={scenario.schema ?? ""} />
-            <CodeBlock title="Sample input" code={scenario.sampleInput ?? ""} />
-          </div>
-          <CodeBlock title="Broken logic / code" code={scenario.brokenCode ?? ""} />
-          <CodeBlock title="Logs / error" code={scenario.logs ?? ""} />
-          <div className="grid gap-5 lg:grid-cols-2">
-            <CodeBlock title="Actual output" code={scenario.actualOutput ?? ""} />
-            <CodeBlock title="Expected output / expected logic" code={scenario.expectedOutput ?? ""} />
-          </div>
-
-          <section id="attempt" className="panel scroll-mt-32 rounded-[2rem] p-6">
-            <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-200">
-                  Your attempt
-                </p>
-                <h2 className="mt-3 text-2xl font-semibold text-slate-50">{promptLabel}</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-400">
-                  {canRunSql
-                    ? "Write the corrected query, run it against the sample tables, and compare the result with the expected output."
-                    : canRunPyspark
-                      ? "Create a DataFrame named daily_sales or fixed_daily_sales. Run checks the visible sample; Submit fix runs hidden late-data edge cases."
-                    : "Think before revealing the answer. A partial but honest attempt is better practice than reading the model solution first."}
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center gap-3">
-                {draftMessage ? (
-                  <p className="text-sm font-semibold text-teal-100">{draftMessage}</p>
                 ) : null}
-                {canRunSql || canRunPyspark ? (
-                  <>
-                    {canRunSql ? (
-                      <button
-                        type="button"
-                        onClick={copySchema}
-                        className="rounded-full border border-slate-700 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:border-teal-300/40"
-                      >
-                        Copy schema
-                      </button>
-                    ) : null}
-                    <button
-                      type="button"
-                      onClick={runSampleCheck}
-                      disabled={isChecking}
-                      className="rounded-full border border-teal-300/35 px-5 py-3 text-sm font-semibold text-teal-100 transition hover:bg-teal-300/10 disabled:opacity-60"
-                    >
-                      Run sample
-                    </button>
-                  </>
+                {scenario.evidence?.length ? (
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Evidence</p>
+                    <div className="mt-3 space-y-3">
+                      {scenario.evidence.map((item, index) => (
+                        <div key={`${item.title}-${index}`} className="rounded-2xl border border-slate-800 bg-slate-900/45 p-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-sm font-semibold text-slate-100">{item.title}</p>
+                            <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-teal-200">{item.type}</span>
+                          </div>
+                          <p className="mt-2 text-sm leading-6 text-slate-300">{item.summary}</p>
+                          <p className="mt-1 text-xs leading-5 text-slate-500">{item.details}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 ) : null}
+                {scenario.diagnosisOptions?.length ? (
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Your diagnosis</p>
+                    <div className="mt-3 space-y-2">
+                      {scenario.diagnosisOptions.map((option) => {
+                        const isSelected = selectedDiagnosisId === option.id;
+                        return (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => setSelectedDiagnosisId(option.id)}
+                            className={`w-full rounded-2xl border p-3 text-left text-sm leading-6 transition ${isSelected ? option.isCorrect ? "border-teal-300/50 bg-teal-300/10 text-teal-100" : "border-amber-300/50 bg-amber-300/10 text-amber-100" : "border-slate-800 bg-slate-900/35 text-slate-300 hover:border-teal-300/30"}`}
+                          >
+                            <span className="font-semibold">{option.id}.</span> {option.text}
+                            {isSelected ? <span className="mt-2 block text-xs leading-5 opacity-85">{option.explanation}</span> : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
+              </>
+            ) : null}
+
+            {referenceTab === "data" ? (
+              <>
+                <section>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-teal-200">Source / raw data</p>
+                  <p className="mt-2 text-xs leading-5 text-slate-500">The inputs your solution must read and interpret.</p>
+                  <div className="mt-4 space-y-4">
+                    {scenario.sampleTables?.map((table) => <ScenarioTablePreview key={table.name} table={table} />)}
+                    {scenario.schema ? <CodeBlock title="Source schema" code={scenario.schema} /> : null}
+                    {scenario.sampleInput ? <CodeBlock title="Raw sample input" code={scenario.sampleInput} /> : null}
+                    {!scenario.sampleTables?.length && !scenario.schema && !scenario.sampleInput ? <p className="rounded-2xl border border-slate-800 p-4 text-sm text-slate-400">No separate source sample is provided for this scenario.</p> : null}
+                  </div>
+                </section>
+                <section className="border-t border-slate-800 pt-5">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-200">Target / result data</p>
+                  <p className="mt-2 text-xs leading-5 text-slate-500">The grain, columns, or business result your solution must produce.</p>
+                  <div className="mt-4 space-y-4">
+                    {scenario.expectedOutput ? <CodeBlock title="Expected result" code={scenario.expectedOutput} /> : <p className="rounded-2xl border border-slate-800 p-4 text-sm leading-6 text-slate-300">{scenario.requirement || scenario.problemStatement}</p>}
+                    {scenario.actualOutput ? <CodeBlock title="Current incorrect result" code={scenario.actualOutput} /> : null}
+                  </div>
+                </section>
+              </>
+            ) : null}
+
+            {referenceTab === "broken" ? (
+              <>
+                {scenario.brokenCode ? <CodeBlock title="Broken logic / code" code={scenario.brokenCode} /> : null}
+                {scenario.logs ? <CodeBlock title="Logs / error" code={scenario.logs} /> : null}
+                {!scenario.brokenCode && !scenario.logs ? <p className="rounded-2xl border border-slate-800 p-4 text-sm leading-6 text-slate-400">This question does not include broken starter code. Build your answer from the task and data contract.</p> : null}
+              </>
+            ) : null}
+          </div>
+        </aside>
+
+        <div className="min-w-0 space-y-5">
+          <section className="panel overflow-hidden rounded-[2rem]">
+            <div className="flex flex-col gap-4 border-b border-slate-800 p-4 sm:p-5">
+              <div className="flex items-center justify-between gap-3 lg:hidden">
                 <button
                   type="button"
-                  onClick={checkAnswer}
-                  disabled={isChecking}
-                  className="rounded-full bg-teal-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-teal-200 disabled:cursor-wait disabled:opacity-70"
+                  onClick={() => setMobileReferenceOpen(true)}
+                  className="rounded-full border border-teal-300/35 px-4 py-2 text-sm font-semibold text-teal-100"
                 >
-                  {isChecking ? "Submitting..." : submitLabel}
+                  Open task & data
                 </button>
-                <button
-                  type="button"
-	                  onClick={goToNextScenario}
-	                  disabled={!canGoToNextScenario}
-	                  className={nextScenarioButtonClass}
-	                >
-	                  {scenarioCompleted ? "Next scenario" : "Complete to continue"}
-	                </button>
+                <PracticeStatusBadge status={scenarioStatus} />
               </div>
-            </div>
-
-            {scenario.scenarioType === "mcq" ? (
-              <div className="mt-5 grid gap-3">
-                {scenario.mcqOptions?.map((option) => (
+              <div className="grid grid-cols-3 gap-1 rounded-2xl border border-slate-800 bg-slate-950/45 p-1" role="tablist" aria-label="Attempt workflow">
+                {(["fix", "explain", "review"] as const).map((step, index) => (
                   <button
-                    key={option.id}
+                    key={step}
                     type="button"
-                    onClick={() => {
-                      setSelectedOptionId(option.id);
-                      setEvaluation(null);
-                    }}
-                    className={`rounded-2xl border p-4 text-left text-sm leading-6 transition ${
-                      selectedOptionId === option.id
-                        ? "border-teal-300/40 bg-teal-300/10 text-teal-100"
-                        : "border-slate-800 bg-slate-950/45 text-slate-300 hover:border-teal-300/30"
-                    }`}
+                    role="tab"
+                    aria-selected={workspaceStep === step}
+                    onClick={() => setWorkspaceStep(step)}
+                    className={`rounded-xl px-3 py-2.5 text-xs font-semibold transition sm:text-sm ${workspaceStep === step ? "bg-teal-300 text-slate-950" : "text-slate-400 hover:bg-slate-900 hover:text-slate-100"}`}
                   >
-                    <span className="font-semibold">{option.id}.</span> {option.text}
+                    {index + 1}. {step === "fix" ? "Fix" : step === "explain" ? "Explain" : "Review"}
                   </button>
                 ))}
               </div>
-            ) : (
-              <textarea
-                value={answer}
-                onChange={(event) => {
-                  setAnswer(event.target.value);
-                  setSqlExecution(null);
-                  setPysparkExecution(null);
-                  setEvaluation(null);
-                  setDraftMessage(null);
-                }}
-                onKeyDown={(event) =>
-                  handleTextareaTabKeyDown(event, (nextValue) => {
-                    setAnswer(nextValue);
-                    setSqlExecution(null);
-                    setPysparkExecution(null);
-                    setEvaluation(null);
-                    setDraftMessage(null);
-                  })
-                }
-                rows={13}
-                className="mt-5 w-full rounded-3xl border border-slate-800 bg-slate-950/80 p-5 font-mono text-sm leading-7 text-slate-100 outline-none transition focus:border-teal-300/50"
-                placeholder="Write your fix, diagnosis, or production-safe approach here."
-              />
-            )}
+            </div>
 
-            <div aria-live="polite" className="mt-4 flex flex-wrap items-center gap-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-              <span>{autoSaveStatus}</span>
-              {autoSaveStatus.toLowerCase().includes("retry") ? (
-                <button
-                  type="button"
-                  onClick={saveDraft}
-                  className="rounded-full border border-amber-300/40 px-3 py-1 text-[10px] text-amber-100 transition hover:bg-amber-300/10"
-                >
-                  Retry save
-                </button>
+            <div className="p-4 sm:p-6">
+              {workspaceStep === "fix" ? (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-200">Your attempt</p>
+                  <h2 className="mt-2 text-xl font-semibold text-slate-50 sm:text-2xl">{promptLabel}</h2>
+                  <p className="mt-2 hidden text-sm leading-6 text-slate-400 sm:block">{canRunSql ? "Write the corrected query, then run it against the visible source and target data." : canRunPyspark ? "Create daily_sales or fixed_daily_sales, then run the visible sample before submitting." : "Work from the task and data contract. A partial attempt is better practice than revealing the model answer first."}</p>
+                  {scenario.scenarioType === "mcq" ? (
+                    <div className="mt-5 grid gap-3">
+                      {scenario.mcqOptions?.map((option) => (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => { setSelectedOptionId(option.id); setEvaluation(null); }}
+                          className={`rounded-2xl border p-4 text-left text-sm leading-6 transition ${selectedOptionId === option.id ? "border-teal-300/40 bg-teal-300/10 text-teal-100" : "border-slate-800 bg-slate-950/45 text-slate-300 hover:border-teal-300/30"}`}
+                        >
+                          <span className="font-semibold">{option.id}.</span> {option.text}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <textarea
+                      value={answer}
+                      onChange={(event) => { setAnswer(event.target.value); setSqlExecution(null); setPysparkExecution(null); setEvaluation(null); setDraftMessage(null); }}
+                      onKeyDown={(event) => handleTextareaTabKeyDown(event, (nextValue) => { setAnswer(nextValue); setSqlExecution(null); setPysparkExecution(null); setEvaluation(null); setDraftMessage(null); })}
+                      rows={18}
+                      spellCheck={false}
+                      className="mt-5 w-full rounded-3xl border border-slate-800 bg-slate-950/80 p-4 font-mono text-sm leading-7 text-slate-100 outline-none transition focus:border-teal-300/50 sm:p-5"
+                      placeholder="Write your fix, diagnosis, or production-safe approach here."
+                    />
+                  )}
+                </div>
+              ) : null}
+
+              {workspaceStep === "explain" ? (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-200">Interview explanation</p>
+                  <h2 className="mt-2 text-xl font-semibold text-slate-50 sm:text-2xl">Explain the decision, not only the syntax</h2>
+                  <p className="mt-2 text-sm leading-6 text-slate-400">Cover the symptom, root cause, safe fix, edge cases, trade-offs, monitoring, and prevention.</p>
+                  <textarea
+                    value={interviewAnswer}
+                    onChange={(event) => { setInterviewAnswer(event.target.value); setEvaluation(null); }}
+                    onKeyDown={(event) => handleTextareaTabKeyDown(event, (nextValue) => { setInterviewAnswer(nextValue); setEvaluation(null); })}
+                    rows={12}
+                    className="mt-5 w-full rounded-3xl border border-slate-800 bg-slate-950/80 p-4 text-sm leading-7 text-slate-100 outline-none transition focus:border-amber-300/50 sm:p-5"
+                    placeholder="I would first confirm..., the root cause is..., the safe fix is..., and I would monitor..."
+                  />
+                </div>
+              ) : null}
+
+              {workspaceStep === "review" ? (
+                <div className="space-y-5">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-teal-200">Review</p>
+                    <h2 className="mt-2 text-xl font-semibold text-slate-50 sm:text-2xl">Feedback, rubric, and next step</h2>
+                    {!evaluation && !modelSolutionVisible ? <p className="mt-2 text-sm leading-6 text-slate-400">Submit your attempt to receive feedback, or reveal the model solution after making an honest attempt.</p> : null}
+                  </div>
+                  {evaluationNotice ? <div role="status" className="rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4 text-sm leading-6 text-amber-100">{evaluationNotice}</div> : null}
+                  {evaluation ? <EvaluationPanel result={evaluation} commonMistakes={scenario.commonMistakes} followUps={scenario.followUps} /> : null}
+                  <RubricBreakdown rubric={scenario.evaluationRubric} />
+                  {scenario.productionChecklist?.length ? (
+                    <div className="rounded-3xl border border-slate-800 bg-slate-950/35 p-5">
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-200">Production checklist</p>
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        {scenario.productionChecklist.map((item, index) => <div key={item} className="flex gap-3 rounded-2xl border border-slate-800 p-3 text-sm leading-6 text-slate-300"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-teal-300 text-xs font-black text-slate-950">{index + 1}</span><span>{item}</span></div>)}
+                      </div>
+                    </div>
+                  ) : null}
+                  <div className="rounded-3xl border border-slate-800 bg-slate-950/35 p-5">
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Current follow-up</p>
+                    <p className="mt-3 text-sm leading-6 text-slate-300">{scenario.followUps[activeFollowUpIndex] ?? "No follow-up configured yet."}</p>
+                  </div>
+                  {modelSolutionVisible ? (
+                    <div className="rounded-3xl border border-amber-300/20 bg-amber-300/5 p-5">
+                      <h3 className="text-xl font-semibold text-slate-50">Model solution</h3>
+                      <div className="mt-4"><CodeBlock code={scenario.modelSolution} /></div>
+                      <p className="mt-5 text-sm leading-7 text-slate-300">{scenario.productionExplanation}</p>
+                    </div>
+                  ) : null}
+                  {evaluation || modelSolutionVisible ? (
+                    <div className="rounded-3xl border border-teal-300/20 bg-teal-300/5 p-5">
+                      {evaluation ? <p className="text-xl font-semibold text-slate-50">Score: {evaluation.score}/100</p> : null}
+                      <div className="mt-4 flex flex-wrap gap-3">
+                        <button type="button" onClick={() => void completeLab()} disabled={completionButtonDisabled} className={completionButtonClass}>{completionButtonLabel}</button>
+                        <button type="button" onClick={goToNextScenario} disabled={!canGoToNextScenario} className={nextScenarioButtonClass}>{scenarioCompleted ? "Next scenario" : "Complete to continue"}</button>
+                      </div>
+                      {completionMessage ? <p role="status" className={`mt-4 rounded-2xl border px-4 py-3 text-sm font-semibold ${completionStatus === "error" ? "border-amber-300/30 bg-amber-300/10 text-amber-100" : "border-teal-300/20 bg-teal-300/10 text-teal-100"}`}>{completionMessage}</p> : null}
+                      {!currentUser ? <button type="button" onClick={() => { trackEvent("signup_started", { source: "scenario_feedback" }); setIsAuthOpen(true); }} className="mt-4 text-sm font-semibold text-amber-200 underline decoration-amber-300/40 underline-offset-4">Sign up to keep progress across devices</button> : null}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+
+              <div className="mt-6 border-t border-slate-800 pt-5">
+                <div className="flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
+                  <div aria-live="polite" className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                    {draftMessage || autoSaveStatus}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" onClick={saveDraft} className="rounded-full border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-teal-300/40">Save draft</button>
+                    <button type="button" onClick={revealHint} disabled={hintsRevealed >= scenario.hints.length} className="rounded-full border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-amber-300/40 disabled:opacity-40">Show hint</button>
+                    {workspaceStep === "fix" && canRunSql ? <button type="button" onClick={copySchema} className="rounded-full border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-200">Copy schema</button> : null}
+                    {workspaceStep === "fix" && (canRunSql || canRunPyspark) ? <button type="button" onClick={runSampleCheck} disabled={isChecking} className="rounded-full border border-teal-300/35 px-4 py-2.5 text-sm font-semibold text-teal-100 disabled:opacity-50">Run sample</button> : null}
+                    {workspaceStep === "fix" ? <button type="button" onClick={() => setWorkspaceStep("explain")} className="rounded-full bg-teal-300 px-5 py-2.5 text-sm font-semibold text-slate-950">Continue to explain</button> : null}
+                    {workspaceStep === "explain" ? <button type="button" onClick={checkAnswer} disabled={isChecking} className="rounded-full bg-teal-300 px-5 py-2.5 text-sm font-semibold text-slate-950 disabled:opacity-60">{isChecking ? "Submitting..." : submitLabel}</button> : null}
+                    {workspaceStep === "review" ? <button type="button" onClick={() => setWorkspaceStep("fix")} className="rounded-full border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-200">Edit answer</button> : null}
+                    {workspaceStep === "review" ? <button type="button" onClick={requestModelSolution} className="rounded-full bg-amber-300 px-5 py-2.5 text-sm font-semibold text-slate-950">Reveal model solution</button> : null}
+                    {workspaceStep === "review" && scenario.followUps.length ? <button type="button" onClick={tryFollowUp} className="rounded-full border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-200">Try follow-up</button> : null}
+                  </div>
+                </div>
+                {autoSaveStatus.toLowerCase().includes("retry") ? <button type="button" onClick={saveDraft} className="mt-3 text-xs font-semibold text-amber-100 underline">Retry save</button> : null}
+              </div>
+
+              {showRevealConfirmation ? (
+                <div className="mt-5 rounded-3xl border border-amber-300/25 bg-amber-300/10 p-5">
+                  <p className="text-sm font-semibold text-amber-100">Try once before revealing the solution?</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-300">You have not submitted an attempt yet. Revealing now can reduce the value of the exercise.</p>
+                  <div className="mt-4 flex flex-wrap gap-3"><button type="button" onClick={() => { setShowRevealConfirmation(false); setWorkspaceStep("fix"); }} className="rounded-full bg-teal-300 px-4 py-2 text-sm font-semibold text-slate-950">Return to attempt</button><button type="button" onClick={revealModelSolution} className="rounded-full border border-amber-300/35 px-4 py-2 text-sm font-semibold text-amber-100">Reveal anyway</button></div>
+                </div>
               ) : null}
             </div>
-            <div
-              id="explanation"
-              className="mt-5 scroll-mt-32 rounded-3xl border border-slate-800 bg-slate-950/35 p-5"
-            >
-              <h3 className="text-lg font-semibold text-slate-50">
-                Interview-style explanation
-              </h3>
-              <p className="mt-2 text-sm leading-6 text-slate-400">
-                Now explain your solution as if you are in an interview: symptom, root cause,
-                fix, edge cases, trade-offs, monitoring, and prevention.
-              </p>
-              <textarea
-                value={interviewAnswer}
-                onChange={(event) => {
-                  setInterviewAnswer(event.target.value);
-                  setEvaluation(null);
-                }}
-                onKeyDown={(event) =>
-                  handleTextareaTabKeyDown(event, (nextValue) => {
-                    setInterviewAnswer(nextValue);
-                    setEvaluation(null);
-                  })
-                }
-                rows={6}
-                className="mt-4 w-full rounded-2xl border border-slate-800 bg-slate-950/80 p-4 text-sm leading-6 text-slate-100 outline-none transition focus:border-amber-300/50"
-                placeholder="I would first confirm..., the root cause is..., the safe fix is..., and I would monitor..."
-              />
-            </div>
-
-            <div className="mt-5 flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={saveDraft}
-                className="rounded-full border border-slate-700 px-5 py-3 text-sm font-semibold text-slate-200 transition hover:border-teal-300/40"
-              >
-                Save Draft
-              </button>
-              <button
-                type="button"
-                onClick={revealHint}
-                disabled={hintsRevealed >= scenario.hints.length}
-                className="rounded-full border border-slate-700 px-5 py-3 text-sm font-semibold text-slate-200 transition hover:border-amber-300/40 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Show Hint
-              </button>
-              <button
-                type="button"
-                onClick={checkAnswer}
-                disabled={isChecking}
-                className="rounded-full bg-teal-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-teal-200 disabled:cursor-wait disabled:opacity-70"
-              >
-                {isChecking ? "Submitting..." : submitLabel}
-              </button>
-              <button
-                type="button"
-                onClick={goToNextScenario}
-                disabled={!canGoToNextScenario}
-                className={nextScenarioButtonClass}
-              >
-                {scenarioCompleted ? "Next scenario" : "Complete to continue"}
-              </button>
-              <button
-                type="button"
-                onClick={requestModelSolution}
-                className="rounded-full bg-amber-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-200"
-              >
-                Reveal Model Solution
-              </button>
-              <button
-                type="button"
-                onClick={tryFollowUp}
-                className="rounded-full border border-slate-700 px-5 py-3 text-sm font-semibold text-slate-200 transition hover:border-teal-300/40"
-              >
-                Try Follow-up
-              </button>
-            </div>
-
-            {showRevealConfirmation ? (
-              <div className="mt-5 rounded-3xl border border-amber-300/25 bg-amber-300/10 p-5">
-                <p className="text-sm font-semibold text-amber-100">
-                  Try once before revealing the solution?
-                </p>
-                <p className="mt-2 text-sm leading-6 text-slate-300">
-                  You have not submitted an attempt yet. Revealing now can reduce the value
-                  of the exercise, but you can continue if you are intentionally reviewing.
-                </p>
-                <div className="mt-4 flex flex-wrap gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setShowRevealConfirmation(false)}
-                    className="rounded-full bg-teal-300 px-4 py-2 text-sm font-semibold text-slate-950"
-                  >
-                    Return to attempt
-                  </button>
-                  <button
-                    type="button"
-                    onClick={revealModelSolution}
-                    className="rounded-full border border-amber-300/35 px-4 py-2 text-sm font-semibold text-amber-100"
-                  >
-                    Reveal anyway
-                  </button>
-                </div>
-              </div>
-            ) : null}
           </section>
 
           {sqlExecution ? <ScenarioSqlResultPanel result={sqlExecution} /> : null}
           {pysparkExecution ? <ScenarioPysparkResultPanel result={pysparkExecution} /> : null}
-
-          {visibleHints.length > 0 ? (
-            <section className="panel rounded-[2rem] p-6">
-              <h2 className="text-xl font-semibold text-slate-50">Hints revealed</h2>
-              <div className="mt-4 space-y-3">
-                {visibleHints.map((hint, index) => (
-                  <p
-                    key={hint}
-                    className="rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4 text-sm leading-6 text-amber-100"
-                  >
-                    Hint {index + 1}: {hint}
-                  </p>
-                ))}
-              </div>
-            </section>
-          ) : null}
-
-          {evaluation ? (
-            <>
-              {evaluationNotice ? (
-                <section
-                  role="status"
-                  className="rounded-[2rem] border border-amber-300/30 bg-amber-300/10 p-5"
-                >
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-200">
-                    AI evaluation fallback
-                  </p>
-                  <p className="mt-2 text-sm leading-6 text-amber-100">
-                    {evaluationNotice}
-                  </p>
-                </section>
-              ) : null}
-              <EvaluationPanel
-                result={evaluation}
-                commonMistakes={scenario.commonMistakes}
-                followUps={scenario.followUps}
-              />
-              <section className="panel rounded-[2rem] border border-teal-300/20 p-6">
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-teal-200">
-                  Attempt complete
-                </p>
-                <div className="mt-3 flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
-                  <div>
-                    <h2 className="text-2xl font-semibold text-slate-50">
-                      Score: {evaluation.score}/100
-                    </h2>
-                    <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
-                      {scenarioCompleted
-                        ? "This practice is complete. Continue to the next recommended scenario when you are ready."
-                        : "Review the gaps above, mark this lab complete, or revisit your answer before continuing."}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-3">
-                    <button
-                      type="button"
-	                      onClick={() => void completeLab()}
-	                      disabled={completionButtonDisabled}
-	                      className={completionButtonClass}
-	                    >
-	                      {completionButtonLabel}
-	                    </button>
-                    <button
-                      type="button"
-                      onClick={goToNextScenario}
-                      disabled={!canGoToNextScenario}
-                      className={nextScenarioButtonClass}
-                    >
-                      {scenarioCompleted ? "Next scenario" : "Complete to continue"}
-                    </button>
-                  </div>
-                </div>
-                {completionMessage ? (
-                  <p
-                    role="status"
-                    className={`mt-4 rounded-2xl border px-4 py-3 text-sm font-semibold ${
-                      completionStatus === "error"
-                        ? "border-amber-300/30 bg-amber-300/10 text-amber-100"
-                        : "border-teal-300/20 bg-teal-300/10 text-teal-100"
-                    }`}
-                  >
-                    {completionMessage}
-                  </p>
-                ) : null}
-                {!currentUser ? (
-                  <div className="mt-5 rounded-3xl border border-amber-300/25 bg-amber-300/10 p-5">
-                    <p className="text-sm font-semibold text-amber-100">
-                      Save this practice journey
-                    </p>
-                    <p className="mt-2 text-sm leading-6 text-slate-300">
-                      Your progress is saved on this device. Create an account to move this
-                      draft into your learner profile and keep it across devices.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        trackEvent("signup_started", { source: "scenario_feedback" });
-                        setIsAuthOpen(true);
-                      }}
-                      className="mt-4 rounded-full bg-amber-300 px-5 py-3 text-sm font-semibold text-slate-950"
-                    >
-                      Sign up to save progress
-                    </button>
-                  </div>
-                ) : null}
-              </section>
-            </>
-          ) : null}
-
-          {modelSolutionVisible ? (
-            <section className="panel rounded-[2rem] p-6">
-              <h2 className="text-2xl font-semibold text-slate-50">Model solution</h2>
-              <CodeBlock code={scenario.modelSolution} />
-              <div className="mt-5 rounded-3xl border border-slate-800 bg-slate-950/40 p-5">
-                <p className="text-sm font-semibold text-slate-50">Production explanation</p>
-                <p className="mt-3 text-sm leading-7 text-slate-300">
-                  {scenario.productionExplanation}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => void completeLab()}
-                disabled={completionButtonDisabled}
-                className={`mt-5 ${completionButtonClass}`}
-              >
-                {completionButtonLabel}
-              </button>
-              {completionMessage ? (
-                <p
-                  role="status"
-                  className={`mt-4 rounded-2xl border px-4 py-3 text-sm font-semibold ${
-                    completionStatus === "error"
-                      ? "border-amber-300/30 bg-amber-300/10 text-amber-100"
-                      : "border-teal-300/20 bg-teal-300/10 text-teal-100"
-                  }`}
-                >
-                  {completionMessage}
-                </p>
-              ) : null}
-            </section>
-          ) : null}
+          {visibleHints.length ? <section className="panel rounded-[2rem] p-5"><p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-200">Hints revealed</p><div className="mt-4 space-y-3">{visibleHints.map((hint, index) => <p key={hint} className="rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4 text-sm leading-6 text-amber-100">Hint {index + 1}: {hint}</p>)}</div></section> : null}
         </div>
-
-        <aside className="space-y-5 xl:sticky xl:top-32 xl:self-start">
-          <div className="panel rounded-[2rem] p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-200">
-              Output contract
-            </p>
-            <p className="mt-3 text-sm font-semibold leading-6 text-slate-100">
-              {scenario.requirement || scenario.problemStatement}
-            </p>
-            {scenario.expectedOutput ? (
-              <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/45 p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                  Expected grain / columns
-                </p>
-                <p className="mt-2 line-clamp-5 whitespace-pre-line font-mono text-xs leading-5 text-slate-300">
-                  {scenario.expectedOutput}
-                </p>
-              </div>
-            ) : null}
-          </div>
-
-          {scenario.productionChecklist?.length ? (
-            <div className="panel rounded-[2rem] p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-200">
-                On-call checklist
-              </p>
-              <div className="mt-4 space-y-3">
-                {scenario.productionChecklist.map((item, index) => (
-                  <div
-                    key={item}
-                    className="flex gap-3 rounded-2xl border border-slate-800 bg-slate-950/35 p-3 text-sm leading-6 text-slate-300"
-                  >
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-teal-300 text-xs font-black text-slate-950">
-                      {index + 1}
-                    </span>
-                    <span>{item}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
-
-          <div className="panel rounded-[2rem] p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-200">
-              Lab checklist
-            </p>
-            <div className="mt-4 space-y-3">
-              {[
-                ["Read context", true],
-                ["Attempted", Boolean(evaluation || (progress?.attemptCount ?? 0) > 0)],
-                ["Hint used", hintsRevealed > 0],
-                ["Model revealed", modelSolutionVisible],
-                ["Completed", Boolean(progress?.completed)]
-              ].map(([label, done]) => (
-                <div
-                  key={String(label)}
-                  className="flex items-center justify-between rounded-2xl border border-slate-800 bg-slate-950/35 px-4 py-3 text-sm"
-                >
-                  <span className="text-slate-300">{label}</span>
-                  <span className={done ? "text-teal-100" : "text-slate-600"}>
-                    {done ? "Done" : "Pending"}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="panel rounded-[2rem] p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-200">
-              Skills tested
-            </p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              {scenario.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="rounded-full border border-slate-800 bg-slate-950/45 px-3 py-1 text-xs text-slate-300"
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          <div id="rubric" className="scroll-mt-32">
-            <RubricBreakdown rubric={scenario.evaluationRubric} />
-          </div>
-
-          <div className="panel rounded-[2rem] p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">
-              Current follow-up
-            </p>
-            <p className="mt-3 text-sm leading-6 text-slate-300">
-              {scenario.followUps[activeFollowUpIndex] ?? "No follow-up configured yet."}
-            </p>
-          </div>
-        </aside>
       </section>
       <AuthDialog isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
     </main>
@@ -1587,73 +1303,6 @@ function Badge({ children }: { children: ReactNode }) {
     <span className="rounded-full border border-slate-700 bg-slate-950/40 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-200">
       {children}
     </span>
-  );
-}
-
-function IncidentCommandCenter({ incident }: { incident: ScenarioIncident }) {
-  const incidentStats = [
-    ["Severity", incident.severity],
-    ["Reported by", incident.reportedBy],
-    ["Reported at", incident.reportedAt],
-    ["Pipeline", incident.pipeline],
-    ["Owner", incident.owner],
-    ["Impact", incident.impact]
-  ];
-
-  return (
-    <section
-      id="incident"
-      className="scroll-mt-32 overflow-hidden rounded-[2rem] border border-amber-300/25 bg-slate-950/60 shadow-2xl shadow-slate-950/30"
-    >
-      <div className="border-b border-slate-800 bg-amber-300/10 px-6 py-5">
-        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-200">
-          Production incident room
-        </p>
-        <div className="mt-3 flex flex-col justify-between gap-3 lg:flex-row lg:items-end">
-          <div>
-            <h2 className="text-2xl font-semibold text-slate-50">{incident.incidentId}</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-300">
-              You are the data engineer on-call. Business is waiting for a clear diagnosis,
-              a safe fix, and a prevention plan.
-            </p>
-          </div>
-          <span className="w-fit rounded-full border border-amber-300/40 bg-amber-300 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-slate-950">
-            Live incident
-          </span>
-        </div>
-      </div>
-      <div className="grid gap-4 p-6 md:grid-cols-2 xl:grid-cols-3">
-        {incidentStats.map(([label, value]) => (
-          <div
-            key={label}
-            className="rounded-3xl border border-slate-800 bg-slate-950/45 p-4"
-          >
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-              {label}
-            </p>
-            <p className="mt-2 text-sm font-semibold leading-6 text-slate-100">{value}</p>
-          </div>
-        ))}
-      </div>
-      <div className="grid gap-4 border-t border-slate-800 p-6 lg:grid-cols-2">
-        <div className="rounded-3xl border border-teal-300/20 bg-teal-300/10 p-5">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-teal-100">
-            Expected business state
-          </p>
-          <p className="mt-3 text-sm font-semibold leading-6 text-slate-100">
-            {incident.expected}
-          </p>
-        </div>
-        <div className="rounded-3xl border border-amber-300/25 bg-amber-300/10 p-5">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-100">
-            Current broken state
-          </p>
-          <p className="mt-3 text-sm font-semibold leading-6 text-slate-100">
-            {incident.actual}
-          </p>
-        </div>
-      </div>
-    </section>
   );
 }
 
@@ -1823,20 +1472,5 @@ function ResultTable({ title, table }: { title: string; table: BrowserSqlResultT
         </table>
       </div>
     </div>
-  );
-}
-
-function InfoSection({ id, title, body }: { id?: string; title: string; body: string }) {
-  if (!body.trim()) {
-    return null;
-  }
-
-  return (
-    <section id={id} className="panel scroll-mt-32 rounded-[2rem] p-6">
-      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-200">
-        {title}
-      </p>
-      <p className="mt-3 whitespace-pre-line text-sm leading-7 text-slate-300">{body}</p>
-    </section>
   );
 }
