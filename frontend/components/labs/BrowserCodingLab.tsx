@@ -8,12 +8,16 @@ import {
   type BrowserSqlResultTable
 } from "../../lib/browser-sql";
 import {
+  getLearnerProgress,
   getPythonLabSolution,
+  saveLearnerAttempt,
+  saveLearnerDraft,
   validatePysparkScenario,
   validatePythonLab
 } from "../../lib/api";
 import { trackEvent } from "../../lib/analytics";
-import { getAuthToken, getCurrentUser } from "../../lib/auth";
+import { AUTH_UPDATED_EVENT, getAuthToken, getCurrentUser } from "../../lib/auth";
+import { codingProgressFromRemote } from "../../lib/learner-progress";
 import { sendUsageEvent } from "../../lib/usage";
 import { handleTextareaTabKeyDown } from "../../lib/textarea-tab";
 import {
@@ -30,6 +34,7 @@ import {
   getCodingLabDrafts,
   getCodingLabProgressMap,
   getLastCodingLab,
+  migrateGuestCodingLabStateToUser,
   recordCodingLabAttempt,
   saveCodingLabDraft,
   saveLastCodingLab,
@@ -343,13 +348,28 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
   const [expectedPreviewError, setExpectedPreviewError] = useState("");
   const [workspaceMessage, setWorkspaceMessage] = useState("");
   const [draftsLoaded, setDraftsLoaded] = useState(false);
-  const [saveStatus, setSaveStatus] = useState("Saved");
+  const [saveStatus, setSaveStatus] = useState("Preparing save...");
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [serverSolutions, setServerSolutions] = useState<
     Record<string, { solutionCode: string; explanation: string }>
   >({});
   const [isLoadingSolution, setIsLoadingSolution] = useState(false);
   const [solutionError, setSolutionError] = useState("");
+  const [persistenceReady, setPersistenceReady] = useState(false);
+  const [authEpoch, setAuthEpoch] = useState(0);
+  const [remoteProgress, setRemoteProgress] = useState<Record<string, { latestResult?: unknown }>>({});
+  const draftRevisionRef = useRef<Record<string, number>>({});
+  const pendingAttemptRef = useRef<{ slug: string; answer: string; key: string } | null>(null);
+
+  useEffect(() => {
+    const syncAuth = () => setAuthEpoch((value) => value + 1);
+    window.addEventListener(AUTH_UPDATED_EVENT, syncAuth);
+    window.addEventListener("storage", syncAuth);
+    return () => {
+      window.removeEventListener(AUTH_UPDATED_EVENT, syncAuth);
+      window.removeEventListener("storage", syncAuth);
+    };
+  }, []);
 
   const topics = useMemo(() => {
     const all = new Set<string>();
@@ -420,25 +440,139 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
   }, [selectedLab]);
 
   useEffect(() => {
-    const requestedSlug = new URLSearchParams(window.location.search).get("lab");
-    if (requestedSlug && labs.some((lab) => lab.slug === requestedSlug)) {
-      setSelectedSlug(requestedSlug);
-      setIsLibraryMode(false);
-    } else {
-      const lastSlug = getLastCodingLab(track);
-      if (lastSlug && labs.some((lab) => lab.slug === lastSlug)) {
-        setSelectedSlug(lastSlug);
+    let cancelled = false;
+    async function hydrateProgress() {
+      const authToken = getAuthToken();
+      const authUser = getCurrentUser();
+      setPersistenceReady(!authToken);
+      const requestedSlug = new URLSearchParams(window.location.search).get("lab");
+      if (requestedSlug && labs.some((lab) => lab.slug === requestedSlug)) {
+        setSelectedSlug(requestedSlug);
+        setIsLibraryMode(false);
+      } else {
+        const lastSlug = getLastCodingLab(track);
+        if (lastSlug && labs.some((lab) => lab.slug === lastSlug)) {
+          setSelectedSlug(lastSlug);
+        }
+      }
+
+      const migrated =
+        authToken && authUser ? migrateGuestCodingLabStateToUser(authUser.id) : null;
+      const savedDrafts = migrated?.drafts ?? getCodingLabDrafts();
+      const localProgress = migrated?.progress ?? getCodingLabProgressMap();
+      setAnswers(
+        Object.fromEntries(
+          Object.entries(savedDrafts).map(([slug, draft]) => [slug, draft.code])
+        )
+      );
+      setProgressMap(localProgress);
+      setDraftsLoaded(true);
+      setRemoteProgress(
+        Object.fromEntries(
+          Object.entries(localProgress).map(([slug, item]) => [
+            slug,
+            { latestResult: item.lastResult }
+          ])
+        )
+      );
+
+      if (!authToken) {
+        setSaveStatus("Saved on this device");
+        return;
+      }
+
+      try {
+        const response = await getLearnerProgress(authToken);
+        if (cancelled) return;
+        const records = response.items.filter(
+          (item) => item.content_type === `coding_lab:${track}`
+        );
+        const remoteBySlug = new Map(records.map((record) => [record.content_id, record]));
+        const nextAnswers: Record<string, string> = {};
+        const nextProgress: Record<string, CodingLabProgress> = {};
+        const nextRemote: Record<string, { latestResult?: unknown }> = {};
+        const pendingSync: Array<Promise<unknown>> = [];
+
+        labs.forEach((lab) => {
+          const localDraft = savedDrafts[lab.slug];
+          const localItem = localProgress[lab.slug];
+          const remote = remoteBySlug.get(lab.slug);
+          const localRevision = localDraft ? Date.parse(localDraft.savedAt) || 0 : 0;
+          const remoteRevision = remote?.draft_revision ?? 0;
+          const localDraftWins = Boolean(localDraft && localRevision > remoteRevision);
+          const remoteItem = remote ? codingProgressFromRemote(remote) : undefined;
+
+          if (localDraftWins || (!remote && localDraft)) {
+            nextAnswers[lab.slug] = localDraft?.code ?? "";
+          } else if (remote) {
+            nextAnswers[lab.slug] = remote.draft_answer;
+          }
+
+          const newestLocalAttempt = Date.parse(localItem?.lastAttemptedAt ?? "") || 0;
+          const newestRemoteAttempt = Date.parse(remoteItem?.lastAttemptedAt ?? "") || 0;
+          const newestProgress =
+            newestLocalAttempt > newestRemoteAttempt ? localItem : remoteItem ?? localItem;
+          if (newestProgress || localItem || remoteItem) {
+            nextProgress[lab.slug] = {
+              ...(newestProgress ?? localItem ?? remoteItem!),
+              completed: Boolean(localItem?.completed || remoteItem?.completed),
+              completedAt: remoteItem?.completedAt ?? localItem?.completedAt,
+              attemptCount: Math.max(
+                localItem?.attemptCount ?? 0,
+                remoteItem?.attemptCount ?? 0
+              ),
+              lastResult: newestProgress?.lastResult ?? remoteItem?.lastResult ?? localItem?.lastResult
+            };
+            nextRemote[lab.slug] = { latestResult: nextProgress[lab.slug].lastResult };
+          }
+
+          if (
+            localDraft &&
+            (localRevision > remoteRevision || Boolean(localItem?.completed && !remote?.completed))
+          ) {
+            pendingSync.push(
+              saveLearnerDraft(authToken, `coding_lab:${track}`, lab.slug, {
+                draft_answer: localDraft.code,
+                draft_interview_answer: "",
+                hints_revealed: 0,
+                client_revision: Math.max(localRevision, Date.now()),
+                completed: localItem?.completed || undefined
+              })
+            );
+          }
+        });
+
+        setAnswers(nextAnswers);
+        setProgressMap(nextProgress);
+        setRemoteProgress(nextRemote);
+        const syncResults = await Promise.allSettled(pendingSync);
+        if (cancelled) return;
+        setSaveStatus(
+          syncResults.some((result) => result.status === "rejected")
+            ? "Account sync failed — local recovery copy kept"
+            : "Saved to your account"
+        );
+      } catch {
+        if (!cancelled) setSaveStatus("Account sync failed — local recovery copy kept");
+      } finally {
+        if (!cancelled) setPersistenceReady(true);
       }
     }
-    const savedDrafts = getCodingLabDrafts();
-    setAnswers(
-      Object.fromEntries(
-        Object.entries(savedDrafts).map(([slug, draft]) => [slug, draft.code])
-      )
-    );
-    setProgressMap(getCodingLabProgressMap());
-    setDraftsLoaded(true);
-  }, [labs, track]);
+
+    void hydrateProgress();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authEpoch, labs, track]);
+
+  useEffect(() => {
+    if (!draftsLoaded || !selectedLab) return;
+    const remote = remoteProgress[selectedLab.slug];
+    if (remote?.latestResult && !result) {
+      setResult(remote.latestResult as LabRunResult);
+    }
+  }, [draftsLoaded, remoteProgress, result, selectedLab]);
 
   useEffect(() => {
     if (!draftsLoaded || !selectedLab) return;
@@ -446,23 +580,52 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
   }, [draftsLoaded, selectedLab, track]);
 
   useEffect(() => {
-    if (!draftsLoaded || !selectedLab) return;
+    if (!draftsLoaded || !persistenceReady || !selectedLab) return;
     const currentAnswer = answers[selectedLab.slug];
     if (typeof currentAnswer !== "string") return;
 
-    setSaveStatus("Saving...");
+    const authToken = getAuthToken();
+    setSaveStatus(authToken ? "Saving to your account..." : "Saving on this device...");
+    const slug = selectedLab.slug;
+    const revision = Date.now();
+    draftRevisionRef.current[slug] = Math.max(draftRevisionRef.current[slug] ?? 0, revision);
     const timer = window.setTimeout(() => {
       const draft = saveCodingLabDraft(selectedLab.slug, currentAnswer);
-      setSaveStatus(
-        `Saved at ${new Intl.DateTimeFormat(undefined, {
-          hour: "numeric",
-          minute: "2-digit"
-        }).format(new Date(draft.savedAt))}`
-      );
+      const authToken = getAuthToken();
+      if (!authToken) {
+        setSaveStatus(
+          `Saved on this device at ${new Intl.DateTimeFormat(undefined, {
+            hour: "numeric",
+            minute: "2-digit"
+          }).format(new Date(draft.savedAt))}`
+        );
+        return;
+      }
+      saveLearnerDraft(authToken, `coding_lab:${track}`, slug, {
+        draft_answer: currentAnswer,
+        draft_interview_answer: "",
+        hints_revealed: 0,
+        client_revision: revision
+      })
+        .then(() => {
+          if (draftRevisionRef.current[slug] === revision) {
+            setSaveStatus(
+              `Saved to your account at ${new Intl.DateTimeFormat(undefined, {
+                hour: "numeric",
+                minute: "2-digit"
+              }).format(new Date())}`
+            );
+          }
+        })
+        .catch(() => {
+          if (draftRevisionRef.current[slug] === revision) {
+            setSaveStatus("Account sync failed — retry save");
+          }
+        });
     }, 500);
 
     return () => window.clearTimeout(timer);
-  }, [answers, draftsLoaded, selectedLab]);
+  }, [answers, draftsLoaded, persistenceReady, selectedLab, track]);
 
   useEffect(() => {
     if (isLibraryMode || workspaceFocusNonce === 0) return;
@@ -508,10 +671,49 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
       : activeLabQueue[0] ?? null;
   const selectedProgress = progressMap[selectedLab.slug];
   const selectedCompleted = Boolean(selectedProgress?.completed);
-  const shouldHighlightNext = Boolean(nextLab && selectedCompleted);
-  const nextQuestionButtonClass = shouldHighlightNext
+  const canGoNext = Boolean(nextLab && selectedCompleted);
+  const nextQuestionButtonClass = canGoNext
     ? "rounded-full bg-teal-300 px-5 py-3 text-sm font-bold text-slate-950 shadow-[0_0_28px_rgba(94,234,212,0.2)] transition hover:bg-teal-200"
-    : "rounded-full border border-teal-300/30 px-5 py-3 text-sm font-bold text-teal-100 transition hover:bg-teal-300/10 disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-500";
+    : "rounded-full border border-slate-700 px-5 py-3 text-sm font-bold text-slate-500 disabled:cursor-not-allowed";
+
+  async function saveDraftNow(code: string = answer, slug: string = selectedLab.slug) {
+    const draft = saveCodingLabDraft(slug, code);
+    const authToken = getAuthToken();
+    if (!authToken) {
+      setSaveStatus(
+        `Saved on this device at ${new Intl.DateTimeFormat(undefined, {
+          hour: "numeric",
+          minute: "2-digit"
+        }).format(new Date(draft.savedAt))}`
+      );
+      return;
+    }
+
+    setSaveStatus("Saving to your account...");
+    const revision = Date.now();
+    draftRevisionRef.current[slug] = revision;
+    try {
+      await saveLearnerDraft(authToken, `coding_lab:${track}`, slug, {
+        draft_answer: code,
+        draft_interview_answer: "",
+        hints_revealed: 0,
+        client_revision: revision
+      });
+      setSaveStatus("Saved to your account");
+    } catch {
+      setSaveStatus("Account sync failed — retry save");
+    }
+  }
+
+  function getAttemptKey(slug: string, code: string): string {
+    const pending = pendingAttemptRef.current;
+    if (pending?.slug === slug && pending.answer === code) return pending.key;
+    const key = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `attempt-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    pendingAttemptRef.current = { slug, answer: code, key };
+    return key;
+  }
 
   function requireLoginForValidation(action: "run" | "submit") {
     const currentUser = getCurrentUser();
@@ -550,11 +752,43 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
             ? await runPythonLab(selectedLab, answer, selectedLab.testCases ?? [], "hidden", authToken)
             : selectedLab.validationMode === "pyspark"
               ? await runPysparkLab(selectedLab, answer, "hidden", authToken)
-              : evaluateCodeReviewLab(selectedLab, answer);
+          : evaluateCodeReviewLab(selectedLab, answer);
       setResult(nextResult);
-      setProgressMap(
-        recordCodingLabAttempt(selectedLab.slug, selectedLab.track, nextResult.passed === true)
+      const nextProgressMap = recordCodingLabAttempt(
+        selectedLab.slug,
+        selectedLab.track,
+        nextResult.passed === true,
+        nextResult
       );
+      setProgressMap(nextProgressMap);
+      if (authToken && persistenceReady) {
+        try {
+          const persisted = await saveLearnerAttempt(
+            authToken,
+            `coding_lab:${selectedLab.track}`,
+            selectedLab.slug,
+            {
+              idempotency_key: getAttemptKey(selectedLab.slug, answer),
+              answer,
+              passed: nextResult.passed,
+              message: nextResult.message,
+              result: nextResult as unknown as Record<string, unknown>,
+              ai_feedback: null
+            }
+          );
+          setProgressMap((current) => ({
+            ...current,
+            [selectedLab.slug]: codingProgressFromRemote(persisted.item)
+          }));
+          setRemoteProgress((current) => ({
+            ...current,
+            [selectedLab.slug]: { latestResult: persisted.item.latest_result ?? undefined }
+          }));
+          pendingAttemptRef.current = null;
+        } catch {
+          setWorkspaceMessage("Result shown, but it could not be saved to your account. Please retry submit.");
+        }
+      }
       sendUsageEvent("coding_lab_submitted", {
         metadata: {
           lab_slug: selectedLab.slug,
@@ -934,10 +1168,10 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
               <button
                 type="button"
                 onClick={goToNextLab}
-                disabled={!nextLab}
+                disabled={!canGoNext}
                 className={nextQuestionButtonClass}
               >
-                Next question
+                {selectedCompleted ? "Next question" : "Complete to continue"}
               </button>
             </div>
             <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-50">
@@ -1016,15 +1250,38 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
             {workspaceMessage ? (
               <p className="mt-3 text-sm font-semibold text-teal-100">{workspaceMessage}</p>
             ) : null}
-            <p className="mt-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-              {saveStatus}
-            </p>
+            <div aria-live="polite" className="mt-3 flex flex-wrap items-center gap-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+              <span>{saveStatus}</span>
+              {saveStatus.toLowerCase().includes("retry") ? (
+                <button
+                  type="button"
+                  onClick={() => void saveDraftNow()}
+                  className="rounded-full border border-amber-300/40 px-3 py-1 text-[10px] text-amber-100 transition hover:bg-amber-300/10"
+                >
+                  Retry save
+                </button>
+              ) : null}
+            </div>
+            {selectedLab.tables.length > 0 ? (
+              <details className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/35 p-4 2xl:hidden">
+                <summary className="cursor-pointer text-sm font-semibold text-teal-100">
+                  Table and column reference
+                </summary>
+                <div className="mt-3">
+                  <TableSchemaReference tables={selectedLab.tables} />
+                </div>
+              </details>
+            ) : null}
             <textarea
               value={answer}
               onChange={(event) =>
                 setAnswers((current) => {
                   setResult(null);
-                  setSaveStatus("Saving...");
+                  setSaveStatus(
+                    getAuthToken()
+                      ? "Saving to your account..."
+                      : "Saving on this device..."
+                  );
                   return {
                     ...current,
                     [selectedLab.slug]: event.target.value
@@ -1035,7 +1292,11 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
                 handleTextareaTabKeyDown(event, (nextValue) =>
                   setAnswers((current) => {
                     setResult(null);
-                    setSaveStatus("Saving...");
+                    setSaveStatus(
+                      getAuthToken()
+                        ? "Saving to your account..."
+                        : "Saving on this device..."
+                    );
                     return {
                       ...current,
                       [selectedLab.slug]: nextValue
@@ -1073,7 +1334,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
                     disabled={isRunning}
                     className="rounded-full border border-amber-300/35 px-6 py-3 text-sm font-bold text-amber-100 transition hover:bg-amber-300/10 disabled:cursor-wait disabled:opacity-70"
                   >
-                    {isRunning ? "Running..." : "Run"}
+                    {isRunning ? "Running sample..." : "Run sample"}
                   </button>
                   <button
                     type="button"
@@ -1081,15 +1342,15 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
                     disabled={isRunning}
                     className="rounded-full bg-amber-300 px-7 py-3 text-sm font-bold text-slate-950 transition hover:bg-amber-200 disabled:cursor-wait disabled:opacity-70"
                   >
-                    {isRunning ? "Submitting..." : "Submit"}
+                    {isRunning ? "Submitting..." : "Submit for completion"}
                   </button>
                   <button
                     type="button"
 	                    onClick={goToNextLab}
-	                    disabled={!nextLab}
+	                    disabled={!canGoNext}
 	                    className={nextQuestionButtonClass}
 	                  >
-                    Next question
+	                    {selectedCompleted ? "Next question" : "Complete to continue"}
                   </button>
                 </div>
               </div>
@@ -1099,7 +1360,20 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
           {result ? <ResultPanel result={result} /> : null}
         </section>
 
-        <aside className="space-y-6 md:col-start-2 2xl:col-start-auto">
+        <aside className="space-y-6 md:col-start-2 2xl:sticky 2xl:top-24 2xl:col-start-auto 2xl:self-start">
+          {selectedLab.tables.length > 0 ? (
+            <div className="panel hidden rounded-[2rem] p-6 2xl:block">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-teal-200">
+                Table reference
+              </p>
+              <p className="mt-2 text-xs leading-5 text-slate-400">
+                Keep the schema visible while you write.
+              </p>
+              <div className="mt-4 max-h-[260px] overflow-y-auto pr-1">
+                <TableSchemaReference tables={selectedLab.tables} />
+              </div>
+            </div>
+          ) : null}
           <div className="panel rounded-[2rem] p-6">
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
               Practice workflow
@@ -1563,6 +1837,24 @@ function Stat({ label, value }: { label: string; value: string | number }) {
     <div className="rounded-3xl border border-slate-700/70 bg-slate-950/30 px-5 py-4">
       <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">{label}</p>
       <p className="mt-2 text-xl font-semibold text-slate-50">{value}</p>
+    </div>
+  );
+}
+
+function TableSchemaReference({ tables }: { tables: CodingLabTable[] }) {
+  return (
+    <div className="space-y-3">
+      {tables.map((table) => (
+        <div
+          key={table.name}
+          className="rounded-2xl border border-slate-800 bg-slate-950/45 p-3"
+        >
+          <p className="font-mono text-xs font-semibold text-slate-100">{table.name}</p>
+          <p className="mt-2 break-words font-mono text-xs leading-5 text-slate-400">
+            {table.columns.join(" · ")}
+          </p>
+        </div>
+      ))}
     </div>
   );
 }

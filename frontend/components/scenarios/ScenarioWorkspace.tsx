@@ -1,11 +1,17 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 import { trackEvent } from "../../lib/analytics";
-import { evaluateScenarioWithAi, validatePysparkScenario } from "../../lib/api";
+import {
+  evaluateScenarioWithAi,
+  getLearnerProgress,
+  saveLearnerAttempt,
+  saveLearnerDraft,
+  validatePysparkScenario
+} from "../../lib/api";
 import {
   AUTH_UPDATED_EVENT,
   getAuthToken,
@@ -20,6 +26,7 @@ import {
 import {
   getScenarioProgress,
   markScenarioCompleted,
+  migrateGuestScenarioProgressToUser,
   recordScenarioAiFeedback,
   recordScenarioAttempt,
   saveScenarioDraft,
@@ -27,6 +34,7 @@ import {
   summarizeScenarioProgress,
   type ScenarioProgressSummary
 } from "../../lib/progress";
+import { scenarioProgressFromRemote } from "../../lib/learner-progress";
 import { evaluateScenarioAnswer, type ScenarioEvaluationResult } from "../../lib/scenarioEvaluator";
 import { sendUsageEvent } from "../../lib/usage";
 import { handleTextareaTabKeyDown } from "../../lib/textarea-tab";
@@ -93,39 +101,190 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [showRevealConfirmation, setShowRevealConfirmation] = useState(false);
   const [hydratedScenarioSlug, setHydratedScenarioSlug] = useState<string | null>(null);
-  const [autoSaveStatus, setAutoSaveStatus] = useState("Saved");
+  const [autoSaveStatus, setAutoSaveStatus] = useState("Preparing save...");
+  const [completionStatus, setCompletionStatus] = useState<
+    "idle" | "saving" | "saved" | "error"
+  >("idle");
+  const [completionMessage, setCompletionMessage] = useState<string | null>(null);
+  const [persistenceReady, setPersistenceReady] = useState(false);
+  const [authEpoch, setAuthEpoch] = useState(0);
+  const draftRevisionRef = useRef(0);
+  const pendingAttemptRef = useRef({ slug: "", answer: "", key: "" });
 
   useEffect(() => {
-    setHydratedScenarioSlug(null);
-    const savedProgress = getScenarioProgress(scenario.slug);
-    const savedAnswer = savedProgress.draftAnswer;
-    if (scenario.scenarioType === "mcq" && scenario.mcqOptions?.some((option) => option.id === savedAnswer)) {
-      setSelectedOptionId(savedAnswer);
-    } else {
-      setAnswer(
-        savedAnswer ||
-          EXECUTABLE_PYSPARK_STARTERS[scenario.slug] ||
-          scenario.brokenCode ||
-          ""
-      );
+    const syncAuth = () => setAuthEpoch((value) => value + 1);
+    window.addEventListener(AUTH_UPDATED_EVENT, syncAuth);
+    window.addEventListener("storage", syncAuth);
+    return () => {
+      window.removeEventListener(AUTH_UPDATED_EVENT, syncAuth);
+      window.removeEventListener("storage", syncAuth);
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function hydrateProgress() {
+      const authToken = getAuthToken();
+      const authUser = getCurrentUser();
+      setPersistenceReady(!authToken);
+      setHydratedScenarioSlug(null);
+      const migrated =
+        authToken && authUser ? migrateGuestScenarioProgressToUser(authUser.id) : null;
+      const savedProgress = migrated?.[scenario.slug] ?? getScenarioProgress(scenario.slug);
+      const savedAnswer = savedProgress.draftAnswer;
+      if (
+        scenario.scenarioType === "mcq" &&
+        scenario.mcqOptions?.some((option) => option.id === savedAnswer)
+      ) {
+        setSelectedOptionId(savedAnswer);
+      } else {
+        setAnswer(
+          savedAnswer ||
+            EXECUTABLE_PYSPARK_STARTERS[scenario.slug] ||
+            scenario.brokenCode ||
+            ""
+        );
+      }
+      setInterviewAnswer(savedProgress.draftInterviewAnswer);
+      setSelectedDiagnosisId("");
+      setHintsRevealed(Math.min(savedProgress.hintsRevealed, scenario.hints.length));
+      setProgress(summarizeScenarioProgress(savedProgress, scenario.slug));
+      setCompletionStatus(savedProgress.completed ? "saved" : "idle");
+      setCompletionMessage(null);
+      setSqlExecution(null);
+      setPysparkExecution(null);
+      setEvaluation(null);
+      setEvaluationNotice(null);
+      setModelSolutionVisible(false);
+
+      if (!authToken) {
+        setAutoSaveStatus("Saved on this device");
+        setHydratedScenarioSlug(scenario.slug);
+        return;
+      }
+
+      try {
+        const response = await getLearnerProgress(authToken);
+        if (cancelled) return;
+        const record = response.items.find(
+          (item) => item.content_type === "scenario" && item.content_id === scenario.slug
+        );
+        const localRevision = Date.parse(savedProgress.draftSavedAt ?? "") || 0;
+        const remoteRevision = record?.draft_revision ?? 0;
+        const localHasState = Boolean(
+          savedProgress.draftSavedAt ||
+            savedProgress.completed ||
+            savedProgress.hintsRevealed > 0
+        );
+        const localShouldSync = Boolean(
+          localHasState &&
+            (!record ||
+              localRevision > remoteRevision ||
+              (savedProgress.completed && !record.completed) ||
+              savedProgress.hintsRevealed > record.hints_revealed)
+        );
+
+        let resolvedProgress = record
+          ? scenarioProgressFromRemote(record)
+          : savedProgress;
+        if (record && (localRevision > remoteRevision || savedProgress.completed)) {
+          resolvedProgress = {
+            ...resolvedProgress,
+            completed: resolvedProgress.completed || savedProgress.completed,
+            completedAt: resolvedProgress.completedAt ?? savedProgress.completedAt,
+            hintsRevealed: Math.max(
+              resolvedProgress.hintsRevealed,
+              savedProgress.hintsRevealed
+            ),
+            draftAnswer:
+              localRevision > remoteRevision
+                ? savedProgress.draftAnswer
+                : resolvedProgress.draftAnswer,
+            draftInterviewAnswer:
+              localRevision > remoteRevision
+                ? savedProgress.draftInterviewAnswer
+                : resolvedProgress.draftInterviewAnswer,
+            draftSavedAt:
+              localRevision > remoteRevision
+                ? savedProgress.draftSavedAt
+                : resolvedProgress.draftSavedAt,
+            attempts:
+              resolvedProgress.attempts.length > 0
+                ? resolvedProgress.attempts
+                : savedProgress.attempts,
+            latestResult: resolvedProgress.latestResult ?? savedProgress.latestResult,
+            aiFeedback: resolvedProgress.aiFeedback ?? savedProgress.aiFeedback,
+            aiScore: resolvedProgress.aiScore ?? savedProgress.aiScore
+          };
+        }
+
+        if (localShouldSync) {
+          const saved = await saveLearnerDraft(authToken, "scenario", scenario.slug, {
+            draft_answer: resolvedProgress.draftAnswer,
+            draft_interview_answer: resolvedProgress.draftInterviewAnswer,
+            hints_revealed: resolvedProgress.hintsRevealed,
+            client_revision: Math.max(localRevision, Date.now()),
+            completed: resolvedProgress.completed || undefined
+          });
+          resolvedProgress = scenarioProgressFromRemote(saved.item);
+        }
+
+        if (cancelled) return;
+        const resolvedAnswer = resolvedProgress.draftAnswer;
+        if (
+          scenario.scenarioType === "mcq" &&
+          scenario.mcqOptions?.some((option) => option.id === resolvedAnswer)
+        ) {
+          setSelectedOptionId(resolvedAnswer);
+        } else if (resolvedAnswer) {
+          setAnswer(resolvedAnswer);
+        }
+        setInterviewAnswer(resolvedProgress.draftInterviewAnswer);
+        setHintsRevealed(
+          Math.min(resolvedProgress.hintsRevealed, scenario.hints.length)
+        );
+        setProgress(summarizeScenarioProgress(resolvedProgress, scenario.slug));
+        setCompletionStatus(resolvedProgress.completed ? "saved" : "idle");
+        setAutoSaveStatus("Saved to your account");
+        const snapshot = resolvedProgress.latestResult as {
+          evaluation?: ScenarioEvaluationResult;
+          sqlExecution?: BrowserSqlValidationResult | null;
+          pysparkExecution?: PysparkValidationResponse | null;
+          evaluationNotice?: string | null;
+        } | null;
+        if (snapshot) {
+          setEvaluation(snapshot.evaluation ?? null);
+          setSqlExecution(snapshot.sqlExecution ?? null);
+          setPysparkExecution(snapshot.pysparkExecution ?? null);
+          setEvaluationNotice(snapshot.evaluationNotice ?? null);
+        }
+      } catch {
+        if (!cancelled) {
+          setAutoSaveStatus("Account sync failed — local recovery copy kept");
+        }
+      } finally {
+        if (!cancelled) {
+          setPersistenceReady(true);
+          setHydratedScenarioSlug(scenario.slug);
+        }
+      }
     }
-    setInterviewAnswer(savedProgress.draftInterviewAnswer);
-    setSelectedDiagnosisId("");
-    setHintsRevealed(Math.min(savedProgress.hintsRevealed, scenario.hints.length));
-    setProgress(summarizeScenarioProgress(savedProgress, scenario.slug));
-    setSqlExecution(null);
-    setPysparkExecution(null);
-    setEvaluation(null);
-    setEvaluationNotice(null);
-    setModelSolutionVisible(false);
-    setHydratedScenarioSlug(scenario.slug);
-  }, [scenario]);
+
+    void hydrateProgress();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authEpoch, scenario]);
 
   useEffect(() => {
-    if (hydratedScenarioSlug !== scenario.slug) return;
+    if (hydratedScenarioSlug !== scenario.slug || !persistenceReady) return;
     const draft =
       scenario.scenarioType === "mcq" ? selectedOptionId : answer;
-    setAutoSaveStatus("Saving...");
+    const authToken = getAuthToken();
+    setAutoSaveStatus(
+      authToken ? "Saving to your account..." : "Saving on this device..."
+    );
     const timer = window.setTimeout(() => {
       const nextProgress = saveScenarioDraft(
         scenario.slug,
@@ -133,12 +292,40 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
         interviewAnswer
       );
       setProgress(summarizeScenarioProgress(nextProgress, scenario.slug));
-      setAutoSaveStatus(
-        `Saved at ${new Intl.DateTimeFormat(undefined, {
-          hour: "numeric",
-          minute: "2-digit"
-        }).format(new Date(nextProgress.draftSavedAt ?? Date.now()))}`
-      );
+      const authToken = getAuthToken();
+      if (!authToken) {
+        setAutoSaveStatus(
+          `Saved on this device at ${new Intl.DateTimeFormat(undefined, {
+            hour: "numeric",
+            minute: "2-digit"
+          }).format(new Date(nextProgress.draftSavedAt ?? Date.now()))}`
+        );
+        return;
+      }
+
+      const revision = Date.now();
+      draftRevisionRef.current = revision;
+      saveLearnerDraft(authToken, "scenario", scenario.slug, {
+        draft_answer: draft,
+        draft_interview_answer: interviewAnswer,
+        hints_revealed: hintsRevealed,
+        client_revision: revision
+      })
+        .then(() => {
+          if (draftRevisionRef.current === revision) {
+            setAutoSaveStatus(
+              `Saved to your account at ${new Intl.DateTimeFormat(undefined, {
+                hour: "numeric",
+                minute: "2-digit"
+              }).format(new Date())}`
+            );
+          }
+        })
+        .catch(() => {
+          if (draftRevisionRef.current === revision) {
+            setAutoSaveStatus("Account sync failed — retry save");
+          }
+        });
     }, 500);
 
     return () => window.clearTimeout(timer);
@@ -146,6 +333,8 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
     answer,
     hydratedScenarioSlug,
     interviewAnswer,
+    hintsRevealed,
+    persistenceReady,
     scenario.scenarioType,
     scenario.slug,
     selectedOptionId
@@ -185,9 +374,25 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
     return scenarios[(index + 1) % scenarios.length];
   }, [scenario.slug]);
   const scenarioCompleted = Boolean(progress?.completed);
-  const nextScenarioButtonClass = nextScenario && scenarioCompleted
+  const completionButtonLabel =
+    completionStatus === "saving"
+      ? "Saving..."
+      : completionStatus === "error"
+        ? "Retry completion"
+        : scenarioCompleted
+          ? "Completed"
+          : "Mark complete";
+  const completionButtonDisabled =
+    completionStatus === "saving" || (scenarioCompleted && completionStatus !== "error");
+  const completionButtonClass = scenarioCompleted && completionStatus !== "error"
+    ? "rounded-full border border-teal-300/30 bg-teal-300/10 px-5 py-3 text-sm font-semibold text-teal-100"
+    : completionStatus === "error"
+      ? "rounded-full border border-amber-300/50 bg-amber-300/10 px-5 py-3 text-sm font-semibold text-amber-100 transition hover:bg-amber-300/20"
+      : "rounded-full bg-teal-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-teal-200 disabled:cursor-wait disabled:opacity-70";
+  const canGoToNextScenario = Boolean(nextScenario && scenarioCompleted);
+  const nextScenarioButtonClass = canGoToNextScenario
     ? "rounded-full bg-teal-300 px-5 py-3 text-sm font-semibold text-slate-950 shadow-[0_0_28px_rgba(94,234,212,0.2)] transition hover:bg-teal-200"
-    : "rounded-full border border-teal-300/30 px-5 py-3 text-sm font-semibold text-teal-100 transition hover:bg-teal-300/10 disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-500";
+    : "rounded-full border border-slate-700 px-5 py-3 text-sm font-semibold text-slate-500 disabled:cursor-not-allowed";
   const promptLabel = useMemo(() => {
     if (scenario.scenarioType === "broken_sql") return "Write the corrected SQL";
     if (canRunPyspark) return "Write the corrected PySpark transformation";
@@ -209,6 +414,16 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
     setHintsRevealed(nextCount);
     const nextProgress = setScenarioHintsRevealed(scenario.slug, nextCount);
     setProgress(summarizeScenarioProgress(nextProgress, scenario.slug));
+    const authToken = getAuthToken();
+    if (authToken && persistenceReady) {
+      const draft = scenario.scenarioType === "mcq" ? selectedOptionId : answer;
+      saveLearnerDraft(authToken, "scenario", scenario.slug, {
+        draft_answer: draft,
+        draft_interview_answer: interviewAnswer,
+        hints_revealed: nextCount,
+        client_revision: Date.now()
+      }).catch(() => setAutoSaveStatus("Account sync failed — retry save"));
+    }
     trackEvent("hint_used", { scenario: scenario.slug, hint_number: nextCount });
   }
 
@@ -216,7 +431,33 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
     const draft = scenario.scenarioType === "mcq" ? selectedOptionId : answer;
     const nextProgress = saveScenarioDraft(scenario.slug, draft, interviewAnswer);
     setProgress(summarizeScenarioProgress(nextProgress, scenario.slug));
-    setDraftMessage("Draft saved.");
+    const authToken = getAuthToken();
+    if (!authToken) {
+      setAutoSaveStatus("Saved on this device");
+      setDraftMessage("Draft saved on this device.");
+      return;
+    }
+    setAutoSaveStatus("Saving to your account...");
+    saveLearnerDraft(authToken, "scenario", scenario.slug, {
+      draft_answer: draft,
+      draft_interview_answer: interviewAnswer,
+      hints_revealed: hintsRevealed,
+      client_revision: Date.now()
+    })
+      .then(() => setAutoSaveStatus("Saved to your account"))
+      .then(() => setDraftMessage("Draft saved to your account."))
+      .catch(() => setAutoSaveStatus("Account sync failed — retry save"));
+  }
+
+  function getAttemptKey(answerText: string): string {
+    if (pendingAttemptRef.current.slug === scenario.slug && pendingAttemptRef.current.answer === answerText) {
+      return pendingAttemptRef.current.key;
+    }
+    const key = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `attempt-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    pendingAttemptRef.current = { slug: scenario.slug, answer: answerText, key };
+    return key;
   }
 
   function requireLoginForValidation(action: "run" | "submit") {
@@ -372,12 +613,7 @@ Impact: ${scenario.incident.impact}`
         : runnablePysparkResult
           ? `${runnablePysparkResult.passed ? "PySpark hidden tests passed" : "PySpark hidden tests failed"} · ${nextEvaluation.score}/100 explanation score`
         : `${nextEvaluation.verdict} · ${nextEvaluation.score}/100`;
-      const nextProgress = recordScenarioAttempt(scenario.slug, {
-        passed,
-        answer: submittedAnswer,
-        message
-      });
-      recordScenarioAiFeedback(scenario.slug, {
+      const aiFeedback = {
         totalScore:
           runnableSqlResult?.passed || runnablePysparkResult?.passed
             ? Math.max(nextEvaluation.score, 85)
@@ -401,11 +637,54 @@ Impact: ${scenario.incident.impact}`
                   ]
                 : nextEvaluation.gaps,
         improvedAnswer: nextEvaluation.improvedAnswer,
-        followUpQuestions: scenario.followUps
+        followUpQuestions: scenario.followUps,
+        evaluatedAt: new Date().toISOString()
+      };
+      const latestResult = {
+        evaluation: nextEvaluation,
+        sqlExecution: runnableSqlResult,
+        pysparkExecution: runnablePysparkResult,
+        evaluationNotice: aiFallbackMessage
+      };
+      const nextProgress = recordScenarioAttempt(scenario.slug, {
+        passed,
+        answer: submittedAnswer,
+        message,
+        latestResult
       });
+      const feedbackEntry = recordScenarioAiFeedback(scenario.slug, aiFeedback);
       setEvaluation(nextEvaluation);
-      setProgress(summarizeScenarioProgress(nextProgress, scenario.slug));
+      setProgress(summarizeScenarioProgress(feedbackEntry ?? nextProgress, scenario.slug));
       setDraftMessage(aiFallbackMessage);
+      if (authToken && persistenceReady) {
+        try {
+          const persisted = await saveLearnerAttempt(authToken, "scenario", scenario.slug, {
+            idempotency_key: getAttemptKey(submittedAnswer),
+            answer: submittedAnswer,
+            passed,
+            message,
+            result: latestResult,
+            ai_feedback: aiFeedback
+          });
+          const persistedProgress = scenarioProgressFromRemote(persisted.item);
+          setProgress(summarizeScenarioProgress(persistedProgress, scenario.slug));
+          if (passed) {
+            setCompletionStatus("saved");
+            setCompletionMessage("Completed and saved to your account.");
+            setAutoSaveStatus("Saved to your account");
+          }
+          pendingAttemptRef.current = { slug: "", answer: "", key: "" };
+        } catch {
+          setDraftMessage("Feedback is shown, but it could not be saved to your account. Please retry submit.");
+          setAutoSaveStatus("Account sync failed — retry save");
+          if (passed) {
+            setCompletionStatus("error");
+            setCompletionMessage(
+              "Completed on this device, but not saved to your account. Retry submit."
+            );
+          }
+        }
+      }
       sendUsageEvent("scenario_submitted", {
         metadata: {
           scenario_slug: scenario.slug,
@@ -472,6 +751,25 @@ Impact: ${scenario.incident.impact}`
           actual: { columns: [], rows: [] },
           expected: { columns: [], rows: [] }
         });
+      }
+      if (authToken && persistenceReady) {
+        try {
+          await saveLearnerAttempt(authToken, "scenario", scenario.slug, {
+            idempotency_key: getAttemptKey(submittedAnswer),
+            answer: submittedAnswer,
+            passed: false,
+            message,
+            result: {
+              evaluation: null,
+              sqlExecution: null,
+              pysparkExecution: null,
+              evaluationNotice: message
+            },
+            ai_feedback: null
+          });
+        } catch {
+          setAutoSaveStatus("Account sync failed — retry save");
+        }
       }
       setDraftMessage(null);
     } finally {
@@ -564,9 +862,46 @@ Impact: ${scenario.incident.impact}`
     setDraftMessage("Schema copied.");
   }
 
-  function completeLab() {
+  async function completeLab() {
+    if (completionStatus === "saving") return;
     const nextProgress = markScenarioCompleted(scenario.slug);
     setProgress(summarizeScenarioProgress(nextProgress, scenario.slug));
+    setCompletionMessage(null);
+    const authToken = getAuthToken();
+    if (authToken && persistenceReady) {
+      const draft = scenario.scenarioType === "mcq" ? selectedOptionId : answer;
+      setCompletionStatus("saving");
+      setAutoSaveStatus("Saving completion to your account...");
+      try {
+        const response = await saveLearnerDraft(authToken, "scenario", scenario.slug, {
+          draft_answer: draft,
+          draft_interview_answer: interviewAnswer,
+          hints_revealed: hintsRevealed,
+          client_revision: Date.now(),
+          completed: true
+        });
+        const persistedProgress = scenarioProgressFromRemote(response.item);
+        setProgress(summarizeScenarioProgress(persistedProgress, scenario.slug));
+        setCompletionStatus("saved");
+        setCompletionMessage("Completed and saved to your account.");
+        setAutoSaveStatus("Saved to your account");
+      } catch {
+        setCompletionStatus("error");
+        setCompletionMessage(
+          "Completed on this device, but not saved to your account. Retry completion."
+        );
+        setAutoSaveStatus("Account sync failed — retry save");
+        return;
+      }
+    } else {
+      setCompletionStatus("saved");
+      setCompletionMessage(
+        authToken
+          ? "Completed on this device. Account sync will retry when loading finishes."
+          : "Completed on this device. Sign in to keep it across devices."
+      );
+      setAutoSaveStatus("Saved on this device");
+    }
     sendUsageEvent("scenario_completed", {
       metadata: {
         scenario_slug: scenario.slug,
@@ -816,7 +1151,7 @@ Impact: ${scenario.incident.impact}`
                       disabled={isChecking}
                       className="rounded-full border border-teal-300/35 px-5 py-3 text-sm font-semibold text-teal-100 transition hover:bg-teal-300/10 disabled:opacity-60"
                     >
-                      {canRunPyspark ? "Run sample" : "Run"}
+                      Run sample
                     </button>
                   </>
                 ) : null}
@@ -831,10 +1166,10 @@ Impact: ${scenario.incident.impact}`
                 <button
                   type="button"
 	                  onClick={goToNextScenario}
-	                  disabled={!nextScenario}
+	                  disabled={!canGoToNextScenario}
 	                  className={nextScenarioButtonClass}
 	                >
-	                  Next scenario
+	                  {scenarioCompleted ? "Next scenario" : "Complete to continue"}
 	                </button>
               </div>
             </div>
@@ -884,9 +1219,18 @@ Impact: ${scenario.incident.impact}`
               />
             )}
 
-            <p className="mt-4 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-              {autoSaveStatus}
-            </p>
+            <div aria-live="polite" className="mt-4 flex flex-wrap items-center gap-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+              <span>{autoSaveStatus}</span>
+              {autoSaveStatus.toLowerCase().includes("retry") ? (
+                <button
+                  type="button"
+                  onClick={saveDraft}
+                  className="rounded-full border border-amber-300/40 px-3 py-1 text-[10px] text-amber-100 transition hover:bg-amber-300/10"
+                >
+                  Retry save
+                </button>
+              ) : null}
+            </div>
             <div
               id="explanation"
               className="mt-5 scroll-mt-32 rounded-3xl border border-slate-800 bg-slate-950/35 p-5"
@@ -943,10 +1287,10 @@ Impact: ${scenario.incident.impact}`
               <button
                 type="button"
                 onClick={goToNextScenario}
-                disabled={!nextScenario}
+                disabled={!canGoToNextScenario}
                 className={nextScenarioButtonClass}
               >
-                Next scenario
+                {scenarioCompleted ? "Next scenario" : "Complete to continue"}
               </button>
               <button
                 type="button"
@@ -1042,35 +1386,50 @@ Impact: ${scenario.incident.impact}`
                       Score: {evaluation.score}/100
                     </h2>
                     <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
-                      Review the gaps above, mark this lab complete, or move to the next
-                      recommended scenario and revisit this one later.
+                      {scenarioCompleted
+                        ? "This practice is complete. Continue to the next recommended scenario when you are ready."
+                        : "Review the gaps above, mark this lab complete, or revisit your answer before continuing."}
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-3">
                     <button
                       type="button"
-	                      onClick={completeLab}
-	                      className="rounded-full bg-teal-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-teal-200"
+	                      onClick={() => void completeLab()}
+	                      disabled={completionButtonDisabled}
+	                      className={completionButtonClass}
 	                    >
-	                      Mark complete
+	                      {completionButtonLabel}
 	                    </button>
                     <button
                       type="button"
                       onClick={goToNextScenario}
-                      className="rounded-full border border-slate-700 px-5 py-3 text-sm font-semibold text-slate-200"
+                      disabled={!canGoToNextScenario}
+                      className={nextScenarioButtonClass}
                     >
-                      Next scenario
+                      {scenarioCompleted ? "Next scenario" : "Complete to continue"}
                     </button>
                   </div>
                 </div>
+                {completionMessage ? (
+                  <p
+                    role="status"
+                    className={`mt-4 rounded-2xl border px-4 py-3 text-sm font-semibold ${
+                      completionStatus === "error"
+                        ? "border-amber-300/30 bg-amber-300/10 text-amber-100"
+                        : "border-teal-300/20 bg-teal-300/10 text-teal-100"
+                    }`}
+                  >
+                    {completionMessage}
+                  </p>
+                ) : null}
                 {!currentUser ? (
                   <div className="mt-5 rounded-3xl border border-amber-300/25 bg-amber-300/10 p-5">
                     <p className="text-sm font-semibold text-amber-100">
                       Save this practice journey
                     </p>
                     <p className="mt-2 text-sm leading-6 text-slate-300">
-                      Your progress is saved. Create an account to build your learner profile
-                      and unlock the complete practice journey.
+                      Your progress is saved on this device. Create an account to move this
+                      draft into your learner profile and keep it across devices.
                     </p>
                     <button
                       type="button"
@@ -1100,11 +1459,24 @@ Impact: ${scenario.incident.impact}`
               </div>
               <button
                 type="button"
-                onClick={completeLab}
-                className="mt-5 rounded-full bg-teal-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-teal-200"
+                onClick={() => void completeLab()}
+                disabled={completionButtonDisabled}
+                className={`mt-5 ${completionButtonClass}`}
               >
-                Mark completed
+                {completionButtonLabel}
               </button>
+              {completionMessage ? (
+                <p
+                  role="status"
+                  className={`mt-4 rounded-2xl border px-4 py-3 text-sm font-semibold ${
+                    completionStatus === "error"
+                      ? "border-amber-300/30 bg-amber-300/10 text-amber-100"
+                      : "border-teal-300/20 bg-teal-300/10 text-teal-100"
+                  }`}
+                >
+                  {completionMessage}
+                </p>
+              ) : null}
             </section>
           ) : null}
         </div>

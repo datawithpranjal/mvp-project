@@ -23,6 +23,11 @@ import type {
   EmailCaptureRequest,
   EmailCaptureResponse,
   GoogleAuthStartUrlResponse,
+  LearnerAttemptRequest,
+  LearnerAttemptResponse,
+  LearnerDraftRequest,
+  LearnerDraftResponse,
+  LearnerProgressListResponse,
   PremiumCouponQuote,
   PremiumManualUnlockRequest,
   PremiumManualUnlockResponse,
@@ -168,6 +173,44 @@ export function submitProductFeedback(
     method: "POST",
     body: JSON.stringify(payload)
   });
+}
+
+export function getLearnerProgress(token: string): Promise<LearnerProgressListResponse> {
+  return apiFetch<LearnerProgressListResponse>("/api/v1/learner-progress", {
+    authToken: token
+  });
+}
+
+export function saveLearnerDraft(
+  token: string,
+  contentType: string,
+  contentId: string,
+  payload: LearnerDraftRequest
+): Promise<LearnerDraftResponse> {
+  return apiFetch<LearnerDraftResponse>(
+    `/api/v1/learner-progress/${encodeURIComponent(contentType)}/${encodeURIComponent(contentId)}/draft`,
+    {
+      method: "PUT",
+      authToken: token,
+      body: JSON.stringify(payload)
+    }
+  );
+}
+
+export function saveLearnerAttempt(
+  token: string,
+  contentType: string,
+  contentId: string,
+  payload: LearnerAttemptRequest
+): Promise<LearnerAttemptResponse> {
+  return apiFetch<LearnerAttemptResponse>(
+    `/api/v1/learner-progress/${encodeURIComponent(contentType)}/${encodeURIComponent(contentId)}/attempt`,
+    {
+      method: "POST",
+      authToken: token,
+      body: JSON.stringify(payload)
+    }
+  );
 }
 
 export function recordUsageEvent(

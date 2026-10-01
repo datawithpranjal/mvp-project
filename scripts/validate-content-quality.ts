@@ -538,6 +538,33 @@ function validateHints(item: ValidationItem) {
   });
 }
 
+function validateScenarioEvidenceContract(item: ValidationItem) {
+  if (item.slug !== "the-partition-pruning-mirage") return;
+
+  const brokenArtifact = asString(item.starterCode).toLowerCase();
+  const expectedEvidence = [item.expectedOutcome, item.modelAnswer]
+    .join(" ")
+    .toLowerCase();
+  const missingArtifactSignals = ["filter", "event_date", "event_ts"].filter(
+    (signal) => !brokenArtifact.includes(signal)
+  );
+  const missingVerificationSignals = ["partitionfilters", "bytes scanned"].filter(
+    (signal) => !expectedEvidence.includes(signal)
+  );
+
+  if (missingArtifactSignals.length > 0 || missingVerificationSignals.length > 0) {
+    addFinding(
+      "BLOCKER",
+      item,
+      "scenario-evidence-contract",
+      `Partition-pruning scenario is missing learner-visible evidence: ${[
+        ...missingArtifactSignals,
+        ...missingVerificationSignals
+      ].join(", ")}.`
+    );
+  }
+}
+
 function validateSqlReferences(item: ValidationItem) {
   const tables = item.tables ?? [];
   const hasExecutableSql = Boolean(item.expectedSql?.trim());
@@ -806,6 +833,7 @@ async function main() {
   items.forEach(validateRequiredFields);
   items.forEach(validateSemanticMatch);
   items.forEach(validateHints);
+  items.forEach(validateScenarioEvidenceContract);
 
   const codingItems = [
     ...generatedSqlLabs,

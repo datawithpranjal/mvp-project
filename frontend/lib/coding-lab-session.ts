@@ -1,4 +1,5 @@
 import type { CodingLabTrack } from "./coding-labs";
+import { getCurrentUser } from "./auth";
 
 export interface CodingLabDraft {
   code: string;
@@ -11,6 +12,7 @@ export interface CodingLabProgress {
   lastAttemptedAt?: string;
   attemptCount: number;
   track: CodingLabTrack;
+  lastResult?: unknown;
 }
 
 interface CodingLabSessionStore {
@@ -20,6 +22,19 @@ interface CodingLabSessionStore {
 
 const STORAGE_KEY = "data-foundry-coding-lab-session-v1";
 const PROGRESS_STORAGE_KEY = "data-foundry-coding-lab-progress";
+
+function storageSuffix(userId?: string | null): string {
+  const resolvedUserId = userId ?? getCurrentUser()?.id;
+  return resolvedUserId ? `user-${resolvedUserId}` : "guest";
+}
+
+function sessionStorageKey(suffix: string = storageSuffix()): string {
+  return `${STORAGE_KEY}:${suffix}`;
+}
+
+function progressStorageKey(suffix: string = storageSuffix()): string {
+  return `${PROGRESS_STORAGE_KEY}:${suffix}`;
+}
 
 function emptyStore(): CodingLabSessionStore {
   return {
@@ -32,11 +47,11 @@ function canUseStorage(): boolean {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
 }
 
-function readStore(): CodingLabSessionStore {
+function readStore(suffix: string = storageSuffix()): CodingLabSessionStore {
   if (!canUseStorage()) return emptyStore();
 
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = window.localStorage.getItem(sessionStorageKey(suffix));
     if (!raw) return emptyStore();
     const parsed = JSON.parse(raw) as Partial<CodingLabSessionStore>;
     return {
@@ -52,9 +67,9 @@ function readStore(): CodingLabSessionStore {
   }
 }
 
-function writeStore(store: CodingLabSessionStore): void {
+function writeStore(store: CodingLabSessionStore, suffix: string = storageSuffix()): void {
   if (!canUseStorage()) return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+  window.localStorage.setItem(sessionStorageKey(suffix), JSON.stringify(store));
 }
 
 export function getCodingLabDrafts(): Record<string, CodingLabDraft> {
@@ -125,7 +140,8 @@ function normalizeProgressMap(value: unknown): Record<string, CodingLabProgress>
                   ? progress.completedAt
                   : undefined,
             attemptCount,
-            track
+            track,
+            lastResult: progress.lastResult
           }
         ];
       })
@@ -133,21 +149,105 @@ function normalizeProgressMap(value: unknown): Record<string, CodingLabProgress>
 }
 
 export function getCodingLabProgressMap(): Record<string, CodingLabProgress> {
+  return getCodingLabProgressMapForSuffix(storageSuffix());
+}
+
+function getCodingLabProgressMapForSuffix(
+  suffix: string
+): Record<string, CodingLabProgress> {
   if (!canUseStorage()) return {};
 
   try {
     return normalizeProgressMap(
-      JSON.parse(window.localStorage.getItem(PROGRESS_STORAGE_KEY) ?? "{}")
+      JSON.parse(window.localStorage.getItem(progressStorageKey(suffix)) ?? "{}")
     );
   } catch {
     return {};
   }
 }
 
+function timestamp(value?: string): number {
+  const parsed = value ? Date.parse(value) : Number.NaN;
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function mergeProgress(
+  accountProgress: CodingLabProgress | undefined,
+  guestProgress: CodingLabProgress
+): CodingLabProgress {
+  if (!accountProgress) return guestProgress;
+
+  const guestIsNewer =
+    timestamp(guestProgress.lastAttemptedAt ?? guestProgress.completedAt) >
+    timestamp(accountProgress.lastAttemptedAt ?? accountProgress.completedAt);
+  const newest = guestIsNewer ? guestProgress : accountProgress;
+  const older = guestIsNewer ? accountProgress : guestProgress;
+
+  return {
+    ...newest,
+    completed: accountProgress.completed || guestProgress.completed,
+    completedAt: accountProgress.completedAt ?? guestProgress.completedAt,
+    lastAttemptedAt:
+      timestamp(accountProgress.lastAttemptedAt) >= timestamp(guestProgress.lastAttemptedAt)
+        ? accountProgress.lastAttemptedAt
+        : guestProgress.lastAttemptedAt,
+    attemptCount: Math.max(accountProgress.attemptCount, guestProgress.attemptCount),
+    lastResult: newest.lastResult ?? older.lastResult
+  };
+}
+
+export interface CodingLabMigrationSnapshot {
+  drafts: Record<string, CodingLabDraft>;
+  progress: Record<string, CodingLabProgress>;
+}
+
+/**
+ * Copies guest recovery state into the signed-in browser namespace without deleting
+ * either source. Server synchronization remains the caller's responsibility.
+ */
+export function migrateGuestCodingLabStateToUser(
+  userId: string
+): CodingLabMigrationSnapshot {
+  const guestStore = readStore("guest");
+  const userSuffix = storageSuffix(userId);
+  const userStore = readStore(userSuffix);
+  const drafts = { ...userStore.drafts };
+
+  Object.entries(guestStore.drafts).forEach(([slug, guestDraft]) => {
+    const accountDraft = drafts[slug];
+    if (!accountDraft || timestamp(guestDraft.savedAt) > timestamp(accountDraft.savedAt)) {
+      drafts[slug] = guestDraft;
+    }
+  });
+
+  writeStore(
+    {
+      drafts,
+      selectedByTrack: {
+        ...guestStore.selectedByTrack,
+        ...userStore.selectedByTrack
+      }
+    },
+    userSuffix
+  );
+
+  const guestProgress = getCodingLabProgressMapForSuffix("guest");
+  const progress = { ...getCodingLabProgressMapForSuffix(userSuffix) };
+  Object.entries(guestProgress).forEach(([slug, item]) => {
+    progress[slug] = mergeProgress(progress[slug], item);
+  });
+  if (canUseStorage()) {
+    window.localStorage.setItem(progressStorageKey(userSuffix), JSON.stringify(progress));
+  }
+
+  return { drafts, progress };
+}
+
 export function recordCodingLabAttempt(
   slug: string,
   track: CodingLabTrack,
-  passed: boolean
+  passed: boolean,
+  lastResult?: unknown
 ): Record<string, CodingLabProgress> {
   const progressMap = getCodingLabProgressMap();
   const existing = progressMap[slug];
@@ -157,7 +257,8 @@ export function recordCodingLabAttempt(
     completedAt: existing?.completedAt ?? (passed ? attemptedAt : undefined),
     lastAttemptedAt: attemptedAt,
     attemptCount: (existing?.attemptCount ?? 0) + 1,
-    track
+    track,
+    lastResult: lastResult ?? existing?.lastResult
   };
 
   const nextProgressMap = {
@@ -166,7 +267,7 @@ export function recordCodingLabAttempt(
   };
 
   if (canUseStorage()) {
-    window.localStorage.setItem(PROGRESS_STORAGE_KEY, JSON.stringify(nextProgressMap));
+    window.localStorage.setItem(progressStorageKey(), JSON.stringify(nextProgressMap));
   }
 
   return nextProgressMap;
