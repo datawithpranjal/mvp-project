@@ -15,6 +15,23 @@ interface AuthFormProps {
   onSuccess?: (user: AuthUser) => void;
 }
 
+function getAuthErrorMessage(error: unknown, fallback: string): string {
+  if (!(error instanceof Error)) {
+    return fallback;
+  }
+
+  const normalizedMessage = error.message.trim().toLowerCase();
+  if (
+    normalizedMessage === "not found" ||
+    normalizedMessage.includes("status 404") ||
+    normalizedMessage === "failed to fetch"
+  ) {
+    return "Login service is temporarily unavailable. Please try again in a few minutes.";
+  }
+
+  return error.message;
+}
+
 export function AuthForm({
   title,
   description,
@@ -68,11 +85,7 @@ export function AuthForm({
       setResendMessage(null);
       setStep("otp");
     } catch (requestError) {
-      const message =
-        requestError instanceof Error
-          ? requestError.message
-          : "Unable to send OTP right now.";
-      setError(message);
+      setError(getAuthErrorMessage(requestError, "Unable to send OTP right now."));
     } finally {
       setIsSubmitting(false);
     }
@@ -93,11 +106,7 @@ export function AuthForm({
       setResendSeconds(response.resend_after_seconds ?? 60);
       setResendMessage(`A new OTP was sent to ${response.email}.`);
     } catch (requestError) {
-      setError(
-        requestError instanceof Error
-          ? requestError.message
-          : "Unable to resend OTP right now."
-      );
+      setError(getAuthErrorMessage(requestError, "Unable to resend OTP right now."));
     } finally {
       setIsResendingOtp(false);
     }
@@ -116,9 +125,7 @@ export function AuthForm({
       const user = saveAuthSession(session);
       onSuccess?.(user);
     } catch (verifyError) {
-      const message =
-        verifyError instanceof Error ? verifyError.message : "Unable to verify OTP.";
-      setError(message);
+      setError(getAuthErrorMessage(verifyError, "Unable to verify OTP."));
     } finally {
       setIsSubmitting(false);
     }
