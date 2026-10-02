@@ -12,6 +12,7 @@ import {
   isLaunchReadyCodingLab,
   type LaunchReadyFilterOptions
 } from "./launch-ready-content";
+import { GOLD_CORE_CODING_OVERRIDES } from "./gold-core";
 
 export type CodingLabTrack = "sql" | "python" | "pyspark";
 export type CodingLabDifficulty = "beginner" | "intermediate" | "advanced";
@@ -147,7 +148,7 @@ function normalizeLab(value: unknown): CodingLab | null {
     ? PYSPARK_LAB_RUNTIME_OVERRIDES[slug]
     : undefined;
 
-  return {
+  const normalized: CodingLab = {
     id,
     slug,
     title,
@@ -181,6 +182,28 @@ function normalizeLab(value: unknown): CodingLab | null {
         : normalizeTrack(value.track) === "python"
           ? "python"
           : "pyspark"
+  };
+
+  const goldOverride = GOLD_CORE_CODING_OVERRIDES[slug];
+  if (!goldOverride) {
+    return normalized;
+  }
+
+  return {
+    ...normalized,
+    businessContext: goldOverride.businessContext ?? normalized.businessContext,
+    problemStatement: goldOverride.problemStatement ?? normalized.problemStatement,
+    expectedOutcome: goldOverride.expectedOutcome ?? normalized.expectedOutcome,
+    explanation: goldOverride.explanation ?? normalized.explanation,
+    commonMistakes: goldOverride.commonMistakes ?? normalized.commonMistakes,
+    sqlTestCases:
+      goldOverride.edgeCaseDescription && normalized.sqlTestCases
+        ? normalized.sqlTestCases.map((testCase, index) =>
+            index === 0
+              ? { ...testCase, description: goldOverride.edgeCaseDescription as string }
+              : testCase
+          )
+        : normalized.sqlTestCases
   };
 }
 

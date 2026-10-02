@@ -572,16 +572,6 @@ export const MOCK_INTERVIEW_QUESTIONS: MockInterviewQuestion[] = [
   }
 ];
 
-export const LEVELS = [
-  { name: "Data Rookie", minXp: 0 },
-  { name: "SQL Builder", minXp: 100 },
-  { name: "Pipeline Builder", minXp: 250 },
-  { name: "Spark Debugger", minXp: 450 },
-  { name: "Production Thinker", minXp: 700 },
-  { name: "Interview Ready", minXp: 1000 },
-  { name: "Job Ready Data Engineer", minXp: 1500 }
-];
-
 export function formatValidationMode(validationType: ValidationType): string {
   if (validationType === "SQL_OUTPUT_MATCH") {
     return "SQL Lab";

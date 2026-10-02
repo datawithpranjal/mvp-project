@@ -30,6 +30,7 @@ export function SiteHeader() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const lastPremiumStatusSyncToken = useRef<string | null>(null);
   const isPracticeRoute =
+    pathname === "/gold-core" ||
     pathname === "/labs" ||
     pathname.startsWith("/labs/") ||
     pathname === "/system-design";
@@ -111,6 +112,7 @@ export function SiteHeader() {
                 Practice
               </Link>
               <div className="practice-menu invisible absolute left-0 top-full z-50 w-[340px] translate-y-2 rounded-3xl border p-3 opacity-0 transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
+                <PracticeLink href="/gold-core" title="Gold Core" detail="Start with 30 reviewed, sequenced exercises" />
                 <PracticeLink href="/labs" title="All Practice" detail="Choose a guided lab or practice track" />
                 <PracticeLink href="/labs/sql" title="SQL Lab" detail="Interview SQL with real data and validation" />
                 <PracticeLink href="/labs/python" title="Python Lab" detail="Data engineering Python practice" />
@@ -207,6 +209,7 @@ export function SiteHeader() {
             className="mx-auto grid max-w-7xl grid-cols-2 gap-2 px-4 pb-4 text-sm font-semibold text-slate-300 sm:px-8 lg:hidden"
           >
             {[
+              ["Gold Core", "/gold-core"],
               ["Scenario Playground", "/scenarios"],
               ["Practice", "/labs"],
               ["Roadmap", "/roadmap"],

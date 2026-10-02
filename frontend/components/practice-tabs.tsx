@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const PRACTICE_TABS = [
+  { label: "Gold Core", href: "/gold-core" },
   { label: "All", href: "/labs" },
   { label: "SQL", href: "/labs/sql" },
   { label: "Python", href: "/labs/python" },

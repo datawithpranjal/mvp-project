@@ -254,7 +254,11 @@ GROUP BY order_date;`,
         isCorrect: false
       }
     ],
-    hints: ["Retries and backfills are safe only when repeated execution is safe.", "Think partition replacement, MERGE, or staged atomic swap."],
+    hints: [
+      "Retries and backfills are safe only when repeated execution is safe.",
+      "Think partition replacement, MERGE, or staged atomic swap.",
+      "Prove the fix by rerunning the same logical interval and reconciling keys, row counts, and revenue."
+    ],
     expectedKeywords: ["idempotent", "merge", "upsert", "partition", "logical date", "reconciliation"],
     modelAnswer: {
       diagnosis:
@@ -360,7 +364,11 @@ AccessDenied: kms:Decrypt`,
         isCorrect: false
       }
     ],
-    hints: ["The webserver needs a reliable route to the configured log backend.", "The error already names a permission outside Airflow task logic."],
+    hints: [
+      "The webserver needs a reliable route to the configured log backend.",
+      "The error already names a permission outside Airflow task logic.",
+      "Check the worker-to-storage write path separately from the webserver-to-storage read and decrypt path."
+    ],
     expectedKeywords: ["remote logging", "s3", "kms", "permission", "network", "webserver"],
     modelAnswer: {
       diagnosis:
@@ -414,7 +422,11 @@ retry_delay=30s`,
         isCorrect: false
       }
     ],
-    hints: ["Airflow pools are safety valves for scarce downstream capacity.", "Avoid synchronized retries."],
+    hints: [
+      "Airflow pools are safety valves for scarce downstream capacity.",
+      "Avoid synchronized retries.",
+      "Use Retry-After, exponential backoff, and jitter while keeping requests safe to repeat."
+    ],
     expectedKeywords: ["pool", "rate limit", "backoff", "jitter", "429", "concurrency"],
     modelAnswer: {
       diagnosis:
@@ -575,7 +587,11 @@ result: 3 empty runs, 2 stale publishes`,
         isCorrect: false
       }
     ],
-    hints: ["The real dependency is a dataset state, not a wall-clock minute.", "Avoid creating tightly coupled trigger spaghetti."],
+    hints: [
+      "The real dependency is a dataset state, not a wall-clock minute.",
+      "Avoid creating tightly coupled trigger spaghetti.",
+      "Validate the expected partition or freshness contract even after the readiness event arrives."
+    ],
     expectedKeywords: ["asset", "event", "freshness", "dependency", "data ready", "lineage"],
     modelAnswer: {
       diagnosis:
@@ -840,7 +856,11 @@ warehouse loads: 2`,
         isCorrect: false
       }
     ],
-    hints: ["Event-driven systems commonly deliver at least once.", "Build a stable idempotency key from the object identity."],
+    hints: [
+      "Event-driven systems commonly deliver at least once.",
+      "Build a stable idempotency key from the object identity.",
+      "Claim the key atomically before processing and keep the target write safe to retry."
+    ],
     expectedKeywords: ["idempotent", "etag", "version", "conditional write", "dedup", "replay"],
     modelAnswer: {
       diagnosis:
@@ -1428,7 +1448,11 @@ job pattern: standard Spark ETL`,
         isCorrect: false
       }
     ],
-    hints: ["Service choice includes team operations, not only engine features.", "Name what additional control would justify EMR."],
+    hints: [
+      "Service choice includes team operations, not only engine features.",
+      "Name what additional control would justify EMR.",
+      "Compare both options with the same workload, SLA, cost-per-run, and operational-effort measures."
+    ],
     expectedKeywords: ["glue", "emr", "operations", "control", "custom", "cost"],
     modelAnswer: {
       diagnosis:

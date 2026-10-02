@@ -69,10 +69,15 @@ export function SystemDesignStudio() {
 
   useEffect(() => {
     const savedProgress = readProgress();
-    const initialSlug = SYSTEM_DESIGN_CASES[0]?.slug ?? "";
+    const requestedSlug = new URLSearchParams(window.location.search).get("case");
+    const initialSlug =
+      requestedSlug && SYSTEM_DESIGN_CASES.some((item) => item.slug === requestedSlug)
+        ? requestedSlug
+        : SYSTEM_DESIGN_CASES[0]?.slug ?? "";
     const savedSelectedProgress = savedProgress[initialSlug];
 
     setProgressMap(savedProgress);
+    setSelectedSlug(initialSlug);
     setPremiumAccess(getPremiumAccess());
     setAnswer(savedSelectedProgress?.draft ?? "");
     setSelectedOptions(savedSelectedProgress?.selectedOptions ?? {});
