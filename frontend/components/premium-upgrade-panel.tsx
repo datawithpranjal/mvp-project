@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import { AUTH_UPDATED_EVENT, getAuthToken, getCurrentUser, type AuthUser } from "../lib/auth";
@@ -14,6 +15,7 @@ import type { PremiumCouponQuote } from "../lib/types";
 import {
   PREMIUM_ACCESS_UPDATED_EVENT,
   getPremiumAccess,
+  refreshPremiumAccessFromServer,
   savePremiumAccess,
   type BillingInterval,
   type PremiumAccessRecord
@@ -153,22 +155,55 @@ export function PremiumUpgradePanel({
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [checkoutSuccess, setCheckoutSuccess] = useState<string | null>(null);
   const [isRazorpayLoading, setIsRazorpayLoading] = useState(false);
+  const [isAccessLoading, setIsAccessLoading] = useState(true);
 
   useEffect(() => {
-    function syncState() {
+    let isActive = true;
+
+    function syncLocalState() {
+      if (!isActive) return;
       setCurrentUser(getCurrentUser());
       setPremiumAccessState(getPremiumAccess());
     }
 
-    syncState();
-    window.addEventListener("storage", syncState);
-    window.addEventListener(AUTH_UPDATED_EVENT, syncState);
-    window.addEventListener(PREMIUM_ACCESS_UPDATED_EVENT, syncState);
+    function syncStateFromServer() {
+      const user = getCurrentUser();
+      const cachedPremiumAccess = getPremiumAccess();
+
+      if (!isActive) return;
+      setCurrentUser(user);
+      setPremiumAccessState(cachedPremiumAccess);
+
+      const token = getAuthToken();
+      if (!user || !token) {
+        setIsAccessLoading(false);
+        return;
+      }
+
+      setIsAccessLoading(true);
+      refreshPremiumAccessFromServer(token)
+        .then((serverPremiumAccess) => {
+          if (!isActive) return;
+          setPremiumAccessState(serverPremiumAccess);
+        })
+        .catch(() => {
+          // Preserve a valid local record when the status endpoint is temporarily unavailable.
+        })
+        .finally(() => {
+          if (isActive) setIsAccessLoading(false);
+        });
+    }
+
+    syncStateFromServer();
+    window.addEventListener("storage", syncStateFromServer);
+    window.addEventListener(AUTH_UPDATED_EVENT, syncStateFromServer);
+    window.addEventListener(PREMIUM_ACCESS_UPDATED_EVENT, syncLocalState);
 
     return () => {
-      window.removeEventListener("storage", syncState);
-      window.removeEventListener(AUTH_UPDATED_EVENT, syncState);
-      window.removeEventListener(PREMIUM_ACCESS_UPDATED_EVENT, syncState);
+      isActive = false;
+      window.removeEventListener("storage", syncStateFromServer);
+      window.removeEventListener(AUTH_UPDATED_EVENT, syncStateFromServer);
+      window.removeEventListener(PREMIUM_ACCESS_UPDATED_EVENT, syncLocalState);
     };
   }, []);
 
@@ -309,8 +344,17 @@ export function PremiumUpgradePanel({
                 payment_method: "razorpay"
               };
               savePremiumAccess(premiumRecord);
-              setPremiumAccessState(premiumRecord);
-              setCheckoutSuccess("Payment verified. Premium access is now active on your account.");
+              let confirmedAccess = premiumRecord;
+              try {
+                confirmedAccess =
+                  (await refreshPremiumAccessFromServer(token)) ?? premiumRecord;
+              } catch {
+                // The verification response already confirms the grant. The next page load retries status.
+              }
+              setPremiumAccessState(confirmedAccess);
+              setCheckoutSuccess(
+                "Payment verified. Premium access is now active on your account."
+              );
               onUnlocked?.();
               resolve();
             } catch (error) {
@@ -386,7 +430,13 @@ export function PremiumUpgradePanel({
         payment_method: "coupon"
       };
       savePremiumAccess(premiumRecord);
-      setPremiumAccessState(premiumRecord);
+      let confirmedAccess = premiumRecord;
+      try {
+        confirmedAccess = (await refreshPremiumAccessFromServer(token)) ?? premiumRecord;
+      } catch {
+        // The coupon response already confirms the grant. The next page load retries status.
+      }
+      setPremiumAccessState(confirmedAccess);
       setCheckoutSuccess("Coupon applied. Premium access is active.");
       onUnlocked?.();
     } catch (error) {
@@ -398,6 +448,26 @@ export function PremiumUpgradePanel({
     } finally {
       setIsRazorpayLoading(false);
     }
+  }
+
+  if (isAccessLoading) {
+    return (
+      <div
+        className="panel rounded-3xl border border-slate-700 bg-slate-950/35 p-6"
+        role="status"
+        aria-live="polite"
+      >
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+          Account access
+        </p>
+        <h3 className="mt-3 text-xl font-semibold text-slate-50">
+          Checking your Premium status…
+        </h3>
+        <p className="mt-2 text-sm leading-6 text-slate-300">
+          We are confirming your access before showing checkout.
+        </p>
+      </div>
+    );
   }
 
   if (!currentUser) {
@@ -413,43 +483,71 @@ export function PremiumUpgradePanel({
   }
 
   if (premiumAccess) {
+    const isFreshActivation = Boolean(checkoutSuccess);
+
     return (
-      <div className="panel rounded-3xl border border-teal-300/20 bg-teal-300/10 p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h3 className="text-lg font-semibold text-teal-50">Premium unlocked</h3>
-            <p className="mt-2 text-sm leading-6 text-teal-100">
-              {currentUser.email} is active on the{" "}
-              <span className="font-semibold">{premiumAccess.plan_label}</span> plan.
-            </p>
+      <div
+        className={`relative overflow-hidden rounded-[2rem] border p-6 sm:p-8 ${
+          isFreshActivation
+            ? "border-amber-300/40 bg-gradient-to-br from-amber-300/15 via-slate-950/70 to-teal-300/10 shadow-[0_0_42px_rgba(251,191,36,0.12)]"
+            : "border-amber-300/25 bg-gradient-to-br from-amber-300/10 via-slate-950/60 to-slate-950/30"
+        }`}
+        role={isFreshActivation ? "status" : undefined}
+        aria-live={isFreshActivation ? "polite" : undefined}
+      >
+        <div className="pointer-events-none absolute -right-12 -top-16 h-48 w-48 rounded-full bg-amber-300/10 blur-3xl" />
+
+        <div className="relative">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex items-start gap-4">
+              <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-amber-200/40 bg-amber-300/15 text-amber-100 shadow-[0_0_28px_rgba(251,191,36,0.15)]">
+                <PremiumSuccessIcon />
+              </span>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-200">
+                  Premium active
+                </p>
+                <h3 className="mt-2 text-2xl font-semibold text-slate-50 sm:text-3xl">
+                  {isFreshActivation
+                    ? "Payment successful — everything is unlocked."
+                    : "Your Premium access is active."}
+                </h3>
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
+                  {checkoutSuccess ??
+                    `Welcome back. Your ${premiumAccess.plan_label} access is linked to ${currentUser.email} and follows your account across devices.`}
+                </p>
+              </div>
+            </div>
+            <span className="rounded-full border border-amber-200/35 bg-amber-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-amber-100">
+              {premiumAccess.billing_interval} member
+            </span>
           </div>
-          <span className="rounded-full border border-teal-200/30 bg-teal-200/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-teal-50">
-            {premiumAccess.billing_interval}
-          </span>
-        </div>
-        <div className="mt-4 grid gap-3 md:grid-cols-4">
-          <div className="rounded-2xl border border-teal-200/20 bg-slate-950/20 px-4 py-4">
-            <p className="text-xs uppercase tracking-[0.18em] text-teal-200/70">Plan price</p>
-            <p className="mt-2 text-lg font-semibold text-teal-50">Rs {premiumAccess.amount_inr}</p>
+
+          <div className="mt-6 grid gap-3 sm:grid-cols-3">
+            <PremiumDetail label="Plan" value={premiumAccess.plan_label} />
+            <PremiumDetail label="Valid until" value={formatTimestamp(premiumAccess.expiresAt)} />
+            <PremiumDetail label="Account" value={currentUser.email} />
           </div>
-          <div className="rounded-2xl border border-teal-200/20 bg-slate-950/20 px-4 py-4">
-            <p className="text-xs uppercase tracking-[0.18em] text-teal-200/70">Unlocked at</p>
-            <p className="mt-2 text-sm font-semibold text-teal-50">
-              {formatTimestamp(premiumAccess.unlockedAt)}
-            </p>
+
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <Link
+              href="/roadmap"
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-amber-300 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-200"
+            >
+              Start the Core Practice Path
+              <span aria-hidden="true">→</span>
+            </Link>
+            <Link
+              href="/labs"
+              className="inline-flex items-center justify-center rounded-full border border-slate-700 px-5 py-3 text-sm font-semibold text-slate-200 transition hover:border-amber-300/40 hover:text-amber-100"
+            >
+              Explore all practice
+            </Link>
           </div>
-          <div className="rounded-2xl border border-teal-200/20 bg-slate-950/20 px-4 py-4">
-            <p className="text-xs uppercase tracking-[0.18em] text-teal-200/70">Valid until</p>
-            <p className="mt-2 text-sm font-semibold text-teal-50">
-              {formatTimestamp(premiumAccess.expiresAt)}
-            </p>
-          </div>
-          <div className="rounded-2xl border border-teal-200/20 bg-slate-950/20 px-4 py-4">
-            <p className="text-xs uppercase tracking-[0.18em] text-teal-200/70">Payment reference</p>
-            <p className="mt-2 text-sm font-semibold text-teal-50">
-              {premiumAccess.payment_reference}
-            </p>
-          </div>
+
+          <p className="mt-5 text-xs leading-5 text-slate-500">
+            Payment reference: {premiumAccess.payment_reference}
+          </p>
         </div>
       </div>
     );
@@ -642,5 +740,28 @@ export function PremiumUpgradePanel({
         </div>
       </div>
     </div>
+  );
+}
+
+function PremiumDetail({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-amber-200/15 bg-slate-950/35 px-4 py-4">
+      <p className="text-xs uppercase tracking-[0.18em] text-amber-200/65">{label}</p>
+      <p className="mt-2 break-words text-sm font-semibold text-slate-100">{value}</p>
+    </div>
+  );
+}
+
+function PremiumSuccessIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" aria-hidden="true">
+      <path
+        d="m7 12.5 3.1 3.1L17.5 8"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }

@@ -77,7 +77,13 @@ export function SiteHeader() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-slate-800/80 bg-slate-950/70 backdrop-blur-xl">
+      <header
+        className={`sticky top-0 z-40 border-b backdrop-blur-xl transition-colors ${
+          premiumAccess
+            ? "border-amber-300/25 bg-gradient-to-r from-slate-950/85 via-amber-950/25 to-slate-950/85"
+            : "border-slate-800/80 bg-slate-950/70"
+        }`}
+      >
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-8">
           <Link href="/" className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-200">
@@ -134,16 +140,23 @@ export function SiteHeader() {
               {premiumAccess ? (
                 <span
                   role="img"
-                  aria-label="Premium member"
-                  title="Premium member"
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-amber-300/35 bg-amber-300/10 text-amber-200 shadow-[0_0_24px_rgba(252,211,77,0.08)]"
+                  aria-label="Premium access active"
+                  title="Premium access active"
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-amber-300/35 bg-amber-300/10 px-3 text-amber-100 shadow-[0_0_24px_rgba(252,211,77,0.1)]"
                 >
                   <PremiumCrownIcon />
+                  <span className="hidden text-xs font-semibold uppercase tracking-[0.16em] xl:inline">
+                    Premium
+                  </span>
                 </span>
               ) : null}
               <Link
                 href="/dashboard"
-                className="hidden rounded-full bg-teal-300 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-teal-200 sm:inline-flex"
+                className={`hidden rounded-full px-4 py-2 text-sm font-semibold text-slate-950 transition sm:inline-flex ${
+                  premiumAccess
+                    ? "bg-amber-300 hover:bg-amber-200"
+                    : "bg-teal-300 hover:bg-teal-200"
+                }`}
               >
                 Dashboard
               </Link>
