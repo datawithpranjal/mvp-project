@@ -5,11 +5,5 @@
       "path": "/api/cron/content-audit/daily",
       "schedule": "0 2 * * *"
     }
-  ],
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/api/index"
-    }
   ]
 }
