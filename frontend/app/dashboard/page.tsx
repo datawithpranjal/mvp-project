@@ -8,24 +8,23 @@ import {
   getCurrentUser,
   type AuthUser
 } from "../../lib/auth";
+import {
+  getCorePathStatuses,
+  type CorePathStatus
+} from "../../lib/core-path-progress";
+import { GOLD_CORE_ITEMS } from "../../lib/gold-core";
 import { getOnboardingProfile, type OnboardingProfile } from "../../lib/onboarding";
-import { LEARNING_PATHS } from "../../lib/product";
 import { getScenarioProgressMap, type ScenarioProgressSummary } from "../../lib/progress";
 import { calculatePracticeProgress } from "../../lib/practice-progress";
-import { getRoadmapProgress, type RoadmapProgress } from "../../lib/roadmap-progress";
 import { getScenarios, type Scenario } from "../../lib/scenarios";
 import { AuthDialog } from "../../components/auth-dialog";
 
 export default function DashboardPage() {
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [progressMap, setProgressMap] = useState<Record<string, ScenarioProgressSummary>>({});
+  const [coreStatuses, setCoreStatuses] = useState<Record<string, CorePathStatus>>({});
   const [onboarding, setOnboarding] = useState<OnboardingProfile | null>(null);
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
-  const [roadmapProgress, setRoadmapProgress] = useState<RoadmapProgress>({
-    activePathSlug: null,
-    completedDays: {},
-    updatedAt: null
-  });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
@@ -37,9 +36,9 @@ export default function DashboardPage() {
         setError(null);
         setScenarios(getScenarios());
         setProgressMap(getScenarioProgressMap());
+        setCoreStatuses(getCorePathStatuses());
         setOnboarding(getOnboardingProfile());
         setCurrentUser(getCurrentUser());
-        setRoadmapProgress(getRoadmapProgress());
       } catch (loadError) {
         const message =
           loadError instanceof Error ? loadError.message : "Failed to load dashboard.";
@@ -62,11 +61,16 @@ export default function DashboardPage() {
     () => calculatePracticeProgress(scenarios, progressMap),
     [progressMap, scenarios]
   );
-  const recommendedPath = LEARNING_PATHS.find(
-    (path) => path.slug === onboarding?.recommendedPathSlug
-  ) ?? LEARNING_PATHS[0];
   const completedScenarios = scenarios.filter((scenario) => progressMap[scenario.slug]?.completed);
-  const hasNoProgress = Object.keys(progressMap).length === 0;
+  const completedCoreCount = GOLD_CORE_ITEMS.filter(
+    (item) => coreStatuses[item.slug] === "done"
+  ).length;
+  const nextCoreItem =
+    GOLD_CORE_ITEMS.find((item) => coreStatuses[item.slug] === "in_progress") ??
+    GOLD_CORE_ITEMS.find((item) => coreStatuses[item.slug] !== "done") ??
+    null;
+  const hasCoreActivity = Object.values(coreStatuses).some((status) => status !== "new");
+  const hasNoProgress = Object.keys(progressMap).length === 0 && !hasCoreActivity;
   const hasGuestActivity = Boolean(onboarding) || !hasNoProgress;
   const continueScenario =
     scenarios.find(
@@ -326,17 +330,20 @@ export default function DashboardPage() {
 
       <section className="mt-6 grid gap-6 lg:grid-cols-3">
         <div className="panel rounded-3xl p-6">
-          <h2 className="text-xl font-semibold text-slate-50">Gold Core</h2>
-          <p className="mt-3 text-sm font-semibold text-teal-100">30 reviewed exercises</p>
+          <h2 className="text-xl font-semibold text-slate-50">Core Practice Path</h2>
+          <p className="mt-3 text-sm font-semibold text-teal-100">
+            {completedCoreCount}/{GOLD_CORE_ITEMS.length} core exercises completed
+          </p>
           <p className="mt-3 text-sm leading-6 text-slate-300">
-            Follow the curated SQL, Python, PySpark, production, cloud, and system-design
-            sequence before exploring the full library.
+            {nextCoreItem
+              ? `Recommended next: ${nextCoreItem.title}. The complete practice library remains available inside every roadmap stage.`
+              : "The core sequence is complete. Use the full library and your review signals for deeper practice."}
           </p>
           <Link
-            href="/gold-core"
+            href="/roadmap"
             className="mt-5 inline-flex rounded-full border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-teal-300/40"
           >
-            Open Gold Core
+            Continue your roadmap
           </Link>
         </div>
 
@@ -376,10 +383,9 @@ export default function DashboardPage() {
         <DashboardList
           title="Current roadmap"
           items={[
-            roadmapProgress.activePathSlug
-              ? `Active: ${LEARNING_PATHS.find((path) => path.slug === roadmapProgress.activePathSlug)?.name ?? roadmapProgress.activePathSlug}`
-              : recommendedPath.name,
-            `${(roadmapProgress.completedDays[roadmapProgress.activePathSlug ?? recommendedPath.slug] ?? []).length} roadmap stages completed`
+            "Core Practice Path",
+            `${completedCoreCount}/${GOLD_CORE_ITEMS.length} core exercises completed`,
+            nextCoreItem ? `Next: ${nextCoreItem.title}` : "Next: review weak areas and explore the full library"
           ]}
         />
         <DashboardList

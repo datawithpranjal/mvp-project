@@ -41,8 +41,9 @@ const expectedModuleCounts: Record<string, number> = {
   "SQL correctness": 8,
   "Python for pipelines": 5,
   "PySpark production": 5,
-  "Production incidents": 6,
-  "Cloud judgment": 2,
+  "Airflow and operations": 4,
+  "AWS judgment": 2,
+  "Broken-pipeline scenarios": 2,
   "System design": 4
 };
 

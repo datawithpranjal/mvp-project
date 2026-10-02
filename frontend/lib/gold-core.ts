@@ -153,15 +153,16 @@ export const GOLD_CORE_ITEMS: GoldCoreItem[] = [
   coding(17, "PySpark production", "pyspark", "pyspark-schema-drift-json", "Preserve a new field after schema drift", "Explicit schemas and curated outputs", "PySpark DataFrame selection", "Intermediate", 22, false),
   coding(18, "PySpark production", "pyspark", "pyspark-broadcast-wrong-side", "Broadcast the correct join side", "Join strategy and size-aware optimization", "PySpark joins", "Intermediate", 22, false),
 
-  scenario(19, "Production incidents", "yesterdays-sales-missing-late-source-arrival", "Recover revenue after a late source arrival", "Late data, reconciliation and safe recovery", "Batch pipelines and business dates", "Intermediate", 25, true),
-  scenario(20, "Production incidents", "revenue-drop-new-successful-status", "Diagnose a revenue drop after a status change", "Data-contract drift and monitoring", "SQL filters and data-quality checks", "Beginner", 20, false),
-  operations(21, "Production incidents", "airflow", "airflow-backfill-duplicates", "Prevent a backfill from doubling revenue", "Idempotent backfills", "Airflow DAG runs and write modes", "Intermediate", 22, false),
-  operations(22, "Production incidents", "airflow", "airflow-api-rate-limit-storm", "Recover from an API rate-limit storm", "Bounded retries, backoff and shared limits", "Airflow retries and APIs", "Intermediate", 22, false),
-  operations(23, "Production incidents", "airflow", "airflow-worker-logs-missing", "Restore missing worker logs", "Operational observability and evidence preservation", "Airflow workers and remote logging", "Intermediate", 20, false),
-  operations(24, "Production incidents", "airflow", "airflow-event-driven-assets", "Replace brittle cron coupling", "Dataset readiness and event-driven orchestration", "Airflow scheduling and dependencies", "Advanced", 25, false),
+  operations(19, "Airflow and operations", "airflow", "airflow-backfill-duplicates", "Prevent a backfill from doubling revenue", "Idempotent backfills", "Airflow DAG runs and write modes", "Intermediate", 22, false),
+  operations(20, "Airflow and operations", "airflow", "airflow-api-rate-limit-storm", "Recover from an API rate-limit storm", "Bounded retries, backoff and shared limits", "Airflow retries and APIs", "Intermediate", 22, false),
+  operations(21, "Airflow and operations", "airflow", "airflow-worker-logs-missing", "Restore missing worker logs", "Operational observability and evidence preservation", "Airflow workers and remote logging", "Intermediate", 20, false),
+  operations(22, "Airflow and operations", "airflow", "airflow-event-driven-assets", "Replace brittle cron coupling", "Dataset readiness and event-driven orchestration", "Airflow scheduling and dependencies", "Advanced", 25, false),
 
-  operations(25, "Cloud judgment", "aws", "aws-s3-event-duplicates", "Make duplicate S3 events harmless", "At-least-once delivery and idempotency", "S3 events and object keys", "Intermediate", 20, false),
-  operations(26, "Cloud judgment", "aws", "aws-glue-vs-emr-selection", "Choose Glue or EMR for a nightly workload", "Workload-driven service selection", "Basic AWS data services", "Intermediate", 22, false),
+  operations(23, "AWS judgment", "aws", "aws-s3-event-duplicates", "Make duplicate S3 events harmless", "At-least-once delivery and idempotency", "S3 events and object keys", "Intermediate", 20, false),
+  operations(24, "AWS judgment", "aws", "aws-glue-vs-emr-selection", "Choose Glue or EMR for a nightly workload", "Workload-driven service selection", "Basic AWS data services", "Intermediate", 22, false),
+
+  scenario(25, "Broken-pipeline scenarios", "yesterdays-sales-missing-late-source-arrival", "Recover revenue after a late source arrival", "Late data, reconciliation and safe recovery", "Batch pipelines and business dates", "Intermediate", 25, true),
+  scenario(26, "Broken-pipeline scenarios", "revenue-drop-new-successful-status", "Diagnose a revenue drop after a status change", "Data-contract drift and monitoring", "SQL filters and data-quality checks", "Beginner", 20, false),
 
   systemDesign(27, "System design", "ecommerce-orders-data-platform", "Design an e-commerce orders data platform", "Batch architecture, auditability and revenue reconciliation", "Core pipeline components", "Beginner", 35, true),
   systemDesign(28, "System design", "postgres-cdc-to-warehouse", "Design Postgres CDC to a warehouse", "Change capture, ordering and replay", "CDC fundamentals", "Intermediate", 40, true),
@@ -175,6 +176,110 @@ export const GOLD_CORE_MODULES = Array.from(
   name,
   items: GOLD_CORE_ITEMS.filter((item) => item.module === name)
 }));
+
+export interface CorePathStage {
+  stage: number;
+  title: string;
+  description: string;
+  exploreHref: string;
+  exploreLabel: string;
+  checkpoints: string[];
+  items: GoldCoreItem[];
+}
+
+export const CORE_PATH_STAGES: CorePathStage[] = [
+  {
+    stage: 1,
+    title: "SQL correctness",
+    description: "Build reliable grain, joins, windows, deduplication, change detection, and late-data reasoning.",
+    exploreHref: "/labs/sql",
+    exploreLabel: "Explore all SQL problems",
+    checkpoints: [
+      "Return the correct business grain without duplicates",
+      "Handle ties, NULLs, and deterministic row selection",
+      "Explain why the query stays correct on edge cases"
+    ],
+    items: GOLD_CORE_ITEMS.filter((item) => item.track === "sql")
+  },
+  {
+    stage: 2,
+    title: "Python for pipelines",
+    description: "Use Python for validation, idempotency, reconciliation, deterministic selection, and CDC handling.",
+    exploreHref: "/labs/python",
+    exploreLabel: "Explore all Python problems",
+    checkpoints: [
+      "Write readable functions with explicit input and output contracts",
+      "Test empty, duplicate, malformed, and missing-value cases",
+      "Preserve deterministic behavior when inputs are replayed"
+    ],
+    items: GOLD_CORE_ITEMS.filter((item) => item.track === "python")
+  },
+  {
+    stage: 3,
+    title: "PySpark production",
+    description: "Practise deterministic DataFrame transformations, schema evolution, timezones, and join strategy.",
+    exploreHref: "/labs/pyspark",
+    exploreLabel: "Explore all PySpark problems",
+    checkpoints: [
+      "Choose deterministic windows and schema-safe transformations",
+      "Reason about timezones, joins, shuffle, and partition behavior",
+      "Explain the production consequence of the original bug"
+    ],
+    items: GOLD_CORE_ITEMS.filter((item) => item.track === "pyspark")
+  },
+  {
+    stage: 4,
+    title: "Airflow and operations",
+    description: "Recover safely from backfill, retry, observability, and orchestration failures.",
+    exploreHref: "/labs/airflow",
+    exploreLabel: "Explore all Airflow problems",
+    checkpoints: [
+      "Separate scheduler, worker, dependency, and downstream failures",
+      "Design idempotent recovery and bounded retries",
+      "Name the evidence and monitoring needed to verify recovery"
+    ],
+    items: GOLD_CORE_ITEMS.filter((item) => item.track === "airflow")
+  },
+  {
+    stage: 5,
+    title: "AWS judgment",
+    description: "Make cloud decisions from workload evidence, delivery guarantees, cost, and operating constraints.",
+    exploreHref: "/labs/aws",
+    exploreLabel: "Explore all AWS problems",
+    checkpoints: [
+      "Start with workload, scale, latency, and failure constraints",
+      "Compare the chosen service with its closest alternative",
+      "Include security, cost, idempotency, and observability"
+    ],
+    items: GOLD_CORE_ITEMS.filter((item) => item.track === "aws")
+  },
+  {
+    stage: 6,
+    title: "Broken-pipeline scenarios",
+    description: "Combine technical diagnosis, business impact, safe recovery, and prevention in realistic incidents.",
+    exploreHref: "/scenarios",
+    exploreLabel: "Explore all production scenarios",
+    checkpoints: [
+      "Use the supplied evidence before proposing a fix",
+      "State the root cause and affected business outcome",
+      "Describe recovery, reconciliation, and prevention"
+    ],
+    items: GOLD_CORE_ITEMS.filter((item) => item.kind === "scenario")
+  },
+  {
+    stage: 7,
+    title: "System design",
+    description: "Turn requirements into defensible architectures with reliability, replay, quality, and cost trade-offs.",
+    exploreHref: "/system-design",
+    exploreLabel: "Explore all system-design cases",
+    checkpoints: [
+      "Clarify scale, latency, consumers, and data contracts",
+      "Defend architecture choices and their trade-offs",
+      "Include observability, replay, security, and failure recovery"
+    ],
+    items: GOLD_CORE_ITEMS.filter((item) => item.kind === "system_design")
+  }
+];
 
 export function isGoldCoreSlug(slug: string): boolean {
   return GOLD_CORE_ITEMS.some((item) => item.slug === slug);

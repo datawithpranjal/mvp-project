@@ -52,7 +52,7 @@ const OPTION_DETAILS: Record<string, string> = {
   "7 days": "A focused interview sprint.",
   "30 days": "Balanced interview preparation.",
   "60 days": "Fundamentals plus project and scenario depth.",
-  "90 days": "A complete job-ready practice journey."
+  "90 days": "A complete foundation and review cycle."
 };
 
 export default function OnboardingPage() {
