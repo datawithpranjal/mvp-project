@@ -1,4 +1,4 @@
-import { getAuthProfile, logoutAuthSession } from "./api";
+import { ApiError, getAuthProfile, logoutAuthSession } from "./api";
 import type { AuthSessionResponse, AuthUserProfile } from "./types";
 
 export interface AuthUser extends AuthUserProfile {
@@ -123,10 +123,17 @@ export async function refreshCurrentUser(): Promise<AuthUser | null> {
 
   try {
     const user = await getAuthProfile(token);
+    if (getAuthToken() !== token) return getCurrentUser();
     return saveCurrentUser(user);
-  } catch {
-    clearCurrentUser();
-    return null;
+  } catch (error) {
+    // A stale request must never clear a newer login or write over another account.
+    if (getAuthToken() !== token) return getCurrentUser();
+    if (error instanceof ApiError && error.status === 401) {
+      clearCurrentUser();
+      return null;
+    }
+    // Network/5xx errors do not revoke a session. Premium APIs still authorize server-side.
+    return getCurrentUser();
   }
 }
 

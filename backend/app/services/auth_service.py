@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 import hmac
 import hashlib
 import json
+import logging
 import math
 import secrets
 from typing import Any
@@ -99,7 +100,7 @@ class AuthService:
         if payload.mode == "signup":
             self._upsert_user(payload, now)
             self._capture_signup_email(payload.email)
-        else:
+        elif payload.mode == "signin":
             if not self._get_user_by_email(payload.email):
                 raise AuthNotFoundError("No account exists for this email. Please sign up first.")
 
@@ -120,12 +121,16 @@ class AuthService:
         self._check_otp_verify_rate_limit(payload.email, now)
 
         user = self._get_user_by_email(payload.email)
-        if not user:
-            raise AuthNotFoundError("No account exists for this email.")
-
-        if not self._consume_otp(payload.email, payload.otp_code, now):
+        purpose = self._consume_otp(payload.email, payload.otp_code, now)
+        if not purpose:
             self._record_otp_verify_failure(payload.email, now)
             raise AuthUnauthorizedError("Invalid or expired OTP.")
+
+        if not user:
+            if purpose != "continue":
+                raise AuthNotFoundError("No account exists for this email.")
+            # The unified flow creates an account only after mailbox verification.
+            user = self._upsert_oauth_user(email=payload.email, full_name="Learner", now=now)
 
         token = secrets.token_urlsafe(32)
         expires_at = now + self.session_ttl
@@ -155,14 +160,20 @@ class AuthService:
     def logout(self, token: str) -> None:
         self._revoke_session(token)
 
-    def google_login_url(self, return_to: str | None = None) -> str:
+    def google_is_configured(self) -> bool:
+        return bool(self.google_client_id and self.google_client_secret and self.google_redirect_uri)
+
+    def google_login_url(self, return_to: str | None = None, *, state: str | None = None) -> str:
         if not self.google_client_id or not self.google_client_secret or not self.google_redirect_uri:
             raise AuthValidationError(
                 "Google login is not configured yet. Add GOOGLE_OAUTH_CLIENT_ID, "
                 "GOOGLE_OAUTH_CLIENT_SECRET, and GOOGLE_OAUTH_REDIRECT_URI."
             )
 
-        state = self._build_google_state(return_to or "/dashboard")
+        if state:
+            self._parse_google_state(state)
+        else:
+            state = self._build_google_state(return_to or "/dashboard")
         query = urlencode(
             {
                 "client_id": self.google_client_id,
@@ -185,6 +196,11 @@ class AuthService:
         if not email or not user_info.get("email_verified", False):
             raise AuthUnauthorizedError("Google account email is missing or not verified.")
 
+        # Google may no longer own verification of a non-Gmail, non-Workspace mailbox.
+        # Verify that mailbox with our OTP flow rather than risk linking a paid account.
+        if not email.endswith("@gmail.com") and not user_info.get("hd"):
+            raise AuthUnauthorizedError("Please continue with email to verify this mailbox and keep your existing access.")
+
         now = self._now()
         user = self._upsert_oauth_user(email=email, full_name=full_name, now=now)
         token = secrets.token_urlsafe(32)
@@ -200,6 +216,10 @@ class AuthService:
 
     def _upsert_user(self, payload: AuthRequestOtpRequest, now: datetime) -> dict[str, Any]:
         existing = self._get_user_by_email(payload.email)
+        # Older signup clients must not overwrite a customer's profile before
+        # mailbox verification. Profile changes belong to the authenticated API.
+        if existing:
+            return existing
         user_id = existing["id"] if existing else str(uuid4())
         profile = {
             "id": user_id,
@@ -218,7 +238,7 @@ class AuthService:
         }
 
         if self.postgres_url:
-            return self._postgres_upsert_user(profile)
+            return self._postgres_upsert_user(profile, preserve_existing=True)
 
         self._memory_users[payload.email] = profile
         return profile
@@ -226,17 +246,7 @@ class AuthService:
     def _upsert_oauth_user(self, email: str, full_name: str, now: datetime) -> dict[str, Any]:
         existing = self._get_user_by_email(email)
         if existing:
-            payload = AuthProfileUpdateRequest(
-                full_name=existing.get("full_name") or full_name,
-                role=existing.get("role") or "Student",
-                experience_level=existing.get("experience_level") or "Beginner",
-                target_role=existing.get("target_role"),
-                country=existing.get("country"),
-                phone=existing.get("phone"),
-                linkedin_url=existing.get("linkedin_url"),
-                preparation_goal=existing.get("preparation_goal"),
-            )
-            return self._update_user_profile(existing["id"], payload, now)
+            return existing
 
         profile = {
             "id": str(uuid4()),
@@ -248,19 +258,22 @@ class AuthService:
             "country": None,
             "phone": None,
             "linkedin_url": None,
-            "preparation_goal": "Created through Google login.",
+            "preparation_goal": None,
             "created_at": now,
             "updated_at": now,
             "last_login_at": None,
         }
 
         if self.postgres_url:
-            user = self._postgres_upsert_user(profile)
+            user = self._postgres_upsert_user(profile, preserve_existing=True)
         else:
             self._memory_users[email] = profile
             user = profile
 
-        self._capture_signup_email(email)
+        try:
+            self._capture_signup_email(email)
+        except AuthServiceError:
+            logging.getLogger(__name__).warning("auth_signup_capture_failed")
         return user
 
     def _store_otp(
@@ -349,7 +362,7 @@ class AuthService:
 
         self._memory_otp_verify_failures.append({"email": email, "attempted_at": now})
 
-    def _consume_otp(self, email: str, otp_code: str, now: datetime) -> bool:
+    def _consume_otp(self, email: str, otp_code: str, now: datetime) -> str | None:
         code_hash = self._hash_otp(email, otp_code)
 
         if self.postgres_url:
@@ -363,8 +376,8 @@ class AuthService:
                 and otp["expires_at"] >= now
             ):
                 otp["consumed_at"] = now
-                return True
-        return False
+                return str(otp["purpose"])
+        return None
 
     def _record_login_and_session(
         self,
@@ -460,7 +473,7 @@ class AuthService:
                 expires_in_minutes=int(self.otp_ttl.total_seconds() // 60),
             )
         except OtpDeliveryError as exc:
-            raise AuthServiceError(f"Unable to send OTP email. {exc}") from exc
+            raise AuthServiceError("We could not send your code. Please wait a minute and try again.") from exc
 
     def _record_login_usage(self, user: dict[str, Any]) -> None:
         try:
@@ -470,7 +483,10 @@ class AuthService:
             return
 
     def _build_google_state(self, return_to: str) -> str:
-        safe_return_to = return_to if return_to.startswith("/") else "/dashboard"
+        safe_return_to = return_to if (
+            return_to.startswith("/") and not return_to.startswith("//")
+            and "\\" not in return_to and not any(ord(char) < 32 for char in return_to)
+        ) else "/dashboard"
         payload = {
             "return_to": safe_return_to,
             "created_at": int(self._now().timestamp()),
@@ -495,7 +511,10 @@ class AuthService:
             payload_b64.encode("utf-8"),
             hashlib.sha256,
         ).digest()
-        provided_signature = self._base64url_decode(signature_b64)
+        try:
+            provided_signature = self._base64url_decode(signature_b64)
+        except Exception as exc:
+            raise AuthUnauthorizedError("Invalid Google login state.") from exc
         if not hmac.compare_digest(expected_signature, provided_signature):
             raise AuthUnauthorizedError("Invalid Google login state.")
 
@@ -504,12 +523,14 @@ class AuthService:
         except Exception as exc:
             raise AuthUnauthorizedError("Invalid Google login state.") from exc
 
+        if not isinstance(payload, dict):
+            raise AuthUnauthorizedError("Invalid Google login state.")
         created_at = payload.get("created_at")
         if not isinstance(created_at, int):
             raise AuthUnauthorizedError("Invalid Google login state.")
 
-        state_age = self._now() - datetime.fromtimestamp(created_at, timezone.utc)
-        if state_age > timedelta(minutes=15):
+        state_age_seconds = self._now().timestamp() - created_at
+        if state_age_seconds < 0 or state_age_seconds > 900:
             raise AuthUnauthorizedError("Google login state expired. Please try again.")
 
         return payload
@@ -628,20 +649,13 @@ class AuthService:
                 f"ALTER TABLE public.{table_name} ENABLE ROW LEVEL SECURITY"
             )
 
-    def _postgres_upsert_user(self, profile: dict[str, Any]) -> dict[str, Any]:
+    def _postgres_upsert_user(self, profile: dict[str, Any], *, preserve_existing: bool = False) -> dict[str, Any]:
         try:
             with self._postgres_connect() as connection:
                 with connection.cursor() as cursor:
                     self._ensure_postgres_schema(cursor)
-                    cursor.execute(
-                        """
-                        INSERT INTO playground_users (
-                            id, email, full_name, role, experience_level, target_role,
-                            country, phone, linkedin_url, preparation_goal,
-                            created_at, updated_at, last_login_at
-                        )
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        ON CONFLICT (email) DO UPDATE SET
+                    # A concurrent verified login must not replace an existing profile.
+                    conflict_update = "id = playground_users.id" if preserve_existing else """
                             full_name = EXCLUDED.full_name,
                             role = EXCLUDED.role,
                             experience_level = EXCLUDED.experience_level,
@@ -651,6 +665,16 @@ class AuthService:
                             linkedin_url = EXCLUDED.linkedin_url,
                             preparation_goal = EXCLUDED.preparation_goal,
                             updated_at = EXCLUDED.updated_at
+                    """
+                    cursor.execute(
+                        f"""
+                        INSERT INTO playground_users (
+                            id, email, full_name, role, experience_level, target_role,
+                            country, phone, linkedin_url, preparation_goal,
+                            created_at, updated_at, last_login_at
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (email) DO UPDATE SET {conflict_update}
                         RETURNING id, email, full_name, role, experience_level, target_role,
                                   country, phone, linkedin_url, preparation_goal,
                                   created_at, updated_at, last_login_at
@@ -808,7 +832,7 @@ class AuthService:
         except Exception as exc:
             raise AuthServiceError(f"Unable to record OTP verification attempt. {exc}") from exc
 
-    def _postgres_consume_otp(self, email: str, code_hash: str, now: datetime) -> bool:
+    def _postgres_consume_otp(self, email: str, code_hash: str, now: datetime) -> str | None:
         try:
             with self._postgres_connect() as connection:
                 with connection.cursor() as cursor:
@@ -827,13 +851,14 @@ class AuthService:
                             ORDER BY created_at DESC
                             LIMIT 1
                         )
-                        RETURNING id
+                        AND consumed_at IS NULL
+                        RETURNING purpose
                         """,
                         (now, email, code_hash, now),
                     )
                     row = cursor.fetchone()
                 connection.commit()
-            return row is not None
+            return str(row[0]) if row else None
         except Exception as exc:
             raise AuthServiceError(f"Unable to verify OTP. {exc}") from exc
 

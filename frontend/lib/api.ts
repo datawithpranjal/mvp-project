@@ -55,6 +55,17 @@ interface ApiFetchOptions extends RequestInit {
   authToken?: string | null;
 }
 
+export class ApiError extends Error {
+  constructor(message: string, public readonly status: number) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+export function getAuthProviders(): Promise<{ google: boolean; email: boolean }> {
+  return apiFetch("/api/v1/auth/providers", { cache: "no-store" });
+}
+
 async function apiFetch<T>(path: string, init?: ApiFetchOptions): Promise<T> {
   const { authToken, ...requestInit } = init ?? {};
   const hasBody = typeof requestInit.body !== "undefined";
@@ -85,7 +96,7 @@ async function apiFetch<T>(path: string, init?: ApiFetchOptions): Promise<T> {
       // Ignore JSON parse errors and fall back to the default message.
     }
 
-    throw new Error(errorMessage);
+    throw new ApiError(errorMessage, response.status);
   }
 
   return response.json() as Promise<T>;

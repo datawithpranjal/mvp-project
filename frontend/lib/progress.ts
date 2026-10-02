@@ -24,6 +24,8 @@ export interface ScenarioProgressEntry {
   attempts: AttemptHistoryEntry[];
   draftAnswer: string;
   draftInterviewAnswer: string;
+  // Local recovery state; the current server draft schema does not store this choice.
+  draftDiagnosisId?: string;
   draftSavedAt: string | null;
   selfRating: ScenarioSelfRating | null;
   aiScore: number | null;
@@ -179,6 +181,7 @@ function normalizeEntry(slug: string, value?: Partial<ScenarioProgressEntry>): S
     draftAnswer: typeof value?.draftAnswer === "string" ? value.draftAnswer : "",
     draftInterviewAnswer:
       typeof value?.draftInterviewAnswer === "string" ? value.draftInterviewAnswer : "",
+    draftDiagnosisId: typeof value?.draftDiagnosisId === "string" ? value.draftDiagnosisId : "",
     draftSavedAt:
       typeof value?.draftSavedAt === "string" && value.draftSavedAt ? value.draftSavedAt : null,
     selfRating: normalizeSelfRating(value?.selfRating),
@@ -236,6 +239,7 @@ function mergeScenarioEntries(
     draftInterviewAnswer: guestDraftIsNewer
       ? guest.draftInterviewAnswer
       : account.draftInterviewAnswer,
+    draftDiagnosisId: guestDraftIsNewer ? guest.draftDiagnosisId : account.draftDiagnosisId,
     draftSavedAt: guestDraftIsNewer ? guest.draftSavedAt : account.draftSavedAt,
     selfRating: account.selfRating ?? guest.selfRating,
     aiScore: guestFeedbackIsNewer ? guest.aiScore : account.aiScore,
@@ -347,7 +351,8 @@ export function recordScenarioAttempt(
 export function saveScenarioDraft(
   slug: string,
   draftAnswer: string,
-  draftInterviewAnswer?: string
+  draftInterviewAnswer?: string,
+  draftDiagnosisId?: string
 ): ScenarioProgressEntry {
   const store = readStore();
   const existing = normalizeEntry(slug, store[slug]);
@@ -358,6 +363,7 @@ export function saveScenarioDraft(
       typeof draftInterviewAnswer === "string"
         ? draftInterviewAnswer
         : existing.draftInterviewAnswer,
+    draftDiagnosisId: draftDiagnosisId ?? existing.draftDiagnosisId,
     draftSavedAt: new Date().toISOString()
   };
 

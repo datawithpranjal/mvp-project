@@ -139,6 +139,12 @@ export interface LearnerAttemptResponse {
 }
 
 export type UsageEventName =
+  | "auth_opened"
+  | "auth_started"
+  | "auth_code_requested"
+  | "auth_succeeded"
+  | "auth_failed"
+  | "sample_run_started"
   | "session_start"
   | "session_heartbeat"
   | "page_view"
@@ -421,7 +427,7 @@ export interface AuthUserProfile extends AuthProfileFields {
 
 export interface AuthRequestOtpRequest extends AuthProfileFields {
   email: string;
-  mode: "signin" | "signup";
+  mode: "signin" | "signup" | "continue";
 }
 
 export interface AuthRequestOtpResponse {

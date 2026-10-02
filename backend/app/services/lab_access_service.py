@@ -16,6 +16,7 @@ FREE_PYTHON_LAB_SLUGS = frozenset(
 
 FREE_PYSPARK_LAB_SLUGS = frozenset(
     {
+        "yesterdays-sales-missing-late-source-arrival",
         "pyspark-append-rerun-duplicates",
         "pyspark-python-udf-slow-normalization",
         "pyspark-skewed-customer-join",

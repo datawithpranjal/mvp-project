@@ -51,6 +51,8 @@ import { CodeBlock } from "./CodeBlock";
 import { EvaluationPanel } from "./EvaluationPanel";
 import { RubricBreakdown } from "./RubricBreakdown";
 import { AuthDialog } from "../auth-dialog";
+import { rememberAuthIntent } from "../../lib/auth-flow";
+import { useAuthContinuation, useAuthDraftFlush } from "../../lib/use-auth-continuation";
 import { PremiumAccessBadge } from "../premium-access-badge";
 import { getPracticeStatus, PracticeStatusBadge } from "../practice-status-badge";
 
@@ -114,6 +116,16 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
   const [authEpoch, setAuthEpoch] = useState(0);
   const draftRevisionRef = useRef(0);
   const pendingAttemptRef = useRef({ slug: "", answer: "", key: "" });
+  const authIntentKey = `scenario:${scenario.slug}`;
+  useAuthDraftFlush(() => {
+    if (hydratedScenarioSlug === scenario.slug) {
+      saveScenarioDraft(scenario.slug, scenario.scenarioType === "mcq" ? selectedOptionId : answer, interviewAnswer, selectedDiagnosisId);
+    }
+  });
+  useAuthContinuation(authIntentKey, persistenceReady && hydratedScenarioSlug === scenario.slug && !isChecking, (action) => {
+    if (action === "submit") void checkAnswer();
+    if (action === "run") void runSampleCheck();
+  });
 
   useEffect(() => {
     const syncAuth = () => setAuthEpoch((value) => value + 1);
@@ -150,7 +162,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
         );
       }
       setInterviewAnswer(savedProgress.draftInterviewAnswer);
-      setSelectedDiagnosisId("");
+      setSelectedDiagnosisId(scenario.diagnosisOptions?.some((option) => option.id === savedProgress.draftDiagnosisId) ? savedProgress.draftDiagnosisId ?? "" : "");
       setHintsRevealed(Math.min(savedProgress.hintsRevealed, scenario.hints.length));
       setProgress(summarizeScenarioProgress(savedProgress, scenario.slug));
       setCompletionStatus(savedProgress.completed ? "saved" : "idle");
@@ -293,7 +305,8 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
       const nextProgress = saveScenarioDraft(
         scenario.slug,
         draft,
-        interviewAnswer
+        interviewAnswer,
+        selectedDiagnosisId
       );
       setProgress(summarizeScenarioProgress(nextProgress, scenario.slug));
       const authToken = getAuthToken();
@@ -341,7 +354,8 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
     persistenceReady,
     scenario.scenarioType,
     scenario.slug,
-    selectedOptionId
+    selectedOptionId,
+    selectedDiagnosisId
   ]);
 
   useEffect(() => {
@@ -454,7 +468,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
 
   function saveDraft() {
     const draft = scenario.scenarioType === "mcq" ? selectedOptionId : answer;
-    const nextProgress = saveScenarioDraft(scenario.slug, draft, interviewAnswer);
+    const nextProgress = saveScenarioDraft(scenario.slug, draft, interviewAnswer, selectedDiagnosisId);
     setProgress(summarizeScenarioProgress(nextProgress, scenario.slug));
     const authToken = getAuthToken();
     if (!authToken) {
@@ -498,6 +512,8 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
         ? "Log in or create an account to run this check."
         : "Log in or create an account to submit this answer."
     );
+    saveDraft();
+    rememberAuthIntent(authIntentKey, action);
     setIsAuthOpen(true);
     trackEvent("signup_started", {
       source: action === "run" ? "scenario_run" : "scenario_submit",
@@ -803,7 +819,7 @@ Impact: ${scenario.incident.impact}`
   }
 
   async function runSampleCheck() {
-    const authSession = requireLoginForValidation("run");
+    const authSession = scenario.isFree ? { authToken: getAuthToken() } : requireLoginForValidation("run");
     if (!authSession) {
       return;
     }
@@ -814,6 +830,7 @@ Impact: ${scenario.incident.impact}`
     ) {
       return;
     }
+    sendUsageEvent("sample_run_started", { metadata: { content_id: scenario.slug, content_type: "scenario" } });
     setIsChecking(true);
     setSqlExecution(null);
     setPysparkExecution(null);

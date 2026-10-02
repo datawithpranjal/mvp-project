@@ -44,8 +44,8 @@ class AuthRequestOtpRequest(ProfileFields):
     @classmethod
     def validate_mode(cls, value: str) -> str:
         normalized = value.strip().lower()
-        if normalized not in {"signin", "signup"}:
-            raise ValueError("Mode must be signin or signup.")
+        if normalized not in {"signin", "signup", "continue"}:
+            raise ValueError("Mode must be signin, signup or continue.")
         return normalized
 
 

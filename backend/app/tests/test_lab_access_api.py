@@ -82,3 +82,22 @@ def test_pyspark_free_validation_does_not_require_premium() -> None:
 
     assert response.status_code != 401
     assert response.status_code != 403
+
+
+def test_server_python_runner_keeps_authentication_for_samples_and_hidden_cases(monkeypatch) -> None:
+    from app.api.routes import python_validation as route
+    from app.schemas.python_validation import PythonValidationResponse
+
+    monkeypatch.setattr(route.service, "validate", lambda **kwargs: PythonValidationResponse(
+        mode="sample", passed=True, message="Sample passed", tests=[], execution_engine="subprocess"
+    ))
+    path = "/api/v1/python/validate/python-foundry-01-normalize-payment-statuses"
+    assert client.post(path, json={"code": "pass", "mode": "sample"}).status_code == 401
+    assert client.post(path, json={"code": "pass", "mode": "hidden"}).status_code == 401
+    premium_path = "/api/v1/python/validate/python-foundry-09-latest-customer-updates"
+    assert client.post(premium_path, json={"code": "pass", "mode": "sample"}).status_code == 401
+
+
+def test_free_sales_pyspark_scenario_is_not_premium_locked() -> None:
+    from app.services.lab_access_service import pyspark_lab_requires_premium
+    assert not pyspark_lab_requires_premium("yesterdays-sales-missing-late-source-arrival")

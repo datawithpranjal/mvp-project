@@ -229,6 +229,29 @@ GOOGLE_OAUTH_STATE_SECRET=choose-a-long-random-token
 
 The same redirect URI must be added under **Authorized redirect URIs** in Google Cloud.
 
+#### Low-friction login: rollout and customer safety
+
+- The new email form sends `mode: continue`. It accepts an existing or new email without a login/signup choice or mandatory name. New accounts are created only after code verification. Legacy `signin` and `signup` requests remain supported; repeat signup cannot overwrite an existing profile.
+- Google requests only `openid email profile`, uses a signed state plus a browser-bound HttpOnly cookie, and returns to the original practice/checkout page. An existing verified email reuses the same user ID, profile, progress and Premium entitlement. Learners must use their purchase email; a different email is a separate account. Non-Gmail/non-Workspace Google addresses use email verification instead, following [Google's mailbox-authority guidance](https://developers.google.com/identity/sign-in/web/backend-auth).
+- `GET /api/v1/auth/providers` controls whether the Google button appears. Missing Google configuration leaves email login available. Keep the OAuth client secret and state secret on the backend only, never in `NEXT_PUBLIC_*` variables or source control.
+- Keep the existing auth database, session/OTP secrets, session duration, and local storage keys. This release does not migrate customers or revoke existing sessions. Temporary profile-fetch failures keep the local session; a confirmed 401 clears it. Server-side authorization remains required.
+- Free SQL and Python sample checks can run in the browser before login; Python server execution still requires login. Existing free PySpark sample access remains available where the runner is configured. Recorded completion and Premium execution still require the appropriate account/access. Drafts flush before authentication, and the pending practice action resumes once. A scenario diagnosis choice is preserved in same-device recovery storage, not yet synced across devices.
+
+Roll out the **backend before the frontend**: the old frontend works with the new backend, but the new unified form requires the new backend's `continue` mode. Verify `/api/v1/auth/providers` and a test-account email login before promoting the frontend. A preview must point to the matching backend preview, not an older production API. Google testing needs a matching backend redirect URI, `FRONTEND_BASE_URL` set to that frontend preview's exact origin, approved CORS origin, and OAuth test users/consent configuration. Do not share one backend between preview and production Google redirects. Enable Google only after testing a returning paid account, a new account, cancellation, and returning to the original exercise. Roll back the frontend first if needed; no customer migration is required.
+
+Local release checks:
+
+```bash
+cd backend
+python -m pytest app/tests -q
+cd ../frontend
+npm run validate:auth-continuity
+npm run validate:progress-migration
+npm run build
+```
+
+Auth measurement uses the existing usage store: `auth_opened`, `auth_started`, `auth_code_requested`, `auth_succeeded`, `auth_failed`, and `sample_run_started`. Compare unique sessions by method and follow through to first completion; retries are events, not additional people. `login_success` remains the server-side login event; don't add it to client `auth_succeeded` counts. Delivery logs contain provider acceptance/rejection and latency, never codes or email addresses; acceptance does **not** prove inbox delivery. Browser/test success is not proof of production inbox delivery, live Google configuration, or production PostgreSQL behavior.
+
 If you want preview deployments from many Vercel URLs to call the backend, you can optionally set:
 
 ```text

@@ -57,6 +57,21 @@ export function sendUsageEvent(
     pageUrl?: string;
   } = {}
 ): void {
+  try {
+    sendUsageEventSafely(eventName, options);
+  } catch {
+    // Disabled browser storage or analytics must never interrupt login or practice.
+  }
+}
+
+function sendUsageEventSafely(
+  eventName: UsageEventName,
+  options: {
+    activeSeconds?: number;
+    metadata?: Record<string, string | number | boolean | null | undefined>;
+    pageUrl?: string;
+  }
+): void {
   const token = getAuthToken();
   const payload = {
     event_name: eventName,
