@@ -8,8 +8,8 @@ import {
   type OperationsLab
 } from "../data/platform-operations-labs";
 import { getCodingLabs, type CodingLab, type CodingLabTrack } from "../lib/coding-labs";
-import { getPremiumAccess, type PremiumAccessRecord } from "../lib/premium-access";
 import { getScenarioProgressMap, type ScenarioProgressSummary } from "../lib/progress";
+import { usePremiumEntitlement } from "../lib/use-premium-entitlement";
 import {
   formatDifficulty,
   formatDomain,
@@ -19,6 +19,7 @@ import {
 } from "../lib/scenarios";
 import { LAB_TRACKS, type LabTrack } from "../lib/labs";
 import { trackEvent } from "../lib/analytics";
+import { PremiumAccessBadge } from "./premium-access-badge";
 
 type SortOption =
   | "recommended"
@@ -52,7 +53,7 @@ export function PracticeHub() {
   const [progressMap, setProgressMap] = useState<
     Record<string, ScenarioProgressSummary>
   >({});
-  const [premiumAccess, setPremiumAccess] = useState<PremiumAccessRecord | null>(null);
+  const { hasPremiumAccess } = usePremiumEntitlement();
 
   const codingLabs = useMemo(() => getCodingLabs(), []);
   const scenarios = useMemo(() => getScenarios(), []);
@@ -60,7 +61,6 @@ export function PracticeHub() {
   useEffect(() => {
     function syncState() {
       setProgressMap(getScenarioProgressMap());
-      setPremiumAccess(getPremiumAccess());
     }
 
     syncState();
@@ -250,9 +250,9 @@ export function PracticeHub() {
             </div>
           </section>
 
-          <PracticeSection title="Free labs to start" items={freeScenarios} progressMap={progressMap} premiumAccess={premiumAccess} />
-          <PracticeSection title="Popular interview labs" items={popularScenarios} progressMap={progressMap} premiumAccess={premiumAccess} />
-          <PracticeSection title="Production debugging labs" items={productionScenarios} progressMap={progressMap} premiumAccess={premiumAccess} />
+          <PracticeSection title="Free labs to start" items={freeScenarios} progressMap={progressMap} hasPremiumAccess={hasPremiumAccess} />
+          <PracticeSection title="Popular interview labs" items={popularScenarios} progressMap={progressMap} hasPremiumAccess={hasPremiumAccess} />
+          <PracticeSection title="Production debugging labs" items={productionScenarios} progressMap={progressMap} hasPremiumAccess={hasPremiumAccess} />
         </>
       ) : null}
 
@@ -269,7 +269,7 @@ export function PracticeHub() {
                 key={practiceKey(item)}
                 item={item}
                 progressMap={progressMap}
-                premiumAccess={premiumAccess}
+                hasPremiumAccess={hasPremiumAccess}
               />
             ))}
           </div>
@@ -288,12 +288,12 @@ function PracticeSection({
   title,
   items,
   progressMap,
-  premiumAccess
+  hasPremiumAccess
 }: {
   title: string;
   items: Scenario[];
   progressMap: Record<string, ScenarioProgressSummary>;
-  premiumAccess: PremiumAccessRecord | null;
+  hasPremiumAccess: boolean;
 }) {
   return (
     <section className="mt-10">
@@ -304,7 +304,7 @@ function PracticeSection({
             key={scenario.slug}
             item={{ kind: "scenario", scenario }}
             progressMap={progressMap}
-            premiumAccess={premiumAccess}
+            hasPremiumAccess={hasPremiumAccess}
           />
         ))}
       </div>
@@ -315,42 +315,50 @@ function PracticeSection({
 function PracticeResultCard({
   item,
   progressMap,
-  premiumAccess
+  hasPremiumAccess
 }: {
   item: PracticeItem;
   progressMap: Record<string, ScenarioProgressSummary>;
-  premiumAccess: PremiumAccessRecord | null;
+  hasPremiumAccess: boolean;
 }) {
   const metadata = getPracticeMetadata(item);
   const progress =
     item.kind === "scenario" ? progressMap[item.scenario.slug] : undefined;
-  const locked = !metadata.isFree && !premiumAccess;
+  const locked = !metadata.isFree && !hasPremiumAccess;
 
   return (
     <article className="flex min-h-[340px] flex-col rounded-[2rem] border border-slate-800 bg-slate-950/45 p-6 transition hover:-translate-y-1 hover:border-teal-300/30">
       <div className="flex flex-wrap gap-2">
-        {[metadata.domain, metadata.type, metadata.difficulty].map((badge) => (
+        {[metadata.domain, metadata.type, ...(locked ? [] : [metadata.difficulty])].map((badge) => (
           <span key={badge} className="rounded-full border border-slate-700 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-300">
             {badge}
           </span>
         ))}
-        <span className={`rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${metadata.isFree ? "border-teal-300/25 text-teal-100" : "border-amber-300/25 text-amber-100"}`}>
-          {metadata.isFree ? "Free" : "Premium"}
-        </span>
+        {metadata.isFree ? (
+          <span className="rounded-full border border-teal-300/25 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-teal-100">Free</span>
+        ) : (
+          <PremiumAccessBadge locked={locked} compact />
+        )}
       </div>
       <h3 className="mt-5 text-xl font-semibold leading-7 text-slate-50">{metadata.title}</h3>
-      <p className="mt-3 line-clamp-3 text-sm leading-6 text-slate-300">{metadata.outcome}</p>
-      <div className="mt-4 flex flex-wrap gap-2">
-        {metadata.skills.slice(0, 4).map((skill) => (
-          <span key={skill} className="rounded-full bg-teal-300/10 px-3 py-1 text-xs text-teal-100">
-            {skill}
-          </span>
-        ))}
-      </div>
-      <div className="mt-5 flex items-center justify-between text-xs text-slate-400">
-        <span>{metadata.estimatedMinutes} min</span>
-        <span>{progress?.completed ? "Completed" : progress?.attemptCount ? "Attempted" : "Not started"}</span>
-      </div>
+      {locked ? (
+        <p className="mt-3 text-sm leading-6 text-slate-400">Unlock Premium to view the task, data, workspace, hints and answer.</p>
+      ) : (
+        <>
+          <p className="mt-3 line-clamp-3 text-sm leading-6 text-slate-300">{metadata.outcome}</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {metadata.skills.slice(0, 4).map((skill) => (
+              <span key={skill} className="rounded-full bg-teal-300/10 px-3 py-1 text-xs text-teal-100">
+                {skill}
+              </span>
+            ))}
+          </div>
+          <div className="mt-5 flex items-center justify-between text-xs text-slate-400">
+            <span>{metadata.estimatedMinutes} min</span>
+            <span>{progress?.completed ? "Completed" : progress?.attemptCount ? "Attempted" : "Not started"}</span>
+          </div>
+        </>
+      )}
       <Link
         href={metadata.href}
         onClick={() =>
@@ -365,7 +373,7 @@ function PracticeResultCard({
             : "bg-amber-300 text-slate-950 hover:bg-amber-200"
         }`}
       >
-        {locked ? "Preview / Unlock" : progress?.attemptCount ? "Continue Lab" : "Start Lab"}
+        {locked ? "Unlock Premium" : progress?.attemptCount ? "Continue Lab" : "Start Lab"}
       </Link>
     </article>
   );

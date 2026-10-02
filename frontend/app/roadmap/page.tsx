@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import { PracticeStatusBadge } from "../../components/practice-status-badge";
+import { PremiumAccessBadge } from "../../components/premium-access-badge";
 import { trackEvent } from "../../lib/analytics";
 import {
   getCorePathStatuses,
@@ -15,9 +16,11 @@ import {
   type CorePathStage,
   type GoldCoreItem
 } from "../../lib/gold-core";
+import { usePremiumEntitlement } from "../../lib/use-premium-entitlement";
 
 export default function RoadmapPage() {
   const [statuses, setStatuses] = useState<Record<string, CorePathStatus>>({});
+  const { hasPremiumAccess } = usePremiumEntitlement();
 
   useEffect(() => {
     const refresh = () => setStatuses(getCorePathStatuses());
@@ -166,6 +169,7 @@ export default function RoadmapPage() {
               statuses={statuses}
               isNext={stage.stage === nextStage?.stage}
               onOpen={trackCoreOpen}
+              hasPremiumAccess={hasPremiumAccess}
             />
           ))}
         </div>
@@ -202,12 +206,14 @@ function StageCard({
   stage,
   statuses,
   isNext,
-  onOpen
+  onOpen,
+  hasPremiumAccess
 }: {
   stage: CorePathStage;
   statuses: Record<string, CorePathStatus>;
   isNext: boolean;
   onOpen: (item: GoldCoreItem, source: string) => void;
+  hasPremiumAccess: boolean;
 }) {
   const completedCount = stage.items.filter(
     (item) => statuses[item.slug] === "done"
@@ -260,6 +266,7 @@ function StageCard({
               item={item}
               status={statuses[item.slug] ?? "new"}
               onOpen={onOpen}
+              hasPremiumAccess={hasPremiumAccess}
             />
           ))}
         </div>
@@ -300,12 +307,16 @@ function StageCard({
 function CoreExerciseCard({
   item,
   status,
-  onOpen
+  onOpen,
+  hasPremiumAccess
 }: {
   item: GoldCoreItem;
   status: CorePathStatus;
   onOpen: (item: GoldCoreItem, source: string) => void;
+  hasPremiumAccess: boolean;
 }) {
+  const isLocked = !item.isFree && !hasPremiumAccess;
+
   return (
     <Link
       href={item.href}
@@ -314,15 +325,23 @@ function CoreExerciseCard({
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <PracticeStatusBadge status={status} />
-        <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-          {item.isFree ? "Free" : "Premium"}
-        </span>
+        {item.isFree ? (
+          <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-teal-100">Free</span>
+        ) : (
+          <PremiumAccessBadge locked={isLocked} compact />
+        )}
       </div>
       <p className="mt-3 text-sm font-semibold leading-6 text-slate-100">{item.title}</p>
-      <p className="mt-2 text-xs leading-5 text-slate-400">{item.competency}</p>
-      <p className="mt-3 text-xs text-slate-500">
-        {item.difficulty} · {item.estimatedMinutes} min
-      </p>
+      {isLocked ? (
+        <p className="mt-2 text-xs leading-5 text-slate-400">Unlock Premium to open this exercise.</p>
+      ) : (
+        <>
+          <p className="mt-2 text-xs leading-5 text-slate-400">{item.competency}</p>
+          <p className="mt-3 text-xs text-slate-500">
+            {item.difficulty} · {item.estimatedMinutes} min
+          </p>
+        </>
+      )}
     </Link>
   );
 }
