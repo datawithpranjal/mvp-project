@@ -150,7 +150,7 @@ export const GUIDED_SCENARIO_PATHS = [
 ];
 
 export const AUDIENCE_SEGMENTS = [
-  "Freshers building job-ready confidence",
+  "Freshers building evidence through structured practice",
   "Career switchers moving from analytics or software",
   "Junior data engineers learning production thinking",
   "Interview candidates who need scenario practice",
@@ -187,11 +187,11 @@ export interface LearningPathTemplate {
 export const LEARNING_PATHS: LearningPathTemplate[] = [
   {
     slug: "data-foundry-practice-roadmap",
-    name: "The Data Foundry Practice Roadmap",
+    name: "Core Practice Path",
     stageCount: 8,
     targetUser: "Every Data Engineering learner",
     description:
-      "A practical route through the platform. Move forward when you can demonstrate the skill, not because a calendar day has passed.",
+      "A reviewed 30-exercise route through the platform, with the complete practice library always available for additional depth.",
     steps: [
       {
         stage: 1,
@@ -570,16 +570,6 @@ export const MOCK_INTERVIEW_QUESTIONS: MockInterviewQuestion[] = [
     prompt: "Late arriving order updates changed yesterday's revenue. Explain the pipeline design fix.",
     expectedSignals: ["lookback window", "event time", "idempotency", "reconciliation"]
   }
-];
-
-export const LEVELS = [
-  { name: "Data Rookie", minXp: 0 },
-  { name: "SQL Builder", minXp: 100 },
-  { name: "Pipeline Builder", minXp: 250 },
-  { name: "Spark Debugger", minXp: 450 },
-  { name: "Production Thinker", minXp: 700 },
-  { name: "Interview Ready", minXp: 1000 },
-  { name: "Job Ready Data Engineer", minXp: 1500 }
 ];
 
 export function formatValidationMode(validationType: ValidationType): string {

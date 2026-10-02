@@ -8,24 +8,23 @@ import {
   getCurrentUser,
   type AuthUser
 } from "../../lib/auth";
+import {
+  getCorePathStatuses,
+  type CorePathStatus
+} from "../../lib/core-path-progress";
+import { GOLD_CORE_ITEMS } from "../../lib/gold-core";
 import { getOnboardingProfile, type OnboardingProfile } from "../../lib/onboarding";
-import { LEARNING_PATHS } from "../../lib/product";
 import { getScenarioProgressMap, type ScenarioProgressSummary } from "../../lib/progress";
-import { calculateReadinessScore } from "../../lib/readiness";
-import { getRoadmapProgress, type RoadmapProgress } from "../../lib/roadmap-progress";
+import { calculatePracticeProgress } from "../../lib/practice-progress";
 import { getScenarios, type Scenario } from "../../lib/scenarios";
 import { AuthDialog } from "../../components/auth-dialog";
 
 export default function DashboardPage() {
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [progressMap, setProgressMap] = useState<Record<string, ScenarioProgressSummary>>({});
+  const [coreStatuses, setCoreStatuses] = useState<Record<string, CorePathStatus>>({});
   const [onboarding, setOnboarding] = useState<OnboardingProfile | null>(null);
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
-  const [roadmapProgress, setRoadmapProgress] = useState<RoadmapProgress>({
-    activePathSlug: null,
-    completedDays: {},
-    updatedAt: null
-  });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
@@ -37,9 +36,9 @@ export default function DashboardPage() {
         setError(null);
         setScenarios(getScenarios());
         setProgressMap(getScenarioProgressMap());
+        setCoreStatuses(getCorePathStatuses());
         setOnboarding(getOnboardingProfile());
         setCurrentUser(getCurrentUser());
-        setRoadmapProgress(getRoadmapProgress());
       } catch (loadError) {
         const message =
           loadError instanceof Error ? loadError.message : "Failed to load dashboard.";
@@ -58,15 +57,20 @@ export default function DashboardPage() {
     };
   }, []);
 
-  const readiness = useMemo(
-    () => calculateReadinessScore(scenarios, progressMap),
+  const practiceProgress = useMemo(
+    () => calculatePracticeProgress(scenarios, progressMap),
     [progressMap, scenarios]
   );
-  const recommendedPath = LEARNING_PATHS.find(
-    (path) => path.slug === onboarding?.recommendedPathSlug
-  ) ?? LEARNING_PATHS[0];
   const completedScenarios = scenarios.filter((scenario) => progressMap[scenario.slug]?.completed);
-  const hasNoProgress = Object.keys(progressMap).length === 0;
+  const completedCoreCount = GOLD_CORE_ITEMS.filter(
+    (item) => coreStatuses[item.slug] === "done"
+  ).length;
+  const nextCoreItem =
+    GOLD_CORE_ITEMS.find((item) => coreStatuses[item.slug] === "in_progress") ??
+    GOLD_CORE_ITEMS.find((item) => coreStatuses[item.slug] !== "done") ??
+    null;
+  const hasCoreActivity = Object.values(coreStatuses).some((status) => status !== "new");
+  const hasNoProgress = Object.keys(progressMap).length === 0 && !hasCoreActivity;
   const hasGuestActivity = Boolean(onboarding) || !hasNoProgress;
   const continueScenario =
     scenarios.find(
@@ -241,7 +245,7 @@ export default function DashboardPage() {
               <StartCard label="Recommended first lab" value="SQL correctness" />
               <StartCard label="Practice time" value="15-20 min" />
               <StartCard label="Progress" value="0 scenarios" />
-              <StartCard label="Next unlock" value="Readiness score" />
+              <StartCard label="Evidence" value="Built from completed work" />
             </div>
           </div>
         </section>
@@ -278,8 +282,8 @@ export default function DashboardPage() {
             <MissionCard
               label="Weak-area revision"
               title={
-                readiness.weakAreas[0]
-                  ? `Review ${readiness.weakAreas[0]} fundamentals`
+                practiceProgress.weakAreas[0]
+                  ? `Review ${practiceProgress.weakAreas[0]} fundamentals`
                   : "Create your first weak-area signal"
               }
               href="/scenarios"
@@ -289,40 +293,57 @@ export default function DashboardPage() {
 
         <div className="panel rounded-[2rem] p-6">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-200">
-            Readiness Score
+            Practice progress
           </p>
-          <div className="mt-5 flex items-end gap-3">
-            <span className="text-6xl font-semibold text-slate-50">{readiness.score}</span>
-            <span className="pb-2 text-sm font-semibold uppercase tracking-[0.2em] text-slate-400">
-              / 100
-            </span>
-          </div>
-          <p className="mt-3 text-lg font-semibold text-teal-100">{readiness.label}</p>
-          <div className="mt-5 h-3 overflow-hidden rounded-full bg-slate-800">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-teal-300 to-amber-300"
-              style={{ width: `${readiness.score}%` }}
+          <p className="mt-3 text-sm leading-6 text-slate-300">
+            Transparent evidence from your scenario practice. Activity and feedback do not
+            guarantee interview or job readiness.
+          </p>
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <PracticeMetric
+              label="Completed"
+              value={`${practiceProgress.completedCount}`}
+              detail={`of ${practiceProgress.totalCount} scenarios`}
             />
-          </div>
-          <div className="mt-5 grid gap-3 text-sm text-slate-300">
-            <MetricRow label="Scenario completion" value={readiness.scenarioCompletion} />
-            <MetricRow label="AI score" value={readiness.averageAiScore} />
-            <MetricRow label="Consistency" value={readiness.consistency} />
-            <MetricRow label="Self confidence" value={readiness.confidence} />
+            <PracticeMetric
+              label="Attempted"
+              value={`${practiceProgress.attemptedCount}`}
+              detail="distinct scenarios"
+            />
+            <PracticeMetric
+              label="Reattempted"
+              value={`${practiceProgress.reattemptedCount}`}
+              detail="with another pass"
+            />
+            <PracticeMetric
+              label="Explanations"
+              value={`${practiceProgress.assessedExplanationCount}`}
+              detail={
+                practiceProgress.averageExplanationFeedback === null
+                  ? "not assessed yet"
+                  : `${practiceProgress.averageExplanationFeedback}/100 average feedback`
+              }
+            />
           </div>
         </div>
       </section>
 
       <section className="mt-6 grid gap-6 lg:grid-cols-3">
         <div className="panel rounded-3xl p-6">
-          <h2 className="text-xl font-semibold text-slate-50">Platform Roadmap</h2>
-          <p className="mt-3 text-sm font-semibold text-teal-100">{recommendedPath.name}</p>
-          <p className="mt-3 text-sm leading-6 text-slate-300">{recommendedPath.description}</p>
+          <h2 className="text-xl font-semibold text-slate-50">Core Practice Path</h2>
+          <p className="mt-3 text-sm font-semibold text-teal-100">
+            {completedCoreCount}/{GOLD_CORE_ITEMS.length} core exercises completed
+          </p>
+          <p className="mt-3 text-sm leading-6 text-slate-300">
+            {nextCoreItem
+              ? `Recommended next: ${nextCoreItem.title}. The complete practice library remains available inside every roadmap stage.`
+              : "The core sequence is complete. Use the full library and your review signals for deeper practice."}
+          </p>
           <Link
             href="/roadmap"
             className="mt-5 inline-flex rounded-full border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-teal-300/40"
           >
-            View roadmap
+            Continue your roadmap
           </Link>
         </div>
 
@@ -347,10 +368,14 @@ export default function DashboardPage() {
         </div>
 
         <div className="panel rounded-3xl p-6">
-          <h2 className="text-xl font-semibold text-slate-50">Streak / XP</h2>
-          <p className="mt-4 text-3xl font-semibold text-slate-50">{readiness.xp} XP</p>
-          <p className="mt-2 text-sm text-teal-100">{readiness.levelName}</p>
-          <p className="mt-3 text-sm text-slate-300">{readiness.streakCount} day streak</p>
+          <h2 className="text-xl font-semibold text-slate-50">Practice rhythm</h2>
+          <p className="mt-4 text-3xl font-semibold text-slate-50">
+            {practiceProgress.streakCount} day streak
+          </p>
+          <p className="mt-3 text-sm leading-6 text-slate-300">
+            Streaks reflect practice activity, not skill level. Reattempt weak concepts and
+            verify the result to build stronger evidence.
+          </p>
         </div>
       </section>
 
@@ -358,10 +383,9 @@ export default function DashboardPage() {
         <DashboardList
           title="Current roadmap"
           items={[
-            roadmapProgress.activePathSlug
-              ? `Active: ${LEARNING_PATHS.find((path) => path.slug === roadmapProgress.activePathSlug)?.name ?? roadmapProgress.activePathSlug}`
-              : recommendedPath.name,
-            `${(roadmapProgress.completedDays[roadmapProgress.activePathSlug ?? recommendedPath.slug] ?? []).length} roadmap stages completed`
+            "Core Practice Path",
+            `${completedCoreCount}/${GOLD_CORE_ITEMS.length} core exercises completed`,
+            nextCoreItem ? `Next: ${nextCoreItem.title}` : "Next: review weak areas and explore the full library"
           ]}
         />
         <DashboardList
@@ -387,8 +411,8 @@ export default function DashboardPage() {
 
       <section className="mt-6 grid gap-6 lg:grid-cols-3">
         <DashboardList
-          title="Weak Areas"
-          items={readiness.weakAreas.length ? readiness.weakAreas : ["No weak areas yet. Attempt a scenario first."]}
+          title="Needs review"
+          items={practiceProgress.weakAreas.length ? practiceProgress.weakAreas : ["No review areas detected yet. Attempt a scenario first."]}
         />
         <DashboardList
           title="Recently Practiced"
@@ -399,8 +423,8 @@ export default function DashboardPage() {
           }
         />
         <DashboardList
-          title="Badges"
-          items={readiness.badges.length ? readiness.badges : ["First Scenario Completed is waiting."]}
+          title="Practice milestones"
+          items={practiceProgress.milestones.length ? practiceProgress.milestones : ["Complete a scenario to record your first milestone."]}
         />
       </section>
 
@@ -443,16 +467,20 @@ function StartCard({ label, value }: { label: string; value: string }) {
   );
 }
 
-function MetricRow({ label, value }: { label: string; value: number }) {
+function PracticeMetric({
+  label,
+  value,
+  detail
+}: {
+  label: string;
+  value: string;
+  detail: string;
+}) {
   return (
-    <div>
-      <div className="flex items-center justify-between">
-        <span>{label}</span>
-        <span>{value}%</span>
-      </div>
-      <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-800">
-        <div className="h-full rounded-full bg-teal-300" style={{ width: `${value}%` }} />
-      </div>
+    <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p>
+      <p className="mt-2 text-2xl font-semibold text-slate-50">{value}</p>
+      <p className="mt-1 text-xs leading-5 text-slate-400">{detail}</p>
     </div>
   );
 }

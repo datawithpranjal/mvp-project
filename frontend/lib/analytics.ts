@@ -10,7 +10,7 @@ export type AnalyticsEvent =
   | "premium_unlock_clicked"
   | "payment_started"
   | "lab_completed"
-  | "roadmap_day_completed";
+  | "roadmap_core_exercise_opened";
 
 interface AnalyticsPayload {
   [key: string]: string | number | boolean | null | undefined;
