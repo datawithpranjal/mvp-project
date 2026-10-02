@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
@@ -13,9 +12,11 @@ import {
 import { trackEvent } from "../../lib/analytics";
 import { getCurrentUser } from "../../lib/auth";
 import { getOperationsLearningFlow } from "../../lib/learning-flow";
-import { getPremiumAccess, type PremiumAccessRecord } from "../../lib/premium-access";
 import { handleTextareaTabKeyDown } from "../../lib/textarea-tab";
+import { usePremiumEntitlement } from "../../lib/use-premium-entitlement";
 import { AuthDialog } from "../auth-dialog";
+import { PremiumAccessBadge } from "../premium-access-badge";
+import { PremiumLockedPreview } from "../premium-locked-preview";
 
 interface SavedOperationsAnswer {
   optionId: string;
@@ -38,6 +39,7 @@ const STORAGE_KEY = "data-foundry-operations-lab-session-v1";
 
 export function OperationsDecisionLab({ track }: { track: OperationsLabTrack }) {
   const labs = useMemo(() => getOperationsLabs(track), [track]);
+  const { hasPremiumAccess, status: premiumStatus } = usePremiumEntitlement();
   const [selectedSlug, setSelectedSlug] = useState(labs[0]?.slug ?? "");
   const [savedAnswers, setSavedAnswers] = useState<Record<string, SavedOperationsAnswer>>({});
   const [selectedOption, setSelectedOption] = useState("");
@@ -47,7 +49,6 @@ export function OperationsDecisionLab({ track }: { track: OperationsLabTrack }) 
   const [result, setResult] = useState<EvaluationResult | null>(null);
   const [difficulty, setDifficulty] = useState("All");
   const [section, setSection] = useState("All");
-  const [premiumAccess, setPremiumAccess] = useState<PremiumAccessRecord | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [actionMessage, setActionMessage] = useState("");
@@ -62,7 +63,8 @@ export function OperationsDecisionLab({ track }: { track: OperationsLabTrack }) 
   const queue = filteredLabs.length > 0 ? filteredLabs : labs;
   const queueIndex = queue.findIndex((lab) => lab.slug === selectedLab?.slug);
   const nextLab = queueIndex >= 0 ? queue[queueIndex + 1] ?? null : queue[0] ?? null;
-  const isLocked = Boolean(selectedLab && !selectedLab.isFree && !premiumAccess);
+  const previousLab = queueIndex > 0 ? queue[queueIndex - 1] ?? null : null;
+  const isLocked = Boolean(selectedLab && !selectedLab.isFree && !hasPremiumAccess);
   const completedCount = labs.filter((lab) => savedAnswers[lab.slug]?.completed).length;
   const incidentFlow = selectedLab ? getOperationsLearningFlow(selectedLab) : null;
 
@@ -76,7 +78,6 @@ export function OperationsDecisionLab({ track }: { track: OperationsLabTrack }) 
       setSavedAnswers({});
     }
 
-    setPremiumAccess(getPremiumAccess());
     const requested = new URLSearchParams(window.location.search).get("lab");
     if (requested && labs.some((lab) => lab.slug === requested)) {
       setSelectedSlug(requested);
@@ -265,16 +266,14 @@ export function OperationsDecisionLab({ track }: { track: OperationsLabTrack }) 
                   <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
                     {lab.section}
                   </span>
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-100">
-                    {lab.isFree ? "Free" : "Premium"}
-                  </span>
+                  {lab.isFree ? <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-teal-100">Free</span> : <PremiumAccessBadge locked={!hasPremiumAccess} compact />}
                 </div>
                 <p className="mt-2 text-sm font-semibold leading-5 text-slate-100">
                   {lab.title}
                 </p>
-                <p className="mt-2 text-xs text-slate-400">
+                {lab.isFree || hasPremiumAccess ? <p className="mt-2 text-xs text-slate-400">
                   {savedAnswers[lab.slug]?.completed ? "Completed" : `${lab.estimatedMinutes} min`}
-                </p>
+                </p> : null}
               </button>
             ))}
           </div>
@@ -286,22 +285,18 @@ export function OperationsDecisionLab({ track }: { track: OperationsLabTrack }) 
               <div className="flex flex-wrap gap-2">
                 <Badge>{selectedLab.difficulty}</Badge>
                 <Badge>{selectedLab.section}</Badge>
-                <Badge>{selectedLab.estimatedMinutes} min</Badge>
-                <Badge>{selectedLab.isFree ? "Free" : "Premium"}</Badge>
+                {!isLocked ? <Badge>{selectedLab.estimatedMinutes} min</Badge> : null}
+                {selectedLab.isFree ? <Badge>Free</Badge> : <PremiumAccessBadge locked={isLocked} />}
               </div>
-              <button
-                type="button"
-                disabled={!nextLab}
-                onClick={() => nextLab && switchLab(nextLab)}
-                className="rounded-full border border-teal-300/30 px-5 py-2 text-sm font-semibold text-teal-100 transition hover:bg-teal-300/10 disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-500"
-              >
-                Next question
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" disabled={!previousLab} onClick={() => previousLab && switchLab(previousLab)} className="rounded-full border border-slate-700 px-5 py-2 text-sm font-semibold text-slate-200 disabled:cursor-not-allowed disabled:text-slate-600">← Previous</button>
+                <button type="button" disabled={!nextLab} onClick={() => nextLab && switchLab(nextLab)} className="rounded-full border border-teal-300/30 px-5 py-2 text-sm font-semibold text-teal-100 transition hover:bg-teal-300/10 disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-500">Next →</button>
+              </div>
             </div>
             <h2 className="mt-5 text-3xl font-semibold tracking-tight text-slate-50">
               {selectedLab.title}
             </h2>
-            <p className="mt-5 text-xs font-semibold uppercase tracking-[0.2em] text-teal-200">
+            {!isLocked ? <><p className="mt-5 text-xs font-semibold uppercase tracking-[0.2em] text-teal-200">
               Business context
             </p>
             <p className="mt-2 text-sm leading-7 text-slate-300">
@@ -313,9 +308,10 @@ export function OperationsDecisionLab({ track }: { track: OperationsLabTrack }) 
             <p className="mt-2 text-sm leading-7 text-slate-200">
               {selectedLab.problemStatement}
             </p>
+            </> : null}
           </article>
 
-          {incidentFlow ? (
+          {!isLocked && incidentFlow ? (
             <InteractiveLearningFlow
               title={`${selectedLab.title} production path`}
               stages={incidentFlow.stages}
@@ -328,40 +324,17 @@ export function OperationsDecisionLab({ track }: { track: OperationsLabTrack }) 
             />
           ) : null}
 
-          <article className="panel rounded-[2rem] p-6 sm:p-8">
+          {!isLocked ? <article className="panel rounded-[2rem] p-6 sm:p-8">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
               {selectedLab.evidenceLabel}
             </p>
             <pre className="mt-4 overflow-x-auto whitespace-pre-wrap break-words rounded-3xl border border-slate-800 bg-slate-950/70 p-5 font-mono text-sm leading-7 text-teal-100">
               {selectedLab.evidence}
             </pre>
-          </article>
+          </article> : null}
 
           {isLocked ? (
-            <article className="panel rounded-[2rem] border border-amber-300/25 p-7 text-center">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-200">
-                Premium practice
-              </p>
-              <h3 className="mt-3 text-2xl font-semibold text-slate-50">
-                Unlock the complete diagnosis workspace.
-              </h3>
-              <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-slate-300">
-                You can inspect the incident and skills above. Premium access unlocks the
-                decision options, written evaluation, hints, and production-grade model answer.
-              </p>
-              <Link
-                href="/pricing#unlock-premium"
-                onClick={() =>
-                  trackEvent("premium_unlock_clicked", {
-                    source: `${track}_lab`,
-                    lab: selectedLab.slug
-                  })
-                }
-                className="mt-6 inline-flex rounded-full bg-amber-300 px-6 py-3 text-sm font-semibold text-slate-950"
-              >
-                Unlock Premium
-              </Link>
-            </article>
+            <PremiumLockedPreview title={selectedLab.title} category={track === "airflow" ? "Airflow Lab" : "AWS Lab"} accessUnavailable={premiumStatus === "unavailable"} onPrevious={() => previousLab && switchLab(previousLab)} onNext={() => nextLab && switchLab(nextLab)} hasPrevious={Boolean(previousLab)} hasNext={Boolean(nextLab)} />
           ) : (
             <>
               <article className="panel rounded-[2rem] p-6 sm:p-8">
@@ -482,7 +455,7 @@ export function OperationsDecisionLab({ track }: { track: OperationsLabTrack }) 
           )}
         </section>
 
-        <aside className="panel hidden h-fit rounded-[2rem] p-5 2xl:sticky 2xl:top-24 2xl:block">
+        {!isLocked ? <aside className="panel hidden h-fit rounded-[2rem] p-5 2xl:sticky 2xl:top-24 2xl:block">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
             Skills tested
           </p>
@@ -506,7 +479,7 @@ export function OperationsDecisionLab({ track }: { track: OperationsLabTrack }) 
             <li>Name one meaningful trade-off.</li>
             <li>Add monitoring or prevention.</li>
           </ul>
-        </aside>
+        </aside> : null}
       </section>
       <AuthDialog isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
     </main>

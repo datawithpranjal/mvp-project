@@ -51,6 +51,7 @@ import { CodeBlock } from "./CodeBlock";
 import { EvaluationPanel } from "./EvaluationPanel";
 import { RubricBreakdown } from "./RubricBreakdown";
 import { AuthDialog } from "../auth-dialog";
+import { PremiumAccessBadge } from "../premium-access-badge";
 import { getPracticeStatus, PracticeStatusBadge } from "../practice-status-badge";
 
 interface ScenarioWorkspaceProps {
@@ -373,8 +374,12 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
   const allScenarios = useMemo(() => getScenarios(), []);
   const nextScenario = useMemo(() => {
     const index = allScenarios.findIndex((item) => item.slug === scenario.slug);
-    if (index < 0 || allScenarios.length <= 1) return null;
-    return allScenarios[(index + 1) % allScenarios.length];
+    if (index < 0) return null;
+    return allScenarios[index + 1] ?? null;
+  }, [allScenarios, scenario.slug]);
+  const previousScenario = useMemo(() => {
+    const index = allScenarios.findIndex((item) => item.slug === scenario.slug);
+    return index > 0 ? allScenarios[index - 1] ?? null : null;
   }, [allScenarios, scenario.slug]);
   const scenarioCompleted = Boolean(progress?.completed);
   const initialAnswer =
@@ -405,7 +410,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
     : completionStatus === "error"
       ? "rounded-full border border-amber-300/50 bg-amber-300/10 px-5 py-3 text-sm font-semibold text-amber-100 transition hover:bg-amber-300/20"
       : "rounded-full bg-teal-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-teal-200 disabled:cursor-wait disabled:opacity-70";
-  const canGoToNextScenario = Boolean(nextScenario && scenarioCompleted);
+  const canGoToNextScenario = Boolean(nextScenario);
   const nextScenarioButtonClass = canGoToNextScenario
     ? "rounded-full bg-teal-300 px-5 py-3 text-sm font-semibold text-slate-950 shadow-[0_0_28px_rgba(94,234,212,0.2)] transition hover:bg-teal-200"
     : "rounded-full border border-slate-700 px-5 py-3 text-sm font-semibold text-slate-500 disabled:cursor-not-allowed";
@@ -959,6 +964,12 @@ Impact: ${scenario.incident.impact}`
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
+  function goToPreviousScenario() {
+    if (!previousScenario) return;
+    router.push(`/scenarios/${previousScenario.slug}`);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   function tryFollowUp() {
     setActiveFollowUpIndex((current) => (current + 1) % Math.max(1, scenario.followUps.length));
     setEvaluation(null);
@@ -978,9 +989,7 @@ Impact: ${scenario.incident.impact}`
                 <Badge>{formatDifficulty(scenario.difficulty)}</Badge>
                 <Badge>{formatScenarioType(scenario.scenarioType)}</Badge>
               </div>
-              <span className={`hidden rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] sm:inline-flex ${scenario.isFree ? "border-teal-300/25 bg-teal-300/10 text-teal-100" : "border-amber-300/25 bg-amber-300/10 text-amber-100"}`}>
-                {scenario.isFree ? "Free" : "Premium"}
-              </span>
+              {scenario.isFree ? <span className="hidden rounded-full border border-teal-300/25 bg-teal-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-teal-100 sm:inline-flex">Free</span> : <PremiumAccessBadge locked={false} />}
             </div>
             <h1 className="mt-3 text-xl font-semibold tracking-tight text-slate-50 sm:mt-4 sm:text-3xl">
               {scenario.title}
@@ -989,7 +998,8 @@ Impact: ${scenario.incident.impact}`
               {scenario.requirement || scenario.businessContext}
             </p>
           </div>
-          <label className="block w-full shrink-0 xl:w-80">
+          <div className="flex w-full shrink-0 flex-col gap-2 xl:w-80">
+          <label className="block w-full">
             <span className="mb-2 hidden text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 sm:block">
               Choose scenario
             </span>
@@ -1004,6 +1014,11 @@ Impact: ${scenario.incident.impact}`
               ))}
             </select>
           </label>
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" onClick={goToPreviousScenario} disabled={!previousScenario} className="rounded-full border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 disabled:cursor-not-allowed disabled:text-slate-600">← Previous</button>
+            <button type="button" onClick={goToNextScenario} disabled={!nextScenario} className="rounded-full border border-teal-300/30 px-4 py-2 text-sm font-semibold text-teal-100 disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-600">Next →</button>
+          </div>
+          </div>
         </div>
       </header>
 
@@ -1249,7 +1264,8 @@ Impact: ${scenario.incident.impact}`
                       {evaluation ? <p className="text-xl font-semibold text-slate-50">Score: {evaluation.score}/100</p> : null}
                       <div className="mt-4 flex flex-wrap gap-3">
                         <button type="button" onClick={() => void completeLab()} disabled={completionButtonDisabled} className={completionButtonClass}>{completionButtonLabel}</button>
-                        <button type="button" onClick={goToNextScenario} disabled={!canGoToNextScenario} className={nextScenarioButtonClass}>{scenarioCompleted ? "Next scenario" : "Complete to continue"}</button>
+                        <button type="button" onClick={goToPreviousScenario} disabled={!previousScenario} className="rounded-full border border-slate-700 px-5 py-3 text-sm font-semibold text-slate-200 disabled:cursor-not-allowed disabled:text-slate-600">← Previous</button>
+                        <button type="button" onClick={goToNextScenario} disabled={!canGoToNextScenario} className={nextScenarioButtonClass}>Next scenario →</button>
                       </div>
                       {completionMessage ? <p role="status" className={`mt-4 rounded-2xl border px-4 py-3 text-sm font-semibold ${completionStatus === "error" ? "border-amber-300/30 bg-amber-300/10 text-amber-100" : "border-teal-300/20 bg-teal-300/10 text-teal-100"}`}>{completionMessage}</p> : null}
                       {!currentUser ? <button type="button" onClick={() => { trackEvent("signup_started", { source: "scenario_feedback" }); setIsAuthOpen(true); }} className="mt-4 text-sm font-semibold text-amber-200 underline decoration-amber-300/40 underline-offset-4">Sign up to keep progress across devices</button> : null}

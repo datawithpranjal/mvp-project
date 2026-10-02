@@ -7,8 +7,8 @@ import { evaluateScenarioWithAi } from "../../lib/api";
 import { getAuthToken } from "../../lib/auth";
 import { InteractiveLearningFlow } from "../interactive-learning-flow";
 import { buildArchitectureFlow } from "../../lib/learning-flow";
-import { getPremiumAccess, type PremiumAccessRecord } from "../../lib/premium-access";
 import { handleTextareaTabKeyDown } from "../../lib/textarea-tab";
+import { usePremiumEntitlement } from "../../lib/use-premium-entitlement";
 import {
   SYSTEM_DESIGN_CASES,
   SYSTEM_DESIGN_DIFFICULTIES,
@@ -22,6 +22,8 @@ import {
   type SystemDesignProgress
 } from "../../lib/system-design";
 import { AuthDialog } from "../auth-dialog";
+import { PremiumAccessBadge } from "../premium-access-badge";
+import { PremiumLockedPreview } from "../premium-locked-preview";
 
 const STORAGE_KEY = "the-data-foundry-system-design-progress-v1";
 
@@ -53,11 +55,11 @@ function verdictLabel(score: number) {
 }
 
 export function SystemDesignStudio() {
+  const { hasPremiumAccess, status: premiumStatus } = usePremiumEntitlement();
   const [domain, setDomain] = useState<DomainFilter>("All");
   const [difficulty, setDifficulty] = useState<DifficultyFilter>("All");
   const [selectedSlug, setSelectedSlug] = useState(SYSTEM_DESIGN_CASES[0]?.slug ?? "");
   const [progressMap, setProgressMap] = useState<Record<string, SystemDesignProgress>>({});
-  const [premiumAccess, setPremiumAccess] = useState<PremiumAccessRecord | null>(null);
   const [answer, setAnswer] = useState("");
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
   const [hintCount, setHintCount] = useState(0);
@@ -78,7 +80,6 @@ export function SystemDesignStudio() {
 
     setProgressMap(savedProgress);
     setSelectedSlug(initialSlug);
-    setPremiumAccess(getPremiumAccess());
     setAnswer(savedSelectedProgress?.draft ?? "");
     setSelectedOptions(savedSelectedProgress?.selectedOptions ?? {});
   }, []);
@@ -94,13 +95,14 @@ export function SystemDesignStudio() {
   const selectedCase =
     SYSTEM_DESIGN_CASES.find((item) => item.slug === selectedSlug) ?? SYSTEM_DESIGN_CASES[0];
   const currentProgress = progressMap[selectedCase.slug] ?? {};
-  const hasAccess = selectedCase.isFree || Boolean(premiumAccess);
+  const hasAccess = selectedCase.isFree || hasPremiumAccess;
   const completedCount = SYSTEM_DESIGN_CASES.filter(
     (item) => progressMap[item.slug]?.completed
   ).length;
   const activeQueue = filteredCases.length > 0 ? filteredCases : SYSTEM_DESIGN_CASES;
   const currentIndex = activeQueue.findIndex((item) => item.slug === selectedCase.slug);
-  const nextCase = currentIndex >= 0 ? activeQueue[(currentIndex + 1) % activeQueue.length] : null;
+  const nextCase = currentIndex >= 0 ? activeQueue[currentIndex + 1] ?? null : null;
+  const previousCase = currentIndex > 0 ? activeQueue[currentIndex - 1] ?? null : null;
 
   useEffect(() => {
     const saved = progressMap[selectedCase.slug];
@@ -349,7 +351,7 @@ export function SystemDesignStudio() {
 
           <div className="mt-5 max-h-[calc(100vh-18rem)] space-y-3 overflow-y-auto pr-1">
             {filteredCases.map((item) => {
-              const locked = !item.isFree && !premiumAccess;
+              const locked = !item.isFree && !hasPremiumAccess;
               const progress = progressMap[item.slug];
 
               return (
@@ -367,26 +369,22 @@ export function SystemDesignStudio() {
                     <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
                       {formatSystemDesignDomain(item.domain)}
                     </span>
-                    <span
-                      className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-[0.16em] ${
-                        locked
-                          ? "bg-amber-300/10 text-amber-100"
-                          : "bg-teal-300/10 text-teal-100"
-                      }`}
-                    >
-                      {locked ? "locked" : item.isFree ? "free" : "premium"}
-                    </span>
+                    {item.isFree ? (
+                      <span className="rounded-full bg-teal-300/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-teal-100">Free</span>
+                    ) : (
+                      <PremiumAccessBadge locked={locked} compact />
+                    )}
                   </div>
                   <p className="mt-2 text-sm font-semibold leading-5 text-slate-100">
                     {item.title}
                   </p>
-                  <p className="mt-2 text-xs leading-5 text-slate-400">
+                  {!locked ? <p className="mt-2 text-xs leading-5 text-slate-400">
                     {item.shortDescription}
-                  </p>
-                  <div className="mt-3 flex items-center justify-between text-[11px] uppercase tracking-[0.16em] text-slate-500">
+                  </p> : null}
+                  {!locked ? <div className="mt-3 flex items-center justify-between text-[11px] uppercase tracking-[0.16em] text-slate-500">
                     <span>{item.estimatedMinutes} min</span>
                     <span>{progress?.completed ? "completed" : progress?.score ? `${progress.score}/100` : item.difficulty}</span>
-                  </div>
+                  </div> : null}
                 </button>
               );
             })}
@@ -394,8 +392,12 @@ export function SystemDesignStudio() {
         </aside>
 
         <section className="min-w-0 space-y-6">
+          <div className="panel flex flex-wrap justify-between gap-3 rounded-[2rem] p-4">
+            <button type="button" onClick={() => previousCase && setSelectedSlug(previousCase.slug)} disabled={!previousCase} className="rounded-full border border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-200 disabled:cursor-not-allowed disabled:text-slate-600">← Previous</button>
+            <button type="button" onClick={() => nextCase && setSelectedSlug(nextCase.slug)} disabled={!nextCase} className="rounded-full border border-teal-300/30 px-5 py-2.5 text-sm font-semibold text-teal-100 disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-600">Next →</button>
+          </div>
           {!hasAccess ? (
-            <LockedCase item={selectedCase} />
+            <PremiumLockedPreview title={selectedCase.title} category="System Design" accessUnavailable={premiumStatus === "unavailable"} onPrevious={() => previousCase && setSelectedSlug(previousCase.slug)} onNext={() => nextCase && setSelectedSlug(nextCase.slug)} hasPrevious={Boolean(previousCase)} hasNext={Boolean(nextCase)} itemLabel="case" />
           ) : (
             <>
               <CaseBrief item={selectedCase} />
@@ -413,7 +415,9 @@ export function SystemDesignStudio() {
                 onSave={saveDraft}
                 onEvaluate={evaluateAnswer}
                 onComplete={markCompleted}
+                onPrevious={() => previousCase && setSelectedSlug(previousCase.slug)}
                 onNext={() => nextCase && setSelectedSlug(nextCase.slug)}
+                canGoPrevious={Boolean(previousCase)}
                 canGoNext={Boolean(nextCase)}
                 evaluation={evaluation}
                 evaluationNotice={evaluationNotice}
@@ -556,7 +560,9 @@ function AnswerWorkspace({
   onSave,
   onEvaluate,
   onComplete,
+  onPrevious,
   onNext,
+  canGoPrevious,
   canGoNext,
   evaluation,
   evaluationNotice,
@@ -570,7 +576,9 @@ function AnswerWorkspace({
   onSave: () => void;
   onEvaluate: () => void;
   onComplete: () => void;
+  onPrevious: () => void;
   onNext: () => void;
+  canGoPrevious: boolean;
   canGoNext: boolean;
   evaluation: SystemDesignEvaluation | null;
   evaluationNotice: string | null;
@@ -622,6 +630,14 @@ function AnswerWorkspace({
         <div className="mt-4 flex flex-wrap gap-3">
           <button
             type="button"
+            onClick={onPrevious}
+            disabled={!canGoPrevious}
+            className="rounded-full border border-slate-700 px-5 py-3 text-sm font-bold text-slate-200 transition hover:border-teal-300/40 disabled:cursor-not-allowed disabled:text-slate-600"
+          >
+            ← Previous
+          </button>
+          <button
+            type="button"
             onClick={onComplete}
             className="rounded-full bg-teal-300 px-5 py-3 text-sm font-bold text-slate-950 transition hover:bg-teal-200"
           >
@@ -633,7 +649,7 @@ function AnswerWorkspace({
             disabled={!canGoNext}
             className="rounded-full border border-teal-300/30 px-5 py-3 text-sm font-bold text-teal-100 transition hover:bg-teal-300/10 disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-500"
           >
-            Next case
+            Next case →
           </button>
         </div>
       </div>
@@ -836,37 +852,5 @@ function InfoList({ title, items }: { title: string; items: string[] }) {
         ))}
       </div>
     </div>
-  );
-}
-
-function LockedCase({ item }: { item: SystemDesignCase }) {
-  return (
-    <section className="panel rounded-[2rem] border border-amber-300/20 p-8">
-      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-200">
-        Premium system design case
-      </p>
-      <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-50">{item.title}</h2>
-      <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300">{item.shortDescription}</p>
-      <div className="mt-5 flex flex-wrap gap-2">
-        {item.tags.map((tag) => (
-          <span
-            key={tag}
-            className="rounded-full border border-slate-700 bg-slate-950/40 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-300"
-          >
-            {tag}
-          </span>
-        ))}
-      </div>
-      <p className="mt-6 rounded-3xl border border-slate-800 bg-slate-950/50 p-5 text-sm leading-7 text-slate-300">
-        This locked preview still shows the skill you will practice. Premium unlocks the full
-        requirements, decision questions, model answer, rubric evaluation, and follow-ups.
-      </p>
-      <Link
-        href="/pricing"
-        className="mt-6 inline-flex rounded-full bg-amber-300 px-5 py-3 text-sm font-bold text-slate-950 transition hover:bg-amber-200"
-      >
-        Unlock premium
-      </Link>
-    </section>
   );
 }

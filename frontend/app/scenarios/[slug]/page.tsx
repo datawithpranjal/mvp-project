@@ -2,39 +2,16 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
 
 import { PremiumLockedCard } from "../../../components/scenarios/PremiumLockedCard";
 import { ScenarioWorkspace } from "../../../components/scenarios/ScenarioWorkspace";
-import { AUTH_UPDATED_EVENT } from "../../../lib/auth";
-import {
-  getPremiumAccess,
-  PREMIUM_ACCESS_UPDATED_EVENT,
-  type PremiumAccessRecord
-} from "../../../lib/premium-access";
 import { getScenarioBySlug } from "../../../lib/scenarios";
+import { usePremiumEntitlement } from "../../../lib/use-premium-entitlement";
 
 export default function ScenarioDetailPage() {
   const params = useParams<{ slug: string }>();
   const scenario = getScenarioBySlug(params.slug);
-  const [premiumAccess, setPremiumAccess] = useState<PremiumAccessRecord | null>(null);
-
-  useEffect(() => {
-    function syncPremiumAccess() {
-      setPremiumAccess(getPremiumAccess());
-    }
-
-    syncPremiumAccess();
-    window.addEventListener("storage", syncPremiumAccess);
-    window.addEventListener(AUTH_UPDATED_EVENT, syncPremiumAccess);
-    window.addEventListener(PREMIUM_ACCESS_UPDATED_EVENT, syncPremiumAccess);
-
-    return () => {
-      window.removeEventListener("storage", syncPremiumAccess);
-      window.removeEventListener(AUTH_UPDATED_EVENT, syncPremiumAccess);
-      window.removeEventListener(PREMIUM_ACCESS_UPDATED_EVENT, syncPremiumAccess);
-    };
-  }, []);
+  const { hasPremiumAccess, status: premiumStatus } = usePremiumEntitlement();
 
   if (!scenario) {
     return (
@@ -61,8 +38,8 @@ export default function ScenarioDetailPage() {
     );
   }
 
-  if (!scenario.isFree && !premiumAccess) {
-    return <PremiumLockedCard scenario={scenario} />;
+  if (!scenario.isFree && !hasPremiumAccess) {
+    return <PremiumLockedCard scenario={scenario} accessUnavailable={premiumStatus === "unavailable"} />;
   }
 
   return <ScenarioWorkspace scenario={scenario} />;

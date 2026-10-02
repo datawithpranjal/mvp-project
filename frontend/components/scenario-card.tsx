@@ -3,6 +3,7 @@ import Link from "next/link";
 import { estimateScenarioMinutes, formatValidationMode } from "../lib/product";
 import type { ScenarioSummary } from "../lib/types";
 import type { ScenarioProgressSummary } from "../lib/progress";
+import { PremiumAccessBadge } from "./premium-access-badge";
 
 interface ScenarioCardProps {
   scenario: ScenarioSummary;
@@ -39,25 +40,21 @@ export function ScenarioCard({ scenario, progress, isLocked }: ScenarioCardProps
             <span className="rounded-full border border-slate-700 bg-slate-950/40 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-300">
               {estimateScenarioMinutes(scenario)} min
             </span>
-            <span
-              className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] ${
-                scenario.access_tier === "premium"
-                  ? "border border-amber-300/25 bg-amber-300/10 text-amber-100"
-                  : "border border-teal-300/20 bg-teal-300/10 text-teal-100"
-              }`}
-            >
-              {scenario.access_tier === "premium" ? "Premium" : "Free"}
-            </span>
+            {scenario.access_tier === "premium" ? (
+              <PremiumAccessBadge locked={isLocked} />
+            ) : (
+              <span className="rounded-full border border-teal-300/20 bg-teal-300/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-teal-100">Free</span>
+            )}
           </div>
         </div>
         <div>
           <h2 className="text-2xl font-semibold tracking-tight text-slate-50">
             {scenario.title}
           </h2>
-          <p className="mt-3 text-sm leading-6 text-slate-300">
+          {!isLocked ? <p className="mt-3 text-sm leading-6 text-slate-300">
             {scenario.short_description}
-          </p>
-          <div className="mt-4 flex flex-wrap gap-2">
+          </p> : null}
+          {!isLocked ? <div className="mt-4 flex flex-wrap gap-2">
             {extraTopics.slice(0, 3).map((topic) => (
               <span
                 key={topic}
@@ -66,7 +63,7 @@ export function ScenarioCard({ scenario, progress, isLocked }: ScenarioCardProps
                 {topic}
               </span>
             ))}
-          </div>
+          </div> : null}
         </div>
       </div>
       <div className="mt-8 space-y-3">

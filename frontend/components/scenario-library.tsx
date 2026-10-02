@@ -4,14 +4,9 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import { getScenarios } from "../lib/api";
-import { AUTH_UPDATED_EVENT } from "../lib/auth";
 import { DIFFICULTY_FILTERS, TOPIC_FILTERS } from "../lib/product";
 import { getScenarioProgressMap, type ScenarioProgressSummary } from "../lib/progress";
-import {
-  getPremiumAccess,
-  PREMIUM_ACCESS_UPDATED_EVENT,
-  type PremiumAccessRecord
-} from "../lib/premium-access";
+import { usePremiumEntitlement } from "../lib/use-premium-entitlement";
 import type { ScenarioSummary } from "../lib/types";
 import { PremiumUpgradePanel } from "./premium-upgrade-panel";
 import { ScenarioCard } from "./scenario-card";
@@ -31,7 +26,7 @@ export function ScenarioLibrary({
 }: ScenarioLibraryProps) {
   const [scenarios, setScenarios] = useState<ScenarioSummary[]>([]);
   const [progressMap, setProgressMap] = useState<Record<string, ScenarioProgressSummary>>({});
-  const [premiumAccess, setPremiumAccess] = useState<PremiumAccessRecord | null>(null);
+  const { access: premiumAccess, hasPremiumAccess, refresh: refreshPremiumAccess } = usePremiumEntitlement();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedDifficulty, setSelectedDifficulty] = useState("All");
@@ -59,18 +54,13 @@ export function ScenarioLibrary({
   useEffect(() => {
     function syncClientState() {
       setProgressMap(getScenarioProgressMap());
-      setPremiumAccess(getPremiumAccess());
     }
 
     syncClientState();
     window.addEventListener("storage", syncClientState);
-    window.addEventListener(PREMIUM_ACCESS_UPDATED_EVENT, syncClientState);
-    window.addEventListener(AUTH_UPDATED_EVENT, syncClientState);
 
     return () => {
       window.removeEventListener("storage", syncClientState);
-      window.removeEventListener(PREMIUM_ACCESS_UPDATED_EVENT, syncClientState);
-      window.removeEventListener(AUTH_UPDATED_EVENT, syncClientState);
     };
   }, []);
 
@@ -181,17 +171,17 @@ export function ScenarioLibrary({
             ))}
           </div>
 
-          {showUpgradePanel && !premiumAccess ? (
+          {showUpgradePanel && !hasPremiumAccess ? (
             <div className="mb-6">
               <PremiumUpgradePanel
                 title="Unlock premium scenarios"
                 description="Sign in, choose `Rs 999/year` or `Rs 199/month`, and pay securely through Razorpay to unlock premium scenarios."
-                onUnlocked={() => setPremiumAccess(getPremiumAccess())}
+                onUnlocked={() => void refreshPremiumAccess()}
               />
             </div>
           ) : null}
 
-          {premiumAccess ? (
+          {hasPremiumAccess && premiumAccess ? (
             <div className="panel mb-6 rounded-3xl border border-teal-300/20 bg-teal-300/10 p-5 text-sm text-teal-100">
               Premium unlocked for <span className="font-semibold">{premiumAccess.email}</span>{" "}
               on the <span className="font-semibold">{premiumAccess.plan_label}</span> plan.
@@ -228,7 +218,7 @@ export function ScenarioLibrary({
                   key={scenario.slug}
                   scenario={scenario}
                   progress={progressMap[scenario.slug]}
-                  isLocked={scenario.access_tier === "premium" && !premiumAccess}
+                  isLocked={scenario.access_tier === "premium" && !hasPremiumAccess}
                 />
               ))}
             </div>

@@ -8,6 +8,7 @@ import {
   type Scenario
 } from "../../lib/scenarios";
 import type { ScenarioProgressSummary } from "../../lib/progress";
+import { PremiumAccessBadge } from "../premium-access-badge";
 
 interface ScenarioCardProps {
   scenario: Scenario;
@@ -48,19 +49,15 @@ export function ScenarioCard({ scenario, progress, isLocked }: ScenarioCardProps
         <span className="rounded-full border border-slate-700 bg-slate-950/40 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-200">
           {formatDifficulty(scenario.difficulty)}
         </span>
-        <span
-          className={`rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${
-            scenario.isFree
-              ? "border-teal-300/25 bg-teal-300/10 text-teal-100"
-              : "border-amber-300/25 bg-amber-300/10 text-amber-100"
-          }`}
-        >
-          {scenario.isFree ? "Free" : "Premium"}
-        </span>
+        {scenario.isFree ? (
+          <span className="rounded-full border border-teal-300/25 bg-teal-300/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-teal-100">Free</span>
+        ) : (
+          <PremiumAccessBadge locked={isLocked} />
+        )}
       </div>
 
       <h3 className="mt-5 text-xl font-semibold leading-8 text-slate-50">{scenario.title}</h3>
-      <div
+      {!isLocked ? <div
         className={`mt-3 rounded-2xl border px-4 py-3 ${
           isCompleted
             ? "border-teal-200/25 bg-teal-200/15"
@@ -75,18 +72,18 @@ export function ScenarioCard({ scenario, progress, isLocked }: ScenarioCardProps
         <p className="mt-2 text-sm leading-6 text-slate-100">
           {scenario.requirement ?? scenario.tasks[0] ?? formatScenarioType(scenario.scenarioType)}
         </p>
-      </div>
-      <p className="mt-3 line-clamp-4 text-sm leading-6 text-slate-400">
+      </div> : null}
+      {!isLocked ? <p className="mt-3 line-clamp-4 text-sm leading-6 text-slate-400">
         {scenario.problemStatement}
-      </p>
+      </p> : null}
 
-      <div className="mt-5 grid gap-3 text-sm text-slate-300 sm:grid-cols-3">
+      {!isLocked ? <div className="mt-5 grid gap-3 text-sm text-slate-300 sm:grid-cols-3">
         <MetaPill label="Type" value={formatScenarioType(scenario.scenarioType)} />
         <MetaPill label="Time" value={`${scenario.estimatedMinutes} min`} />
         <MetaPill label="Progress" value={status} />
-      </div>
+      </div> : null}
 
-      <div className="mt-5 flex flex-wrap gap-2">
+      {!isLocked ? <div className="mt-5 flex flex-wrap gap-2">
         {scenario.tags.slice(0, 4).map((tag) => (
           <span
             key={tag}
@@ -95,7 +92,7 @@ export function ScenarioCard({ scenario, progress, isLocked }: ScenarioCardProps
             {tag}
           </span>
         ))}
-      </div>
+      </div> : null}
 
       <div className="mt-auto pt-6">
         <Link

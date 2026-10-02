@@ -4,11 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import { AUTH_UPDATED_EVENT } from "../../lib/auth";
-import {
-  getPremiumAccess,
-  PREMIUM_ACCESS_UPDATED_EVENT,
-  type PremiumAccessRecord
-} from "../../lib/premium-access";
+import { usePremiumEntitlement } from "../../lib/use-premium-entitlement";
 import {
   SCENARIO_PROGRESS_UPDATED_EVENT,
   getScenarioProgressMap,
@@ -31,30 +27,27 @@ const INITIAL_FILTERS: ScenarioFilterState = {
 };
 
 export function BrokenPipelineLab() {
+  const { hasPremiumAccess } = usePremiumEntitlement();
   const [filters, setFilters] = useState<ScenarioFilterState>(INITIAL_FILTERS);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState("recommended");
   const [progressMap, setProgressMap] = useState<Record<string, ScenarioProgressSummary>>({});
-  const [premiumAccess, setPremiumAccess] = useState<PremiumAccessRecord | null>(null);
   const scenarios = getScenarios();
 
   useEffect(() => {
     function syncState() {
       setProgressMap(getScenarioProgressMap());
-      setPremiumAccess(getPremiumAccess());
     }
 
     syncState();
     window.addEventListener("storage", syncState);
     window.addEventListener(AUTH_UPDATED_EVENT, syncState);
     window.addEventListener(SCENARIO_PROGRESS_UPDATED_EVENT, syncState);
-    window.addEventListener(PREMIUM_ACCESS_UPDATED_EVENT, syncState);
 
     return () => {
       window.removeEventListener("storage", syncState);
       window.removeEventListener(AUTH_UPDATED_EVENT, syncState);
       window.removeEventListener(SCENARIO_PROGRESS_UPDATED_EVENT, syncState);
-      window.removeEventListener(PREMIUM_ACCESS_UPDATED_EVENT, syncState);
     };
   }, []);
 
@@ -243,7 +236,7 @@ export function BrokenPipelineLab() {
               key={scenario.slug}
               scenario={scenario}
               progress={progressMap[scenario.slug]}
-              isLocked={!scenario.isFree && !premiumAccess}
+              isLocked={!scenario.isFree && !hasPremiumAccess}
             />
           ))}
         </div>

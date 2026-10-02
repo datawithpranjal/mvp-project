@@ -20,6 +20,7 @@ import { AUTH_UPDATED_EVENT, getAuthToken, getCurrentUser } from "../../lib/auth
 import { codingProgressFromRemote } from "../../lib/learner-progress";
 import { sendUsageEvent } from "../../lib/usage";
 import { handleTextareaTabKeyDown } from "../../lib/textarea-tab";
+import { usePremiumEntitlement } from "../../lib/use-premium-entitlement";
 import {
   formatTrackLabel,
   getCodingLabs,
@@ -41,6 +42,8 @@ import {
   type CodingLabProgress
 } from "../../lib/coding-lab-session";
 import { AuthDialog } from "../auth-dialog";
+import { PremiumAccessBadge } from "../premium-access-badge";
+import { PremiumLockedPreview } from "../premium-locked-preview";
 import { getPracticeStatus, PracticeStatusBadge } from "../practice-status-badge";
 
 interface PythonTestResult {
@@ -380,6 +383,7 @@ function getReferenceLabels(track: CodingLabTrack) {
 
 export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
   const labs = useMemo(() => getCodingLabs(track), [track]);
+  const { hasPremiumAccess, status: premiumStatus } = usePremiumEntitlement();
   const workspaceRef = useRef<HTMLElement | null>(null);
   const [selectedSlug, setSelectedSlug] = useState(labs[0]?.slug ?? "");
   const selectedLab = labs.find((lab) => lab.slug === selectedSlug) ?? labs[0];
@@ -702,13 +706,16 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
     currentQueueIndex >= 0
       ? activeLabQueue[currentQueueIndex + 1] ?? null
       : activeLabQueue[0] ?? null;
+  const previousLab =
+    currentQueueIndex > 0 ? activeLabQueue[currentQueueIndex - 1] ?? null : null;
   const selectedProgress = progressMap[selectedLab.slug];
   const selectedCompleted = Boolean(selectedProgress?.completed);
   const selectedStatus = getPracticeStatus(
     selectedCompleted,
     (selectedProgress?.attemptCount ?? 0) > 0 || Boolean(answers[selectedLab.slug])
   );
-  const canGoNext = Boolean(nextLab && selectedCompleted);
+  const canGoNext = Boolean(nextLab);
+  const isPremiumLocked = !selectedLab.isFree && !hasPremiumAccess;
   const nextQuestionButtonClass = canGoNext
     ? "rounded-full bg-teal-300 px-5 py-3 text-sm font-bold text-slate-950 shadow-[0_0_28px_rgba(94,234,212,0.2)] transition hover:bg-teal-200"
     : "rounded-full border border-slate-700 px-5 py-3 text-sm font-bold text-slate-500 disabled:cursor-not-allowed";
@@ -1070,6 +1077,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
           progressFilterOptions={progressFilterOptions}
           progressMap={progressMap}
           answers={answers}
+          hasPremiumAccess={hasPremiumAccess}
           onTopicChange={setTopic}
           onDifficultyChange={setDifficulty}
           onProgressFilterChange={setProgressFilter}
@@ -1085,23 +1093,42 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
               <PracticeStatusBadge status={selectedStatus} />
               <span className="badge rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]">{selectedLab.difficulty}</span>
               <span className="rounded-full border border-slate-700 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-300">{formatTrackLabel(track)}</span>
-              {selectedLab.topicTags.slice(0, 2).map((tag) => <span key={tag} className="hidden rounded-full border border-slate-700 px-3 py-1 text-xs font-semibold text-slate-400 sm:inline-flex">{tag}</span>)}
+              {!selectedLab.isFree ? <PremiumAccessBadge locked={isPremiumLocked} /> : null}
+              {!isPremiumLocked ? selectedLab.topicTags.slice(0, 2).map((tag) => <span key={tag} className="hidden rounded-full border border-slate-700 px-3 py-1 text-xs font-semibold text-slate-400 sm:inline-flex">{tag}</span>) : null}
             </div>
             <h1 className="mt-4 text-2xl font-semibold tracking-tight text-slate-50 sm:text-3xl">{selectedLab.title}</h1>
-            <p className="mt-2 hidden max-w-4xl text-sm leading-6 text-slate-300 sm:block">{selectedLab.studentTask}</p>
+            {!isPremiumLocked ? <p className="mt-2 hidden max-w-4xl text-sm leading-6 text-slate-300 sm:block">{selectedLab.studentTask}</p> : null}
           </div>
           <div className="flex w-full shrink-0 flex-col gap-2 xl:w-80">
             <label>
               <span className="mb-2 hidden text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 sm:block">Choose question</span>
               <select value={selectedLab.slug} onChange={(event) => switchLab(event.target.value)} className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:border-teal-300/50">
-                {labs.map((lab) => <option key={lab.slug} value={lab.slug}>{lab.title}</option>)}
+                {labs.map((lab) => <option key={lab.slug} value={lab.slug}>{lab.isFree ? "" : "🔒 "}{lab.title}</option>)}
               </select>
             </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => previousLab && switchLab(previousLab.slug)} disabled={!previousLab} className="rounded-full border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 disabled:cursor-not-allowed disabled:text-slate-600">← Previous</button>
+              <button type="button" onClick={() => nextLab && switchLab(nextLab.slug)} disabled={!nextLab} className="rounded-full border border-teal-300/30 px-4 py-2 text-sm font-semibold text-teal-100 disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-600">Next →</button>
+            </div>
             <button type="button" onClick={returnToLibrary} className="hidden self-start text-xs font-semibold text-slate-400 underline decoration-slate-700 underline-offset-4 hover:text-teal-100 sm:block">Back to all questions</button>
           </div>
         </div>
       </header>
 
+      {isPremiumLocked ? (
+        <div className="mt-5">
+          <PremiumLockedPreview
+            title={selectedLab.title}
+            category={`${formatTrackLabel(track)} Lab`}
+            accessUnavailable={premiumStatus === "unavailable"}
+            onPrevious={() => previousLab && switchLab(previousLab.slug)}
+            onNext={() => nextLab && switchLab(nextLab.slug)}
+            hasPrevious={Boolean(previousLab)}
+            hasNext={Boolean(nextLab)}
+          />
+        </div>
+      ) : (
+        <>
       {mobileReferenceOpen ? <button type="button" aria-label="Close reference" onClick={() => setMobileReferenceOpen(false)} className="fixed inset-0 z-40 bg-slate-950/80 backdrop-blur-sm md:hidden" /> : null}
 
       <section
@@ -1278,11 +1305,19 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
                   </button>
                   <button
                     type="button"
+                    onClick={() => previousLab && switchLab(previousLab.slug)}
+                    disabled={!previousLab}
+                    className="rounded-full border border-slate-700 px-5 py-3 text-sm font-bold text-slate-200 transition hover:border-teal-300/40 disabled:cursor-not-allowed disabled:text-slate-600"
+                  >
+                    ← Previous
+                  </button>
+                  <button
+                    type="button"
 	                    onClick={goToNextLab}
 	                    disabled={!canGoNext}
 	                    className={nextQuestionButtonClass}
 	                  >
-	                    {selectedCompleted ? "Next question" : "Complete to continue"}
+	                    Next question →
                   </button>
                 </div>
               </div>
@@ -1293,6 +1328,8 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
         </section>
 
       </section>
+        </>
+      )}
         </>
       )}
       <AuthDialog isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
@@ -1311,6 +1348,7 @@ function LabLibraryView({
   progressFilterOptions,
   progressMap,
   answers,
+  hasPremiumAccess,
   onTopicChange,
   onDifficultyChange,
   onProgressFilterChange,
@@ -1326,6 +1364,7 @@ function LabLibraryView({
   progressFilterOptions: Array<{ label: ProgressFilter; count: number }>;
   progressMap: Record<string, CodingLabProgress>;
   answers: Record<string, string>;
+  hasPremiumAccess: boolean;
   onTopicChange: (topic: string) => void;
   onDifficultyChange: (difficulty: string) => void;
   onProgressFilterChange: (filter: ProgressFilter) => void;
@@ -1407,6 +1446,7 @@ function LabLibraryView({
               lab={lab}
               progress={progressMap[lab.slug]}
               hasDraft={Boolean(answers[lab.slug])}
+              isLocked={!lab.isFree && !hasPremiumAccess}
               onSelect={() => onSelectLab(lab.slug)}
             />
           ))
@@ -1428,11 +1468,13 @@ function LabLibraryCard({
   lab,
   progress,
   hasDraft,
+  isLocked,
   onSelect
 }: {
   lab: CodingLab;
   progress?: CodingLabProgress;
   hasDraft: boolean;
+  isLocked: boolean;
   onSelect: () => void;
 }) {
   const isCompleted = Boolean(progress?.completed);
@@ -1454,13 +1496,16 @@ function LabLibraryCard({
         <span className="rounded-full border border-slate-700 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
           {lab.section}
         </span>
-        <PracticeStatusBadge status={status} />
+        <div className="flex items-center gap-2">
+          {!lab.isFree ? <PremiumAccessBadge locked={isLocked} compact /> : null}
+          {!isLocked ? <PracticeStatusBadge status={status} /> : null}
+        </div>
       </div>
       <h3 className="mt-5 text-xl font-semibold leading-7 text-slate-50">{lab.title}</h3>
-      <p className="mt-3 line-clamp-4 text-sm leading-6 text-slate-400">
+      {!isLocked ? <p className="mt-3 line-clamp-4 text-sm leading-6 text-slate-400">
         {lab.problemStatement}
-      </p>
-      <div className="mt-4 flex flex-wrap gap-2">
+      </p> : null}
+      {!isLocked ? <div className="mt-4 flex flex-wrap gap-2">
         <span className="rounded-full border border-slate-700 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
           {lab.difficulty}
         </span>
@@ -1475,7 +1520,7 @@ function LabLibraryCard({
             {tag}
           </span>
         ))}
-      </div>
+      </div> : null}
       <div className="mt-auto pt-6">
         <span
           className={`inline-flex rounded-full px-5 py-3 text-sm font-bold text-slate-950 transition ${
@@ -1484,7 +1529,7 @@ function LabLibraryCard({
               : "bg-amber-300 group-hover:bg-amber-200"
           }`}
         >
-          {isCompleted ? "Review completed lab" : "Start this lab"}
+          {isLocked ? "View Premium access" : isCompleted ? "Review completed lab" : "Start this lab"}
         </span>
       </div>
     </button>
