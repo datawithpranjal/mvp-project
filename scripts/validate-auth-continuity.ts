@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { getAuthToken, getCurrentUser, refreshCurrentUser, saveAuthSession } from "../frontend/lib/auth";
-import { clearAuthIntent, consumeAuthIntent, finishGoogleAttempt, getGoogleAttempt, rememberAuthIntent, safeReturnTo } from "../frontend/lib/auth-flow";
+import { BEFORE_AUTH_EVENT, beginGoogleLogin, clearAuthIntent, consumeAuthIntent, finishGoogleAttempt, getGoogleAttempt, rememberAuthIntent, safeReturnTo } from "../frontend/lib/auth-flow";
 import type { AuthSessionResponse } from "../frontend/lib/types";
 
 class MemoryStorage {
@@ -11,10 +11,11 @@ class MemoryStorage {
 }
 
 const events = new EventTarget();
+let navigation = "";
 Object.defineProperty(globalThis, "window", { configurable: true, value: {
   localStorage: new MemoryStorage(), sessionStorage: new MemoryStorage(),
   dispatchEvent: events.dispatchEvent.bind(events),
-  location: { pathname: "/labs/sql", search: "?lab=test", hash: "" }
+  location: { pathname: "/labs/sql", search: "?lab=test", hash: "", origin: "https://datawithpranjal.com", assign: (url: string) => { navigation = url; } }
 } });
 
 function session(id = "existing-customer", token = "original-token"): AuthSessionResponse {
@@ -70,7 +71,29 @@ async function main() {
   assert.equal(finishGoogleAttempt("different-state"), false);
   assert.equal(finishGoogleAttempt("test-state"), true);
   assert.equal(finishGoogleAttempt("test-state"), false, "OAuth callback was accepted twice");
-  console.log("Auth continuity passed: transient failures, invalid sessions, account-switch races, return paths, single-use actions.");
+
+  for (const origin of ["https://datawithpranjal.com", "https://www.datawithpranjal.com"]) {
+    Object.defineProperty(window.location, "origin", { configurable: true, value: origin });
+    let flushes = 0;
+    const onFlush = () => { flushes += 1; };
+    events.addEventListener(BEFORE_AUTH_EVENT, onFlush);
+    globalThis.fetch = async (input, init) => {
+      const requested = new URL(String(input));
+      assert.equal(requested.searchParams.get("frontend_origin"), origin, "Lost the original frontend origin");
+      assert.equal(requested.searchParams.get("return_to"), "/labs/sql?lab=test");
+      assert.equal(init?.cache, "no-store", "OAuth state must not be cached");
+      assert.equal(flushes, 1, "Draft was not flushed before requesting login");
+      return new Response(JSON.stringify({ url: "https://accounts.google.com/o/oauth2/v2/auth?state=test-origin-state" }));
+    };
+    await beginGoogleLogin();
+    assert.equal(flushes, 2);
+    assert.equal(new URL(navigation).pathname, "/api/v1/auth/google/start");
+    assert.equal(new URL(navigation).searchParams.get("state"), "test-origin-state");
+    assert.equal(getGoogleAttempt()?.returnTo, "/labs/sql?lab=test");
+    assert.equal(finishGoogleAttempt("test-origin-state"), true);
+    events.removeEventListener(BEFORE_AUTH_EVENT, onFlush);
+  }
+  console.log("Auth continuity passed: transient failures, invalid sessions, account-switch races, return paths, single-use actions, two-origin OAuth and draft flushing.");
 }
 
 void main().catch((error) => { console.error(error); process.exitCode = 1; });

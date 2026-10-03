@@ -229,6 +229,23 @@ GOOGLE_OAUTH_STATE_SECRET=choose-a-long-random-token
 
 The same redirect URI must be added under **Authorized redirect URIs** in Google Cloud.
 
+If the frontend serves more than one origin, explicitly allow its additional origins
+on the **backend**, separately from CORS. For TDF production:
+
+```text
+FRONTEND_BASE_URL=https://datawithpranjal.com
+GOOGLE_OAUTH_FRONTEND_ORIGINS=https://www.datawithpranjal.com
+```
+
+`FRONTEND_BASE_URL` is always allowed. `GOOGLE_OAUTH_FRONTEND_ORIGINS` is an optional
+comma-separated exact-origin list: no paths, wildcards, arbitrary preview domains,
+or public HTTP origins. HTTP is allowed only for explicitly configured loopback
+development origins. The initiating origin is validated, signed into OAuth state,
+and revalidated on success, cancellation, and failure. This keeps the callback on
+the origin holding the learner's pending login and draft; it does not migrate or
+clear existing sessions. Preview deployments must use their own matching frontend
+and backend configuration, not production's origin list.
+
 #### Low-friction login: rollout and customer safety
 
 - The new email form sends `mode: continue`. It accepts an existing or new email without a login/signup choice or mandatory name. New accounts are created only after code verification. Legacy `signin` and `signup` requests remain supported; repeat signup cannot overwrite an existing profile.

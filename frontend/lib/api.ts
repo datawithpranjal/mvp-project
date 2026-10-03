@@ -286,9 +286,11 @@ export function logoutAuthSession(token: string): Promise<{ logged_out: boolean 
   });
 }
 
-export function getGoogleAuthStartUrl(returnTo: string = "/dashboard"): Promise<GoogleAuthStartUrlResponse> {
+export function getGoogleAuthStartUrl(returnTo: string = "/dashboard", frontendOrigin?: string): Promise<GoogleAuthStartUrlResponse> {
+  const query = new URLSearchParams({ return_to: returnTo });
+  if (frontendOrigin) query.set("frontend_origin", frontendOrigin);
   return apiFetch<GoogleAuthStartUrlResponse>(
-    `/api/v1/auth/google/start-url?return_to=${encodeURIComponent(returnTo)}`
+    `/api/v1/auth/google/start-url?${query.toString()}`, { cache: "no-store" }
   );
 }
 

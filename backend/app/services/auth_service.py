@@ -9,7 +9,7 @@ import logging
 import math
 import secrets
 from typing import Any
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 from uuid import uuid4
 
 import httpx
@@ -68,6 +68,9 @@ class AuthService:
         self.otp_ttl = timedelta(minutes=settings.auth_otp_ttl_minutes)
         self.session_ttl = timedelta(days=settings.auth_session_ttl_days)
         self.frontend_base_url = settings.frontend_base_url.rstrip("/")
+        self.google_frontend_origins = {
+            origin.rstrip("/") for origin in settings.google_oauth_frontend_origins
+        }
         self.google_client_id = settings.google_oauth_client_id
         self.google_client_secret = settings.google_oauth_client_secret
         self.google_redirect_uri = settings.google_oauth_redirect_uri
@@ -163,7 +166,39 @@ class AuthService:
     def google_is_configured(self) -> bool:
         return bool(self.google_client_id and self.google_client_secret and self.google_redirect_uri)
 
-    def google_login_url(self, return_to: str | None = None, *, state: str | None = None) -> str:
+    def google_frontend_origin(self, frontend_origin: str | None = None) -> str:
+        origin = self.frontend_base_url if frontend_origin is None else frontend_origin
+        if not isinstance(origin, str):
+            raise AuthValidationError("Invalid Google login destination.")
+        try:
+            parsed = urlsplit(origin)
+            valid = (
+                not any(ord(char) <= 32 for char in origin)
+                and not any(char in origin for char in ("\\", "*", "%"))
+                and origin == f"{parsed.scheme}://{parsed.netloc}"
+                and bool(parsed.hostname)
+                and parsed.username is None and parsed.password is None
+                and (parsed.port is None or 0 < parsed.port <= 65535)
+                and (
+                    parsed.scheme == "https"
+                    or (parsed.scheme == "http" and parsed.hostname in {"localhost", "127.0.0.1", "::1"})
+                )
+            )
+        except (TypeError, ValueError):
+            valid = False
+        # OAuth destinations are stricter than CORS: never inherit its regex or
+        # trust a request Host/Origin/Referer header as a redirect destination.
+        if not valid or origin not in self.google_frontend_origins | {self.frontend_base_url}:
+            raise AuthValidationError("Google login is unavailable from this address. Please continue with email.")
+        return origin
+
+    def google_callback_origin(self, state: str) -> str:
+        return str(self._parse_google_state(state)["frontend_origin"])
+
+    def google_login_url(
+        self, return_to: str | None = None, *, state: str | None = None,
+        frontend_origin: str | None = None,
+    ) -> str:
         if not self.google_client_id or not self.google_client_secret or not self.google_redirect_uri:
             raise AuthValidationError(
                 "Google login is not configured yet. Add GOOGLE_OAUTH_CLIENT_ID, "
@@ -173,7 +208,7 @@ class AuthService:
         if state:
             self._parse_google_state(state)
         else:
-            state = self._build_google_state(return_to or "/dashboard")
+            state = self._build_google_state(return_to or "/dashboard", frontend_origin=frontend_origin)
         query = urlencode(
             {
                 "client_id": self.google_client_id,
@@ -482,13 +517,14 @@ class AuthService:
             # Usage tracking should never block authentication.
             return
 
-    def _build_google_state(self, return_to: str) -> str:
+    def _build_google_state(self, return_to: str, *, frontend_origin: str | None = None) -> str:
         safe_return_to = return_to if (
             return_to.startswith("/") and not return_to.startswith("//")
             and "\\" not in return_to and not any(ord(char) < 32 for char in return_to)
         ) else "/dashboard"
         payload = {
             "return_to": safe_return_to,
+            "frontend_origin": self.google_frontend_origin(frontend_origin),
             "created_at": int(self._now().timestamp()),
             "nonce": secrets.token_urlsafe(12),
         }
@@ -533,6 +569,12 @@ class AuthService:
         if state_age_seconds < 0 or state_age_seconds > 900:
             raise AuthUnauthorizedError("Google login state expired. Please try again.")
 
+        try:
+            # Missing origin supports still-valid state issued by the old backend.
+            # Recheck at callback so removing an origin also invalidates its state.
+            payload["frontend_origin"] = self.google_frontend_origin(payload.get("frontend_origin"))
+        except AuthValidationError as exc:
+            raise AuthUnauthorizedError("Invalid Google login destination. Please restart login.") from exc
         return payload
 
     def _fetch_google_user_info(self, code: str) -> dict[str, Any]:

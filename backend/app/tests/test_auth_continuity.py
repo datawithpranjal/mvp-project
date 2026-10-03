@@ -1,5 +1,8 @@
 from copy import deepcopy
 from datetime import timedelta
+import hashlib
+import hmac
+import json
 from urllib.parse import parse_qs, urlparse
 
 import pytest
@@ -7,8 +10,9 @@ from fastapi.testclient import TestClient
 
 from app.api.routes import auth as auth_route, learner_progress as progress_route
 from app.main import app
+from app.core.config import Settings
 from app.schemas.auth import AuthRequestOtpRequest, AuthVerifyOtpRequest
-from app.services.auth_service import AuthService, AuthUnauthorizedError
+from app.services.auth_service import AuthService, AuthUnauthorizedError, AuthValidationError
 from app.services.learner_progress_store import LearnerProgressStore
 from app.services.premium_access_service import PremiumAccessService
 
@@ -163,3 +167,122 @@ def test_google_unavailable_does_not_disable_email(service):
         assert client.get("/api/v1/auth/providers").json() == {"email": True, "google": False}
         response = client.post("/api/v1/auth/request-otp", json={"email": "fallback@example.com", "mode": "continue"})
         assert response.status_code == 200
+
+
+@pytest.mark.parametrize("origin", ["https://datawithpranjal.com", "https://www.datawithpranjal.com"])
+@pytest.mark.parametrize("outcome", ["success", "cancel", "missing_code", "provider_error", "missing_cookie"])
+def test_google_returns_success_and_failures_to_original_trusted_origin(service, monkeypatch, origin, outcome):
+    configure_google(service)
+    service.frontend_base_url = "https://datawithpranjal.com"
+    service.google_frontend_origins = {"https://www.datawithpranjal.com"}
+    calls = []
+
+    def google_profile(code):
+        calls.append(code)
+        if outcome == "provider_error":
+            raise AuthUnauthorizedError("Please continue with email.")
+        return {"email": "origin.test@gmail.com", "email_verified": True, "name": "Learner"}
+
+    monkeypatch.setattr(service, "_fetch_google_user_info", google_profile)
+    client = TestClient(app)
+    destination = "/labs/python?lab=example#editor"
+    result = client.get("/api/v1/auth/google/start-url", params={"return_to": destination, "frontend_origin": origin})
+    assert result.status_code == 200
+    assert result.headers["cache-control"] == "no-store"
+    state = parse_qs(urlparse(result.json()["url"]).query)["state"][0]
+    assert service._parse_google_state(state)["frontend_origin"] == origin
+    # Neither an extra query parameter nor a forged HTTP header overrides signed state.
+    if outcome != "missing_cookie":
+        client.get("/api/v1/auth/google/start", params={"state": state, "frontend_origin": "https://evil.example"}, follow_redirects=False)
+    params = {"state": state, "frontend_origin": "https://evil.example"}
+    if outcome == "cancel":
+        params["error"] = "access_denied"
+    elif outcome != "missing_code":
+        params["code"] = "test"
+    response = client.get("/api/v1/auth/google/callback", params=params, headers={"Origin": "https://evil.example"}, follow_redirects=False)
+    target = urlparse(response.headers["location"])
+    assert f"{target.scheme}://{target.netloc}" == origin
+    assert target.path == "/auth/callback"
+    assert response.headers["cache-control"] == "no-store"
+    assert response.headers["referrer-policy"] == "no-referrer"
+    assert "Max-Age=0" in response.headers["set-cookie"]
+    if outcome == "success":
+        assert parse_qs(target.fragment)["return_to"] == [destination]
+        assert "token" in parse_qs(target.fragment)
+    else:
+        assert "token" not in parse_qs(target.fragment)
+        assert "error" in parse_qs(target.query)
+        assert not service._memory_users
+    if outcome in {"cancel", "missing_code", "missing_cookie"}:
+        assert not calls
+
+
+@pytest.mark.parametrize("origin", [
+    "https://evil.example", "https://datawithpranjal.com.evil.example",
+    "https://datawithpranjal.com@evil.example", "https://www.datawithpranjal.com:444",
+    "https://www.datawithpranjal.com/", "https://www.datawithpranjal.com/path",
+    "https://www.datawithpranjal.com?redirect=evil", "https://www.datawithpranjal.com#fragment",
+    "https://www.datawithpranjal.com\\@evil.example", "https://www.datawithpranjal.com\nevil",
+    "http://www.datawithpranjal.com", "//www.datawithpranjal.com", "https://*.vercel.app",
+    "https://%77ww.datawithpranjal.com", "https://unapproved-preview.vercel.app", "",
+])
+def test_google_rejects_untrusted_or_malformed_origins_before_navigation(service, origin):
+    configure_google(service)
+    service.frontend_base_url = "https://datawithpranjal.com"
+    service.google_frontend_origins = {"https://www.datawithpranjal.com"}
+    client = TestClient(app)
+    for endpoint in ["start-url", "start"]:
+        result = client.get(f"/api/v1/auth/google/{endpoint}", params={"frontend_origin": origin}, follow_redirects=False)
+        assert result.status_code == 400
+        assert "location" not in result.headers
+        assert "set-cookie" not in result.headers
+
+
+def signed_test_state(service, payload):
+    encoded = service._base64url_encode(json.dumps(payload).encode())
+    signature = hmac.new(service.google_state_secret.encode(), encoded.encode(), hashlib.sha256).digest()
+    return f"{encoded}.{service._base64url_encode(signature)}"
+
+
+@pytest.mark.parametrize("failure", ["tampered", "expired", "removed_origin", "malformed_signed_origin"])
+def test_google_revalidates_state_origin_even_on_cancellation(service, monkeypatch, failure):
+    configure_google(service)
+    service.frontend_base_url = "https://datawithpranjal.com"
+    service.google_frontend_origins = {"https://www.datawithpranjal.com"}
+    state = service._build_google_state("/labs", frontend_origin="https://www.datawithpranjal.com")
+    if failure == "tampered":
+        state += "a"
+    elif failure == "expired":
+        now = service._now()
+        monkeypatch.setattr(service, "_now", lambda: now + timedelta(minutes=16))
+    elif failure == "removed_origin":
+        service.google_frontend_origins.clear()
+    else:
+        payload = service._parse_google_state(state)
+        payload["frontend_origin"] = {"url": "https://evil.example"}
+        state = signed_test_state(service, payload)
+    client = TestClient(app)
+    client.cookies.set(auth_route.GOOGLE_STATE_COOKIE, state)
+    result = client.get("/api/v1/auth/google/callback", params={"state": state, "error": "access_denied"}, follow_redirects=False)
+    assert result.headers["location"].startswith("https://datawithpranjal.com/auth/callback?error=")
+    assert not service._memory_users
+
+
+def test_google_legacy_state_and_configured_local_development_are_supported(service):
+    configure_google(service)
+    service.frontend_base_url = "http://localhost:3000"
+    payload = service._parse_google_state(service._build_google_state("/labs"))
+    del payload["frontend_origin"]
+    assert service.google_callback_origin(signed_test_state(service, payload)) == "http://localhost:3000"
+    # A loopback origin still requires explicit configuration; it is not globally trusted.
+    with pytest.raises(AuthValidationError):
+        service._build_google_state("/labs", frontend_origin="http://localhost:3001")
+    service.google_frontend_origins = {"http://localhost:3001"}
+    assert service.google_frontend_origin("http://localhost:3001") == "http://localhost:3001"
+
+
+def test_google_origin_configuration_is_an_explicit_list(monkeypatch):
+    monkeypatch.setenv("GOOGLE_OAUTH_FRONTEND_ORIGINS", " https://www.datawithpranjal.com,https://datawithpranjal.com ")
+    assert Settings(_env_file=None).google_oauth_frontend_origins == ["https://www.datawithpranjal.com", "https://datawithpranjal.com"]
+    monkeypatch.setenv("GOOGLE_OAUTH_FRONTEND_ORIGINS", "")
+    assert Settings(_env_file=None).google_oauth_frontend_origins == []

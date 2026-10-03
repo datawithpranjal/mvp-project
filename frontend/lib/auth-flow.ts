@@ -41,7 +41,7 @@ export function consumeAuthIntent(key: string): string | null {
 export async function beginGoogleLogin(returnTo?: string): Promise<void> {
   window.dispatchEvent(new Event(BEFORE_AUTH_EVENT));
   const safePath = safeReturnTo(returnTo ?? currentAuthReturnTo());
-  const { url } = await getGoogleAuthStartUrl(safePath);
+  const { url } = await getGoogleAuthStartUrl(safePath, window.location.origin);
   const state = new URL(url).searchParams.get("state");
   if (!state) throw new Error("Google login is unavailable. Please continue with email.");
   window.sessionStorage.setItem(GOOGLE_ATTEMPT_KEY, JSON.stringify({ state, returnTo: safePath, at: Date.now() }));

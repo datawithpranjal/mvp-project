@@ -2,7 +2,7 @@ from typing import Annotated
 import hmac
 from urllib.parse import quote, parse_qs, urlparse
 
-from fastapi import APIRouter, Header, HTTPException, Query, Request
+from fastapi import APIRouter, Header, HTTPException, Query, Request, Response
 from fastapi.responses import RedirectResponse
 
 from app.schemas.auth import (
@@ -104,9 +104,12 @@ def logout(authorization: Annotated[str | None, Header()] = None) -> dict[str, b
 
 @router.get("/api/v1/auth/google/start-url")
 @router.get("/v1/auth/google/start-url")
-def google_start_url(return_to: str = "/dashboard") -> dict[str, str]:
+def google_start_url(
+    response: Response, return_to: str = "/dashboard", frontend_origin: str | None = None,
+) -> dict[str, str]:
+    response.headers["Cache-Control"] = "no-store"
     try:
-        return {"url": auth_service.google_login_url(return_to=return_to)}
+        return {"url": auth_service.google_login_url(return_to=return_to, frontend_origin=frontend_origin)}
     except AuthServiceError as exc:
         raise auth_error_response(exc) from exc
 
@@ -119,9 +122,12 @@ def auth_providers() -> dict[str, bool]:
 
 @router.get("/api/v1/auth/google/start")
 @router.get("/v1/auth/google/start")
-def google_start(return_to: str = "/dashboard", state: str | None = None) -> RedirectResponse:
+def google_start(
+    return_to: str = "/dashboard", state: str | None = None,
+    frontend_origin: str | None = None,
+) -> RedirectResponse:
     try:
-        url = auth_service.google_login_url(return_to=return_to, state=state)
+        url = auth_service.google_login_url(return_to=return_to, state=state, frontend_origin=frontend_origin)
         signed_state = parse_qs(urlparse(url).query)["state"][0]
         response = RedirectResponse(url)
         response.set_cookie(
@@ -150,21 +156,30 @@ def google_callback(
         response.headers["Referrer-Policy"] = "no-referrer"
         return response
 
+    # Only verified, unexpired signed state may select a return origin. This also
+    # keeps cancellation and error recovery beside the learner's browser draft.
+    frontend_origin = auth_service.frontend_base_url
+    try:
+        if state:
+            frontend_origin = auth_service.google_callback_origin(state)
+    except AuthServiceError:
+        return redirect(f"{frontend_origin}/auth/callback?error=Please%20restart%20Google%20login%20in%20this%20browser.")
+
     expected_state = request.cookies.get(GOOGLE_STATE_COOKIE, "")
     if not state or not expected_state or not hmac.compare_digest(state, expected_state):
-        return redirect(f"{auth_service.frontend_base_url}/auth/callback?error=Please%20restart%20Google%20login%20in%20this%20browser.")
+        return redirect(f"{frontend_origin}/auth/callback?error=Please%20restart%20Google%20login%20in%20this%20browser.")
     if error:
-        return redirect(f"{auth_service.frontend_base_url}/auth/callback?error=Google%20login%20was%20cancelled.%20You%20can%20continue%20with%20email.")
+        return redirect(f"{frontend_origin}/auth/callback?error=Google%20login%20was%20cancelled.%20You%20can%20continue%20with%20email.")
     if not code or not state:
         return redirect(
-            f"{auth_service.frontend_base_url}/auth/callback?error=Missing%20Google%20callback%20code."
+            f"{frontend_origin}/auth/callback?error=Missing%20Google%20callback%20code."
         )
 
     try:
         session, return_to = auth_service.authenticate_google_callback(code=code, state=state)
         user_json = quote(session.user.model_dump_json())
         redirect_url = (
-            f"{auth_service.frontend_base_url}/auth/callback"
+            f"{frontend_origin}/auth/callback"
             f"#token={quote(session.token)}"
             f"&expires_at={quote(session.expires_at)}"
             f"&user={user_json}"
@@ -175,5 +190,5 @@ def google_callback(
     except AuthServiceError as exc:
         message = str(exc) if isinstance(exc, (AuthUnauthorizedError, AuthValidationError)) else "Google login is temporarily unavailable. Please continue with email."
         return redirect(
-            f"{auth_service.frontend_base_url}/auth/callback?error={quote(message)}"
+            f"{frontend_origin}/auth/callback?error={quote(message)}"
         )
