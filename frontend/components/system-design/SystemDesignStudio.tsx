@@ -22,6 +22,8 @@ import {
   type SystemDesignProgress
 } from "../../lib/system-design";
 import { AuthDialog } from "../auth-dialog";
+import { rememberAuthIntent } from "../../lib/auth-flow";
+import { useAuthContinuation, useAuthDraftFlush } from "../../lib/use-auth-continuation";
 import { PremiumAccessBadge } from "../premium-access-badge";
 import { PremiumLockedPreview } from "../premium-locked-preview";
 
@@ -68,6 +70,7 @@ export function SystemDesignStudio() {
   const [evaluationNotice, setEvaluationNotice] = useState<string | null>(null);
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [draftLoaded, setDraftLoaded] = useState(false);
 
   useEffect(() => {
     const savedProgress = readProgress();
@@ -82,6 +85,7 @@ export function SystemDesignStudio() {
     setSelectedSlug(initialSlug);
     setAnswer(savedSelectedProgress?.draft ?? "");
     setSelectedOptions(savedSelectedProgress?.selectedOptions ?? {});
+    setDraftLoaded(true);
   }, []);
 
   const filteredCases = useMemo(() => {
@@ -96,6 +100,17 @@ export function SystemDesignStudio() {
     SYSTEM_DESIGN_CASES.find((item) => item.slug === selectedSlug) ?? SYSTEM_DESIGN_CASES[0];
   const currentProgress = progressMap[selectedCase.slug] ?? {};
   const hasAccess = selectedCase.isFree || hasPremiumAccess;
+  const authIntentKey = `system_design:${selectedCase.slug}`;
+  useAuthDraftFlush(() => {
+    if (!draftLoaded) return;
+    saveDraft();
+    const url = new URL(window.location.href);
+    url.searchParams.set("case", selectedCase.slug);
+    window.history.replaceState(null, "", `${url.pathname}${url.search}`);
+  });
+  useAuthContinuation(authIntentKey, draftLoaded && hasAccess && !isEvaluating, (action) => {
+    if (action === "submit") void evaluateAnswer();
+  });
   const completedCount = SYSTEM_DESIGN_CASES.filter(
     (item) => progressMap[item.slug]?.completed
   ).length;
@@ -151,7 +166,9 @@ export function SystemDesignStudio() {
 
     const token = getAuthToken();
     if (!token) {
-      setEvaluationNotice("Sign in with OTP to get AI evaluation on your architecture answer.");
+      saveDraft();
+      rememberAuthIntent(authIntentKey, "submit");
+      setEvaluationNotice("Sign in to get AI evaluation. Your draft is saved, and evaluation will continue after login.");
       setIsAuthOpen(true);
       return;
     }

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import html
+import logging
+import time
 
 import httpx
 
@@ -36,19 +38,21 @@ class OtpDeliveryService:
         escaped_code = html.escape(otp_code)
         escaped_email = html.escape(email)
         text = (
-            f"Your Data Engineering Scenario Playground OTP is {otp_code}. "
+            f"Your The Data Foundry sign-in code is {otp_code}. "
             f"It expires in {expires_in_minutes} minutes."
         )
         html_body = f"""
         <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111827">
           <h2>Verify your login</h2>
-          <p>Use this OTP to continue to Data Engineering Scenario Playground.</p>
+          <p>Use this code to continue to The Data Foundry.</p>
           <p style="font-size:28px;font-weight:700;letter-spacing:6px">{escaped_code}</p>
           <p>This code expires in {expires_in_minutes} minutes.</p>
           <p>If you did not request this for {escaped_email}, you can ignore this email.</p>
         </div>
         """
 
+        started = time.monotonic()
+        logger = logging.getLogger("uvicorn.error")
         try:
             response = httpx.post(
                 "https://api.resend.com/emails",
@@ -59,16 +63,20 @@ class OtpDeliveryService:
                 json={
                     "from": self.otp_email_from,
                     "to": [email],
-                    "subject": "Your login OTP",
+                    "subject": "Your The Data Foundry sign-in code",
                     "text": text,
                     "html": html_body,
                 },
                 timeout=10,
             )
             response.raise_for_status()
+            # Provider acceptance is not proof of inbox delivery. Never log OTPs or addresses.
+            logger.info("otp_delivery provider=resend outcome=accepted elapsed_ms=%d", int((time.monotonic() - started) * 1000))
         except httpx.HTTPStatusError as exc:
+            logger.warning("otp_delivery provider=resend outcome=rejected status=%d", exc.response.status_code)
             raise OtpDeliveryError(
-                f"Resend rejected the OTP email with status {exc.response.status_code}: {exc.response.text}"
+                f"Email provider rejected the request ({exc.response.status_code})."
             ) from exc
         except httpx.HTTPError as exc:
-            raise OtpDeliveryError(f"Unable to send OTP email: {exc}") from exc
+            logger.warning("otp_delivery provider=resend outcome=network_error")
+            raise OtpDeliveryError("Email provider could not be reached.") from exc

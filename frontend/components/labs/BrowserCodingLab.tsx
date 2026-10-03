@@ -42,6 +42,8 @@ import {
   type CodingLabProgress
 } from "../../lib/coding-lab-session";
 import { AuthDialog } from "../auth-dialog";
+import { rememberAuthIntent } from "../../lib/auth-flow";
+import { useAuthContinuation, useAuthDraftFlush } from "../../lib/use-auth-continuation";
 import { PremiumAccessBadge } from "../premium-access-badge";
 import { PremiumLockedPreview } from "../premium-locked-preview";
 import { getPracticeStatus, PracticeStatusBadge } from "../practice-status-badge";
@@ -221,7 +223,9 @@ async function runPythonLab(
   mode: "sample" | "hidden" = "sample",
   authToken?: string | null
 ): Promise<LabRunResult> {
-  if (lab.serverValidation === "python") {
+  // Guest samples use the existing browser runtime and public example only.
+  // Do not expose the server-side Python process runner to anonymous requests.
+  if (lab.serverValidation === "python" && !(lab.isFree && mode === "sample" && !authToken)) {
     const validation = await validatePythonLab(lab.slug, {
       code: answer,
       mode
@@ -716,6 +720,19 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
   );
   const canGoNext = Boolean(nextLab);
   const isPremiumLocked = !selectedLab.isFree && !hasPremiumAccess;
+  const authIntentKey = `coding_lab:${track}:${selectedLab.slug}`;
+  useAuthDraftFlush(() => {
+    if (draftsLoaded && !isLibraryMode) {
+      saveCodingLabDraft(selectedLab.slug, answer);
+      const url = new URL(window.location.href);
+      url.searchParams.set("lab", selectedLab.slug);
+      window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+    }
+  });
+  useAuthContinuation(authIntentKey, draftsLoaded && persistenceReady && !isPremiumLocked && !isRunning, (action) => {
+    if (action === "submit") void submitLab();
+    if (action === "run") void runSampleCheck();
+  });
   const nextQuestionButtonClass = canGoNext
     ? "rounded-full bg-teal-300 px-5 py-3 text-sm font-bold text-slate-950 shadow-[0_0_28px_rgba(94,234,212,0.2)] transition hover:bg-teal-200"
     : "rounded-full border border-slate-700 px-5 py-3 text-sm font-bold text-slate-500 disabled:cursor-not-allowed";
@@ -771,6 +788,8 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
         ? "Log in or create an account to run this code."
         : "Log in or create an account to submit this answer."
     );
+    saveCodingLabDraft(selectedLab.slug, answer);
+    rememberAuthIntent(authIntentKey, action);
     setIsAuthOpen(true);
     trackEvent("signup_started", {
       source: action === "run" ? "coding_lab_run" : "coding_lab_submit",
@@ -873,10 +892,11 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
   }
 
   async function runSampleCheck() {
-    const authToken = requireLoginForValidation("run");
-    if (!authToken) {
+    const authToken = selectedLab.isFree ? getAuthToken() : requireLoginForValidation("run");
+    if (authToken === false || isPremiumLocked) {
       return;
     }
+    sendUsageEvent("sample_run_started", { metadata: { content_id: selectedLab.slug, track } });
 
     try {
       setIsRunning(true);
@@ -919,7 +939,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
       }
 
       if (selectedLab.track === "python") {
-        if (selectedLab.serverValidation === "python") {
+        if (selectedLab.serverValidation === "python" && authToken) {
           const sampleResult = await runPythonLab(selectedLab, answer, [], "sample", authToken);
           setResult(sampleResult);
           return;
@@ -982,6 +1002,10 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
   }
 
   function switchLab(slug: string) {
+    if (draftsLoaded && !isLibraryMode) saveCodingLabDraft(selectedLab.slug, answer);
+    const url = new URL(window.location.href);
+    url.searchParams.set("lab", slug);
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
     setSelectedSlug(slug);
     setIsLibraryMode(false);
     setReferenceTab("task");

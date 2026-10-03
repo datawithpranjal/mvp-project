@@ -77,6 +77,7 @@ storage.setItem(
     "scenario-1": {
       draftAnswer: "guest answer",
       draftInterviewAnswer: "guest explanation",
+      draftDiagnosisId: "diagnosis-b",
       draftSavedAt: "2026-09-29T11:00:00Z",
       completed: true,
       hintsRevealed: 2
@@ -109,6 +110,7 @@ storage.setItem(
 
 const scenarioMigration = migrateGuestScenarioProgressToUser("user-1");
 assert(scenarioMigration["scenario-1"].draftAnswer === "guest answer", "Newer guest scenario draft was not preserved.");
+assert(scenarioMigration["scenario-1"].draftDiagnosisId === "diagnosis-b", "Diagnosis was lost during login.");
 assert(
   scenarioMigration["scenario-2"].draftAnswer === "newer account answer",
   "Newer account scenario draft was overwritten."

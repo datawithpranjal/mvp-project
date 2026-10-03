@@ -473,11 +473,8 @@ export function PremiumUpgradePanel({
   if (!currentUser) {
     return (
       <AuthForm
-        title="Create an account to continue"
-        description="Enter your name and email. We will send a secure OTP before you choose a plan and pay with Razorpay."
-        initialMode="signup"
-        showModeTabs={false}
-        showOtpBadge={false}
+        title="Continue to Premium"
+        description="Sign in or create your account, then choose your plan. Existing members keep their access."
       />
     );
   }

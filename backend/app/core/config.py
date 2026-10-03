@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     google_oauth_client_secret: str | None = None
     google_oauth_redirect_uri: str | None = None
     google_oauth_state_secret: str | None = None
+    google_oauth_frontend_origins: Annotated[list[str], NoDecode] = Field(default_factory=list)
     razorpay_key_id: str | None = None
     razorpay_key_secret: str | None = None
     ai_evaluation_provider: Literal["openai", "gemini"] = "openai"
@@ -60,6 +61,13 @@ class Settings(BaseSettings):
             return value
         if not value:
             return ["http://localhost:3000"]
+        return [origin.strip() for origin in value.split(",") if origin.strip()]
+
+    @field_validator("google_oauth_frontend_origins", mode="before")
+    @classmethod
+    def parse_google_frontend_origins(cls, value: str | list[str]) -> list[str]:
+        if isinstance(value, list):
+            return value
         return [origin.strip() for origin in value.split(",") if origin.strip()]
 
 

@@ -12,6 +12,7 @@
     "validate:content:quality": "tsx ../scripts/validate-content-quality.ts",
     "validate:content:runtime": "tsx ../scripts/sanity-check-content-runtime.ts",
     "validate:progress-migration": "tsx ../scripts/validate-progress-migration.ts",
+    "validate:auth-continuity": "tsx ../scripts/validate-auth-continuity.ts",
     "import:scenarios:v2": "tsx ../scripts/import-scenario-volume-2.ts"
   },
   "dependencies": {

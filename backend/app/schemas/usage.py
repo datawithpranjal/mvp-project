@@ -6,6 +6,12 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 UsageEventName = Literal[
+    "auth_opened",
+    "auth_started",
+    "auth_code_requested",
+    "auth_succeeded",
+    "auth_failed",
+    "sample_run_started",
     "login_success",
     "session_start",
     "session_heartbeat",

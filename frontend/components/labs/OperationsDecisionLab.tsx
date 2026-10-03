@@ -15,6 +15,8 @@ import { getOperationsLearningFlow } from "../../lib/learning-flow";
 import { handleTextareaTabKeyDown } from "../../lib/textarea-tab";
 import { usePremiumEntitlement } from "../../lib/use-premium-entitlement";
 import { AuthDialog } from "../auth-dialog";
+import { rememberAuthIntent } from "../../lib/auth-flow";
+import { useAuthContinuation, useAuthDraftFlush } from "../../lib/use-auth-continuation";
 import { PremiumAccessBadge } from "../premium-access-badge";
 import { PremiumLockedPreview } from "../premium-locked-preview";
 
@@ -67,6 +69,20 @@ export function OperationsDecisionLab({ track }: { track: OperationsLabTrack }) 
   const isLocked = Boolean(selectedLab && !selectedLab.isFree && !hasPremiumAccess);
   const completedCount = labs.filter((lab) => savedAnswers[lab.slug]?.completed).length;
   const incidentFlow = selectedLab ? getOperationsLearningFlow(selectedLab) : null;
+  const authIntentKey = `operations:${track}:${selectedLab?.slug}`;
+  useAuthDraftFlush(() => {
+    if (!isLoaded || !selectedLab) return;
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...savedAnswers, [selectedLab.slug]: {
+      ...savedAnswers[selectedLab.slug], optionId: selectedOption, explanation,
+      savedAt: new Date().toISOString()
+    } }));
+    const url = new URL(window.location.href);
+    url.searchParams.set("lab", selectedLab.slug);
+    window.history.replaceState(null, "", `${url.pathname}${url.search}`);
+  });
+  useAuthContinuation(authIntentKey, isLoaded && !isLocked, (action) => {
+    if (action === "submit") submitAnswer();
+  });
 
   useEffect(() => {
     try {
@@ -138,6 +154,7 @@ export function OperationsDecisionLab({ track }: { track: OperationsLabTrack }) 
 
   function submitAnswer() {
     if (!getCurrentUser()) {
+      rememberAuthIntent(authIntentKey, "submit");
       setActionMessage("Log in or create an account to submit this response.");
       setIsAuthOpen(true);
       trackEvent("signup_started", { source: `${track}_lab_submit`, lab: selectedLab.slug });
