@@ -207,3 +207,74 @@ def test_anonymous_usage_rejects_client_login_events(monkeypatch, tmp_path) -> N
 
     assert response.status_code == 400
     assert response.json()["detail"] == "Login events are recorded by the server."
+
+
+def test_conversion_intent_events_are_persisted_for_anonymous_and_authenticated_users(
+    monkeypatch, tmp_path
+) -> None:
+    store = UsageStore(
+        storage_path=tmp_path / "usage.jsonl",
+        postgres_url=DEFAULT_POSTGRES_URL,
+    )
+    monkeypatch.setattr(usage_route, "usage_store", store)
+    monkeypatch.setattr(auth_route.auth_service, "usage_store", store)
+    monkeypatch.setattr(usage_route.settings, "admin_api_token", "test-admin-token")
+
+    anonymous_response = client.post(
+        "/api/v1/usage/anonymous-events",
+        json={
+            "event_name": "primary_cta_clicked",
+            "visitor_id": "visitor-conversion-001",
+            "session_id": "session-conversion-001",
+            "page_url": "/",
+            "metadata": {
+                "source": "homepage",
+                "destination": "/scenarios/duplicate-records-after-rerun",
+            },
+        },
+    )
+    assert anonymous_response.status_code == 200
+
+    otp_response = client.post(
+        "/api/v1/auth/request-otp",
+        json={
+            "mode": "signup",
+            "email": "conversion.student@example.com",
+            "full_name": "Conversion Student",
+        },
+    )
+    token_response = client.post(
+        "/api/v1/auth/verify-otp",
+        json={
+            "email": "conversion.student@example.com",
+            "otp_code": otp_response.json()["debug_otp"],
+        },
+    )
+    token = token_response.json()["token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    for event_name in ("premium_unlock_clicked", "checkout_started"):
+        response = client.post(
+            "/api/v1/usage/events",
+            headers=headers,
+            json={
+                "event_name": event_name,
+                "session_id": "session-conversion-001",
+                "page_url": "/pricing",
+                "metadata": {"plan": "yearly"},
+            },
+        )
+        assert response.status_code == 200
+
+    insights_response = client.get(
+        "/api/v1/admin/usage/insights",
+        headers={"X-Admin-Token": "test-admin-token"},
+    )
+    assert insights_response.status_code == 200
+    event_counts = {
+        item["event_name"]: item["count"]
+        for item in insights_response.json()["event_counts"]
+    }
+    assert event_counts["primary_cta_clicked"] == 1
+    assert event_counts["premium_unlock_clicked"] == 1
+    assert event_counts["checkout_started"] == 1

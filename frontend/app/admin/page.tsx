@@ -71,6 +71,16 @@ export default function AdminConsolePage() {
   const completionRate = data.insights?.funnel.completion_rate ?? 0;
   const frictionItems = data.insights?.friction_content.length ?? 0;
   const eventsTracked = data.insights?.total_events ?? 0;
+  const conversionEventCounts = useMemo(() => {
+    const counts = new Map(
+      data.insights?.event_counts.map((event) => [event.event_name, event.count]) ?? []
+    );
+    return {
+      primaryCtaClicks: counts.get("primary_cta_clicked") ?? 0,
+      premiumUnlockClicks: counts.get("premium_unlock_clicked") ?? 0,
+      checkoutStarts: counts.get("checkout_started") ?? 0
+    };
+  }, [data.insights]);
   const payingCustomers = useMemo(
     () => new Set(data.purchases?.records.map((record) => record.email) ?? []).size,
     [data.purchases]
@@ -377,6 +387,29 @@ export default function AdminConsolePage() {
                   max={Math.max(data.insights.funnel.submissions, data.insights.funnel.completions, 1)}
                   tone="success"
                 />
+              </div>
+              <div className="rounded-3xl border border-amber-300/20 bg-amber-300/5 p-4">
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-100">
+                  Commercial intent
+                </p>
+                <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                  <MiniMetric
+                    label="Primary CTA"
+                    value={formatNumber(conversionEventCounts.primaryCtaClicks)}
+                  />
+                  <MiniMetric
+                    label="Premium intent"
+                    value={formatNumber(conversionEventCounts.premiumUnlockClicks)}
+                  />
+                  <MiniMetric
+                    label="Checkout starts"
+                    value={formatNumber(conversionEventCounts.checkoutStarts)}
+                  />
+                </div>
+                <p className="mt-3 text-xs leading-5 text-slate-500">
+                  These are event counts, not unique-user conversion rates. Compare cohorts only
+                  after identity and purchase attribution are joined.
+                </p>
               </div>
               {data.insights.event_counts.length ? (
                 <div className="rounded-3xl border border-slate-800 bg-slate-950/30 p-4">

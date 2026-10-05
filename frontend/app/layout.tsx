@@ -12,7 +12,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "The Data Foundry",
   description:
-    "Practice-first Data Engineering interview scenarios, production simulations, and job readiness."
+    "Practice-first Data Engineering interview scenarios, production simulations, and actionable feedback."
 };
 
 export default function RootLayout({

@@ -21,6 +21,7 @@ import {
   type PremiumAccessRecord
 } from "../lib/premium-access";
 import { trackEvent } from "../lib/analytics";
+import { sendUsageEvent } from "../lib/usage";
 import { AuthForm } from "./auth-form";
 
 interface PremiumUpgradePanelProps {
@@ -300,6 +301,14 @@ export function PremiumUpgradePanel({
         amount_inr: order.final_amount_inr,
         coupon_code: order.coupon_code ?? undefined,
         payment_method: "razorpay"
+      });
+      sendUsageEvent("checkout_started", {
+        metadata: {
+          plan: activePlan.id,
+          amount_inr: order.final_amount_inr,
+          coupon_applied: Boolean(order.coupon_code),
+          payment_method: "razorpay"
+        }
       });
 
       await new Promise<void>((resolve, reject) => {

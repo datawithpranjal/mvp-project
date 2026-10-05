@@ -1,7 +1,7 @@
 import { PremiumUpgradePanel } from "../../components/premium-upgrade-panel";
 import { TrackedLink } from "../../components/tracked-link";
 import { getCodingLabs } from "../../lib/coding-labs";
-import { getScenarios } from "../../lib/scenarios";
+import { getRecommendedScenarioSlug, getScenarios } from "../../lib/scenarios";
 
 const FREE_FEATURES = [
   "Selected free SQL, PySpark, and scenario labs",
@@ -47,6 +47,7 @@ export default function PricingPage() {
   const freeCount =
     codingLabs.filter((lab) => lab.isFree).length +
     scenarios.filter((scenario) => scenario.isFree).length;
+  const firstFreeScenarioHref = `/scenarios/${getRecommendedScenarioSlug()}`;
 
   const premiumFeatures = [
     `${premiumCount}+ premium labs and production scenarios`,
@@ -97,12 +98,12 @@ export default function PricingPage() {
           tone="free"
           action={
             <TrackedLink
-              href="/onboarding"
+              href={firstFreeScenarioHref}
               event="homepage_start_clicked"
-              eventPayload={{ source: "pricing_free" }}
+              eventPayload={{ source: "pricing_free", destination: "first_free_scenario" }}
               className="mt-6 inline-flex w-full items-center justify-center rounded-full border border-teal-300/30 bg-teal-300/10 px-5 py-3 text-sm font-semibold text-teal-50 transition hover:bg-teal-300/20"
             >
-              Start free
+              Try the Full Practice Loop Free
             </TrackedLink>
           }
         />
