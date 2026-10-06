@@ -231,7 +231,8 @@ export function recordUsageEvent(
   return apiFetch<UsageEventResponse>("/api/v1/usage/events", {
     method: "POST",
     authToken: token,
-    body: JSON.stringify(payload)
+    body: JSON.stringify(payload),
+    keepalive: true
   });
 }
 
@@ -240,7 +241,8 @@ export function recordAnonymousUsageEvent(
 ): Promise<UsageEventResponse> {
   return apiFetch<UsageEventResponse>("/api/v1/usage/anonymous-events", {
     method: "POST",
-    body: JSON.stringify(payload)
+    body: JSON.stringify(payload),
+    keepalive: true
   });
 }
 

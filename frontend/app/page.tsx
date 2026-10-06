@@ -62,9 +62,12 @@ export default function HomePage() {
               Practice Data Engineering like real work.
             </h1>
             <p className="mt-4 max-w-3xl text-base leading-7 text-slate-300">
-              Practice real data engineering scenarios, get feedback, and build
-              interview-ready judgment across SQL, PySpark, Airflow, AWS, and production
-              debugging.
+              Practice real data engineering scenarios, get feedback, and strengthen how
+              you explain SQL, PySpark, Airflow, AWS, and production-debugging decisions.
+            </p>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
+              Start with one complete free scenario. No account is required until you want
+              to keep your progress across devices.
             </p>
             <p className="mt-3 text-sm font-semibold uppercase tracking-[0.22em] text-teal-200">
               {BRAND.trustLine}
@@ -76,7 +79,7 @@ export default function HomePage() {
                 eventPayload={{ destination: "first_free_scenario" }}
                 className="rounded-full bg-amber-300 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-200"
               >
-                Start Free Practice
+                Complete a Free Scenario
               </TrackedLink>
               <TrackedLink
                 href="/labs"
@@ -84,7 +87,7 @@ export default function HomePage() {
                 eventPayload={{ choice: "explore_labs" }}
                 className="rounded-full border border-slate-700 bg-slate-950/30 px-6 py-3 text-sm font-semibold text-slate-100 transition hover:border-teal-300/50 hover:text-teal-100"
               >
-                Explore Labs
+                Explore All Practice
               </TrackedLink>
             </div>
           </div>
@@ -108,7 +111,7 @@ export default function HomePage() {
             Core Labs
           </p>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-50">
-            A platform for practice, simulation, and job readiness.
+            A platform for practice, simulation, and stronger technical judgment.
           </h2>
         </div>
         <CoreLabGrid />
