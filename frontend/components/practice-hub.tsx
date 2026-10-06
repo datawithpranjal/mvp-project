@@ -325,11 +325,15 @@ function PracticeResultCard({
   const progress =
     item.kind === "scenario" ? progressMap[item.scenario.slug] : undefined;
   const locked = !metadata.isFree && !hasPremiumAccess;
+  const badges = Array.from(
+    new Set([metadata.domain, metadata.type, ...(locked ? [] : [metadata.difficulty])])
+  );
+  const visibleSkills = Array.from(new Set(metadata.skills)).slice(0, 4);
 
   return (
     <article className="flex min-h-[340px] flex-col rounded-[2rem] border border-slate-800 bg-slate-950/45 p-6 transition hover:-translate-y-1 hover:border-teal-300/30">
       <div className="flex flex-wrap gap-2">
-        {[metadata.domain, metadata.type, ...(locked ? [] : [metadata.difficulty])].map((badge) => (
+        {badges.map((badge) => (
           <span key={badge} className="rounded-full border border-slate-700 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-300">
             {badge}
           </span>
@@ -347,7 +351,7 @@ function PracticeResultCard({
         <>
           <p className="mt-3 line-clamp-3 text-sm leading-6 text-slate-300">{metadata.outcome}</p>
           <div className="mt-4 flex flex-wrap gap-2">
-            {metadata.skills.slice(0, 4).map((skill) => (
+            {visibleSkills.map((skill) => (
               <span key={skill} className="rounded-full bg-teal-300/10 px-3 py-1 text-xs text-teal-100">
                 {skill}
               </span>
