@@ -188,6 +188,54 @@ heartbeats, page views, content views, lab submissions, and scenario completions
 It does not store raw answers, OTPs, passwords, or payment details in the usage
 table.
 
+### Decision dashboard and read-only reporting
+
+`/admin` uses `GET /api/v1/admin/reporting` (also `/v1/admin/reporting`).
+It reports full-window aggregates independently of detail pagination, with IST
+date boundaries and a preceding equal-calendar-day comparison. The default is
+30 complete days ending yesterday. `days` is limited to 1–90; `end_date` is an
+optional inclusive `YYYY-MM-DD` date. Today is explicitly labelled partial.
+
+Configure **REPORTING_API_TOKEN** privately on the backend for read-only access.
+It must be a strong random secret different from **ADMIN_API_TOKEN**. Never put
+either value in a NEXT_PUBLIC variable, Git, chat, a URL, or analytics. Redeploy
+the backend after setting or rotating it. The frontend does not need this secret
+as an environment variable: enter it privately into the dashboard or supply the
+`X-Reporting-Token` header from an authorized reporting client. Clearing/reloading
+the page forgets the key; the new dashboard does not use localStorage. Old stored
+admin keys from prior versions should be cleared via browser settings and rotated
+if their handling is uncertain. Full admins can alternatively use `X-Admin-Token`.
+
+The reader can fetch only aggregates from this endpoint. It does not unlock
+existing admin reads of personal data or administrative writes. Full-admin support
+messages remain an explicit separate fetch; they are excluded from the export.
+The same query powers both the UI and its JSON export. Responses use `no-store`;
+access logs contain role and query length, not credentials or customer records.
+
+Reporting performs fixed-column SELECTs in read-only Postgres transactions, never
+creates tables or migrates customer data, and applies a 10-second statement
+timeout plus a 200,000-row per-source ceiling. Overflow or read failures mark the
+source unavailable; no partial total is presented as complete. Usage includes a
+365-day lookback before the comparison period to find first-observed practice.
+At larger volumes move these aggregates into dedicated SQL queries before raising
+the ceiling. Serverless deployment duration limits and database performance must
+be checked in preview against realistic volumes.
+
+Definitions and limits are visible in the dashboard: anonymous browsers are not
+people; accounts are observed activity, not registrations; source progression is
+same-session rather than cross-device attribution; retention cohorts require a
+fully observed window; Done and browser pass flags are not certified correctness.
+Payments show recorded paid Razorpay INR orders separately from manual/free/other
+records. Access grants are a current snapshot, not historical state. Missing
+provider reconciliation, authoritative signup timing, hint/reveal/runner telemetry,
+costs and source-to-payment attribution are explicitly not claimed as measured.
+
+For production acceptance, provision the reader privately, confirm reads and
+revocation, reconcile a known usage interval and paid-access fixture with the
+authoritative stores, and verify denial of admin writes. Local tests and the UI
+preview are not proof of production access. This change does not alter signup
+gating, payment verification, Premium grants or practice progression.
+
 To see a founder/admin summary for the last 30 days:
 
 ```bash
