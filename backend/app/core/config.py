@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Annotated, Literal
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 DEFAULT_POSTGRES_URL = "postgresql://postgres:postgres@postgres:5432/scenario_playground"
@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     )
     backend_cors_origin_regex: str | None = None
     admin_api_token: str | None = None
+    reporting_api_token: str | None = None
     auth_session_ttl_days: int = 30
     auth_otp_ttl_minutes: int = 10
     auth_show_debug_otp: bool = False
@@ -53,6 +54,12 @@ class Settings(BaseSettings):
         env_file=("../.env", ".env"),
         extra="ignore",
     )
+
+    @model_validator(mode="after")
+    def separate_reporting_credential(self):
+        if self.reporting_api_token and self.reporting_api_token == self.admin_api_token:
+            raise ValueError("REPORTING_API_TOKEN must differ from ADMIN_API_TOKEN.")
+        return self
 
     @field_validator("backend_cors_origins", mode="before")
     @classmethod

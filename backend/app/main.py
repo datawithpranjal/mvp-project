@@ -16,6 +16,7 @@ from app.api.routes.scenarios import router as scenarios_router
 from app.api.routes.usage import router as usage_router
 from app.api.routes.validation import router as validation_router
 from app.api.routes.learner_progress import router as learner_progress_router
+from app.api.routes.reporting import router as reporting_router
 from app.core.config import get_settings
 
 settings = get_settings()
@@ -63,3 +64,4 @@ app.include_router(scenarios_router)
 app.include_router(usage_router)
 app.include_router(validation_router)
 app.include_router(learner_progress_router)
+app.include_router(reporting_router)
