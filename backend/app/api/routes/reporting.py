@@ -20,7 +20,7 @@ def get_report(
     response: Response,
     x_reporting_token: Annotated[str | None, Header()] = None,
     x_admin_token: Annotated[str | None, Header()] = None,
-    days: Annotated[int, Query(ge=1, le=90)] = 30,
+    days: Annotated[int, Query(ge=1, le=365)] = 30,
     end_date: date | None = None,
 ):
     response.headers["Cache-Control"] = "no-store"

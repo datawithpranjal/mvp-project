@@ -314,9 +314,9 @@ export default function AdminConsolePage() {
                 setDays(Number(e.target.value));
               }}
             >
-              {[7, 14, 30, 60, 90].map((n) => (
+              {[7, 14, 30, 60, 90, 180, 365].map((n) => (
                 <option key={n} value={n}>
-                  {n} days
+                  {n === 180 ? "6 months (180 days)" : n === 365 ? "1 year (365 days)" : `${n} days`}
                 </option>
               ))}
             </select>

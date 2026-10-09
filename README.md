@@ -193,7 +193,9 @@ table.
 `/admin` uses `GET /api/v1/admin/reporting` (also `/v1/admin/reporting`).
 It reports full-window aggregates independently of detail pagination, with IST
 date boundaries and a preceding equal-calendar-day comparison. The default is
-30 complete days ending yesterday. `days` is limited to 1–90; `end_date` is an
+30 complete days ending yesterday. `days` is limited to 1–365; the UI includes
+6 months (180 days) and 1 year (365 days), using fixed-day windows rather than
+variable calendar months. The existing row ceiling still applies. `end_date` is an
 optional inclusive `YYYY-MM-DD` date. Today is explicitly labelled partial.
 
 Configure **REPORTING_API_TOKEN** privately on the backend for read-only access.

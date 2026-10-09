@@ -171,9 +171,26 @@ def test_reader_cannot_reuse_full_admin_secret(configured, monkeypatch):
         Settings(_env_file=None, admin_api_token="same", reporting_api_token="same")
 
 
-@pytest.mark.parametrize("query", ["days=0", "days=91", "days=-1", "end_date=2999-01-01", "end_date=0001-01-01", "end_date=bad"])
+@pytest.mark.parametrize("query", ["days=0", "days=366", "days=-1", "end_date=2999-01-01", "end_date=0001-01-01", "end_date=bad"])
 def test_bounded_queries(configured, query):
     assert client.get(f"/api/v1/admin/reporting?{query}", headers={"X-Reporting-Token": "reader-test-only"}).status_code == 422
+
+
+@pytest.mark.parametrize("days", [180, 365])
+def test_extended_report_windows(configured, days):
+    response = client.get(
+        f"/api/v1/admin/reporting?days={days}&end_date=2026-10-07",
+        headers={"X-Reporting-Token": "reader-test-only"},
+    )
+    assert response.status_code == 200
+    report = response.json()
+    start = datetime.fromisoformat(report["start"])
+    end = datetime.fromisoformat(report["end_exclusive"])
+    previous = datetime.fromisoformat(report["previous_start"])
+    assert (end - start).days == days
+    assert (start - previous).days == days
+    assert (previous - datetime.fromisoformat(report["history_start"])).days == 365
+    assert end == END
 
 
 @pytest.mark.parametrize("header", ["X-Reporting-Token", "X-Admin-Token"])
