@@ -11,6 +11,29 @@ from app.services import admin_reporting as module
 from app.services.admin_reporting import AdminReporting, IST, usage_report, source_label
 
 client = TestClient(app)
+
+@pytest.mark.parametrize("email,status", [("datawithpranjal@gmail.com", 200), ("DATAWITHPRANJAL@gmail.com", 200), ("learner@example.com", 403)])
+def test_reporting_account_authorization(monkeypatch, email, status):
+    from types import SimpleNamespace
+    monkeypatch.setattr(route.settings, "reporting_admin_email", "datawithpranjal@gmail.com")
+    monkeypatch.setattr(route.auth_service, "get_profile", lambda token: SimpleNamespace(email=email))
+    monkeypatch.setattr(route.reporting, "report", lambda **kwargs: {"ok": True})
+    response = client.get("/api/v1/admin/reporting", headers={"Authorization": "Bearer test-session"})
+    assert response.status_code == status
+
+def test_reporting_rejects_expired_account_session(monkeypatch):
+    from app.services.auth_service import AuthUnauthorizedError
+    def expired(token):
+        raise AuthUnauthorizedError("Invalid or expired session.")
+    monkeypatch.setattr(route.auth_service, "get_profile", expired)
+    assert client.get("/api/v1/admin/reporting", headers={"Authorization": "Bearer expired"}).status_code == 401
+
+def test_reporting_account_allowlist_can_be_disabled(monkeypatch):
+    from types import SimpleNamespace
+    monkeypatch.setattr(route.settings, "reporting_admin_email", "")
+    monkeypatch.setattr(route.auth_service, "get_profile", lambda token: SimpleNamespace(email="datawithpranjal@gmail.com"))
+    assert client.get("/api/v1/admin/reporting", headers={"Authorization": "Bearer valid"}).status_code == 403
+
 NOW = datetime(2026, 10, 8, 9, tzinfo=timezone.utc)
 START = datetime(2026, 9, 8, tzinfo=IST)
 END = datetime(2026, 10, 8, tzinfo=IST)

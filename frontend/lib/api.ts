@@ -1,12 +1,12 @@
 import { API_BASE_URL } from "./config";
 import type { AdminReport } from "./admin-reporting";
 
-export function getAdminReport(token: string, role: "reader" | "admin", days: number, endDate?: string): Promise<AdminReport> {
+export function getAdminReport(token: string, role: "reader" | "admin" | "account", days: number, endDate?: string): Promise<AdminReport> {
   const query = new URLSearchParams({ days: String(days) });
   if (endDate) query.set("end_date", endDate);
   return apiFetch(`/api/v1/admin/reporting?${query}`, {
     cache: "no-store",
-    headers: { [role === "reader" ? "X-Reporting-Token" : "X-Admin-Token"]: token }
+    headers: role === "account" ? { Authorization: `Bearer ${token}` } : { [role === "reader" ? "X-Reporting-Token" : "X-Admin-Token"]: token }
   });
 }
 import type {

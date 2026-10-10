@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     backend_cors_origin_regex: str | None = None
     admin_api_token: str | None = None
     reporting_api_token: str | None = None
+    reporting_admin_email: str = "datawithpranjal@gmail.com"
     auth_session_ttl_days: int = 30
     auth_otp_ttl_minutes: int = 10
     auth_show_debug_otp: bool = False

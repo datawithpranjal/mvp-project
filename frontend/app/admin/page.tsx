@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { AuthDialog } from "../../components/auth-dialog";
+import { AUTH_UPDATED_EVENT, getAuthToken } from "../../lib/auth";
 import { getAdminReport, getAdminFeedback } from "../../lib/api";
 import type { AdminReport, ActivityMetrics } from "../../lib/admin-reporting";
 import type { AdminFeedbackResponse } from "../../lib/types";
@@ -139,7 +141,9 @@ function Unavailable({ source }: { source: string }) {
 
 export default function AdminConsolePage() {
   const [token, setToken] = useState("");
-  const [role, setRole] = useState<"reader" | "admin">("reader");
+  const [role, setRole] = useState<"reader" | "admin" | "account">("account");
+  const [authOpen, setAuthOpen] = useState(false);
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [days, setDays] = useState(30);
   const [endDate, setEndDate] = useState("");
   const [tab, setTab] = useState<Tab>("Overview");
@@ -150,6 +154,17 @@ export default function AdminConsolePage() {
   const [supportError, setSupportError] = useState("");
   const [supportLoading, setSupportLoading] = useState(false);
   const generation = useRef(0);
+
+  useEffect(() => {
+    const refresh = () => { clearReport(); setSessionToken(getAuthToken()); };
+    refresh();
+    window.addEventListener(AUTH_UPDATED_EVENT, refresh);
+    window.addEventListener("storage", refresh);
+    return () => {
+      window.removeEventListener(AUTH_UPDATED_EVENT, refresh);
+      window.removeEventListener("storage", refresh);
+    };
+  }, []);
 
   function clearReport() {
     generation.current += 1;
@@ -166,7 +181,7 @@ export default function AdminConsolePage() {
     setLoading(true);
     try {
       const result = await getAdminReport(
-        token.trim(),
+        role === "account" ? getAuthToken() ?? "" : token.trim(),
         role,
         days,
         endDate || undefined,
@@ -176,7 +191,9 @@ export default function AdminConsolePage() {
       if (request === generation.current)
         setError(
           cause instanceof Error
-            ? cause.message
+            ? cause.message === "Failed to fetch"
+              ? "Could not reach the reporting API. Check your connection or try again shortly. This is not confirmation of an incorrect login or key."
+              : cause.message
             : "Report could not be loaded.",
         );
     } finally {
@@ -282,15 +299,19 @@ export default function AdminConsolePage() {
               value={role}
               onChange={(e) => {
                 clearReport();
-                setRole(e.target.value as "reader" | "admin");
+                setRole(e.target.value as "reader" | "admin" | "account");
                 setToken("");
               }}
             >
-              <option value="reader">Read-only reporting</option>
+              <option value="account">My account · reports</option>
+              <option value="reader">Read-only reporting key</option>
               <option value="admin">Full admin</option>
             </select>
           </label>
-          <label className="flex min-w-48 flex-1 flex-col gap-2 text-xs text-slate-400">
+          {role === "account" ? <div className="flex-1 text-sm text-slate-300">
+            <p>{sessionToken ? "Signed in. Report access is verified by the server." : "Sign in with your authorized account using your email and OTP."}</p>
+            <button type="button" className="mt-2 text-teal-200 underline" onClick={() => setAuthOpen(true)}>{sessionToken ? "Open account login" : "Sign in to view reports"}</button>
+          </div> : <label className="flex min-w-48 flex-1 flex-col gap-2 text-xs text-slate-400">
             {role === "reader" ? "Reporting key" : "Admin key"}
             <input
               autoComplete="off"
@@ -303,7 +324,7 @@ export default function AdminConsolePage() {
               }}
               placeholder="Enter privately"
             />
-          </label>
+          </label>}
           <label className="flex flex-col gap-2 text-xs text-slate-400">
             Period
             <select
@@ -336,7 +357,7 @@ export default function AdminConsolePage() {
           </label>
           <button
             type="submit"
-            disabled={!token.trim() || loading}
+            disabled={!(role === "account" ? sessionToken : token.trim()) || loading}
             className={button}
           >
             {loading ? "Loading…" : "Load report"}
@@ -349,15 +370,15 @@ export default function AdminConsolePage() {
               setToken("");
             }}
           >
-            Clear session
+            Clear report
           </button>
         </form>
         <p className="mt-3 text-xs leading-relaxed text-slate-400">
-          Keys stay in this page’s memory only. No automatic loading or browser
-          storage. Blank end date means yesterday: complete IST days. The
+          Account access uses your existing login; only authorized accounts can read reports. Optional API keys stay in page memory only. Blank end date means yesterday: complete IST days. The
           previous period has the same number of calendar days.
         </p>
       </section>
+      <AuthDialog isOpen={authOpen} onClose={() => setAuthOpen(false)} />
       {error && (
         <p
           role="alert"
