@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { evaluateScenarioWithAi } from "../../lib/api";
 import { getAuthToken } from "../../lib/auth";
@@ -13,7 +13,6 @@ import {
   SYSTEM_DESIGN_CASES,
   SYSTEM_DESIGN_DIFFICULTIES,
   SYSTEM_DESIGN_DOMAINS,
-  evaluateSystemDesignAnswer,
   formatSystemDesignDomain,
   type SystemDesignCase,
   type SystemDesignDifficulty,
@@ -22,6 +21,7 @@ import {
   type SystemDesignProgress
 } from "../../lib/system-design";
 import { AuthDialog } from "../auth-dialog";
+import { GuidedDesignLab, EMPTY_GUIDED, designSubmission } from "./GuidedDesignLab";
 import { rememberAuthIntent } from "../../lib/auth-flow";
 import { useAuthContinuation, useAuthDraftFlush } from "../../lib/use-auth-continuation";
 import { PremiumAccessBadge } from "../premium-access-badge";
@@ -49,13 +49,6 @@ function writeProgress(progress: Record<string, SystemDesignProgress>) {
   }
 }
 
-function verdictLabel(score: number) {
-  if (score >= 85) return "Strong architecture answer";
-  if (score >= 70) return "Good, interview-ready base";
-  if (score >= 45) return "Partial, needs more depth";
-  return "Weak, add structure";
-}
-
 export function SystemDesignStudio() {
   const { hasPremiumAccess, status: premiumStatus } = usePremiumEntitlement();
   const [domain, setDomain] = useState<DomainFilter>("All");
@@ -71,6 +64,8 @@ export function SystemDesignStudio() {
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [draftLoaded, setDraftLoaded] = useState(false);
+  const selectedSlugRef = useRef(selectedSlug);
+  selectedSlugRef.current = selectedSlug;
 
   useEffect(() => {
     const savedProgress = readProgress();
@@ -129,16 +124,18 @@ export function SystemDesignStudio() {
   }, [selectedCase.slug]);
 
   function saveCaseProgress(item: SystemDesignCase, patch: SystemDesignProgress) {
+    setProgressMap((previous) => {
     const nextProgress = {
-      ...progressMap,
+      ...previous,
       [item.slug]: {
-        ...progressMap[item.slug],
+        ...previous[item.slug],
         ...patch,
         lastPracticedAt: new Date().toISOString()
       }
     };
-    setProgressMap(nextProgress);
     writeProgress(nextProgress);
+    return nextProgress;
+    });
   }
 
   function handleDecision(decisionId: string, optionId: string) {
@@ -157,8 +154,8 @@ export function SystemDesignStudio() {
     });
   }
 
-  async function evaluateAnswer() {
-    const submittedAnswer = answer.trim();
+  async function evaluateAnswer(override?: string) {
+    const submittedAnswer = (override ?? answer).trim();
     if (!submittedAnswer) {
       setEvaluationNotice("Write your architecture answer first, then request AI feedback.");
       return;
@@ -166,7 +163,7 @@ export function SystemDesignStudio() {
 
     const token = getAuthToken();
     if (!token) {
-      saveDraft();
+      saveCaseProgress(selectedCase, { draft: submittedAnswer, selectedOptions });
       rememberAuthIntent(authIntentKey, "submit");
       setEvaluationNotice("Sign in to get AI evaluation. Your draft is saved, and evaluation will continue after login.");
       setIsAuthOpen(true);
@@ -198,6 +195,7 @@ export function SystemDesignStudio() {
           problem_statement: selectedCase.badArchitecture,
           requirement: [
             selectedCase.learnerTask,
+            "Accept alternative architectures justified by constraints. Give advisory feedback grounded in the learner's actual statements. Do not require Spark or named tools when simpler processing meets requirements. Identify a concrete risk and ask for a revision; do not claim interview or job readiness.",
             "Functional requirements:",
             ...selectedCase.functionalRequirements,
             "Non-functional requirements:",
@@ -211,8 +209,8 @@ export function SystemDesignStudio() {
           ].join("\n"),
           broken_code: selectedCase.badArchitecture,
           actual_output: "",
-          expected_output: selectedCase.architectureStages.join(" -> "),
-          model_solution: modelAnswer,
+          expected_output: selectedCase.slug === "ecommerce-orders-data-platform" ? "Certified revenue by original order business date: captured payments minus successful refunds; repeat input must not duplicate amounts; late refunds restate affected dates." : selectedCase.architectureStages.join(" -> "),
+          model_solution: selectedCase.slug === "ecommerce-orders-data-platform" ? "For this exercise assume 100,000 orders/day, two years of history, two engineers, existing warehouse and object storage, 8 AM IST deadline, stable source IDs and updated_at, repeated extracts and refunds up to seven days late. Version raw extracts; ingest changes with overlap; deduplicate by stable IDs/latest version; aggregate entities at their correct grain; rebuild affected original order dates. Check uniqueness and reconcile before atomic publication. Keep last certified output and alert on failure. SQL/Python is acceptable; Spark is optional and needs justification. Full rebuilds trade simplicity for compute cost. Reward defensible alternatives and evidence, not tool names." : modelAnswer,
           production_explanation: selectedCase.modelAnswer.interviewFraming,
           common_mistakes: [
             "Skipping non-functional requirements such as SLA, freshness, reliability, and cost.",
@@ -250,29 +248,25 @@ export function SystemDesignStudio() {
         }
       };
 
-      setEvaluation(nextEvaluation);
+      if (selectedSlugRef.current === selectedCase.slug) setEvaluation(nextEvaluation);
       saveCaseProgress(selectedCase, {
         draft: submittedAnswer,
         selectedOptions,
-        score: nextEvaluation.score
+        score: nextEvaluation.score,
+        advisoryFeedback: nextEvaluation
       });
     } catch (error) {
       const reason =
         error instanceof Error ? error.message : "AI evaluation could not run right now.";
       console.error("AI system design evaluation failed:", reason);
-      const fallbackEvaluation = evaluateSystemDesignAnswer(
-        selectedCase,
-        submittedAnswer,
-        selectedOptions
-      );
-      setEvaluation({ ...fallbackEvaluation, mode: "local" });
+      if (selectedSlugRef.current !== selectedCase.slug) return;
+      setEvaluation(null);
       setEvaluationNotice(
-        `AI evaluation could not run: ${reason} Temporary rubric feedback is shown instead.`
+        `AI feedback is unavailable: ${reason} Your draft is preserved. Use the hints and self-review checks; no score has been assigned.`
       );
       saveCaseProgress(selectedCase, {
         draft: submittedAnswer,
-        selectedOptions,
-        score: fallbackEvaluation.score
+        selectedOptions
       });
     } finally {
       setIsEvaluating(false);
@@ -307,8 +301,7 @@ export function SystemDesignStudio() {
             </h1>
             <p className="mt-5 max-w-4xl text-sm leading-7 text-slate-300 sm:text-base">
               Turn system design theory into architecture reps: choose trade-offs, review a
-              broken design, write your answer, get a rubric score, and reveal a production-grade
-              model answer.
+              design, explain your choices, get specific AI feedback, and improve your reasoning.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <a
@@ -400,7 +393,7 @@ export function SystemDesignStudio() {
                   </p> : null}
                   {!locked ? <div className="mt-3 flex items-center justify-between text-[11px] uppercase tracking-[0.16em] text-slate-500">
                     <span>{item.estimatedMinutes} min</span>
-                    <span>{progress?.completed ? "completed" : progress?.score ? `${progress.score}/100` : item.difficulty}</span>
+                    <span>{progress?.completed ? "Self-marked complete" : progress?.guided?.revision ? "Revision drafted" : progress?.draft ? "In progress" : item.difficulty}</span>
                   </div> : null}
                 </button>
               );
@@ -417,6 +410,13 @@ export function SystemDesignStudio() {
             <PremiumLockedPreview title={selectedCase.title} category="System Design" accessUnavailable={premiumStatus === "unavailable"} onPrevious={() => previousCase && setSelectedSlug(previousCase.slug)} onNext={() => nextCase && setSelectedSlug(nextCase.slug)} hasPrevious={Boolean(previousCase)} hasNext={Boolean(nextCase)} itemLabel="case" />
           ) : (
             <>
+              {selectedCase.slug === "ecommerce-orders-data-platform" ? <GuidedDesignLab
+                draft={{ ...EMPTY_GUIDED, initial: currentProgress.guided ? "" : currentProgress.draft ?? "", ...currentProgress.guided }}
+                onChange={(guided) => { const draft = guided.initial || designSubmission(guided); setAnswer(draft); saveCaseProgress(selectedCase, { guided, draft }); }}
+                onReview={(draft) => { void evaluateAnswer(draft); }}
+                busy={isEvaluating}
+                feedback={<>{evaluationNotice && <p role="status" className="mb-3 text-amber-200">{evaluationNotice}</p>}{(evaluation ?? currentProgress.advisoryFeedback) && <EvaluationPanel evaluation={(evaluation ?? currentProgress.advisoryFeedback)!} item={selectedCase} />}</>}
+              /> : <>
               <CaseBrief item={selectedCase} />
               <DecisionLab
                 item={selectedCase}
@@ -430,7 +430,7 @@ export function SystemDesignStudio() {
                 hintCount={hintCount}
                 setHintCount={setHintCount}
                 onSave={saveDraft}
-                onEvaluate={evaluateAnswer}
+                onEvaluate={() => { void evaluateAnswer(); }}
                 onComplete={markCompleted}
                 onPrevious={() => previousCase && setSelectedSlug(previousCase.slug)}
                 onNext={() => nextCase && setSelectedSlug(nextCase.slug)}
@@ -450,6 +450,7 @@ export function SystemDesignStudio() {
                   {showModelAnswer ? "Hide model answer" : "Reveal model answer"}
                 </button>
               </div>
+              </>}
             </>
           )}
         </section>
@@ -704,9 +705,7 @@ function AnswerWorkspace({
 
         {evaluation ? (
           <EvaluationPanel evaluation={evaluation} item={item} />
-        ) : (
-          <RubricCard item={item} />
-        )}
+        ) : null}
       </aside>
     </section>
   );
@@ -722,37 +721,13 @@ function EvaluationPanel({
   return (
     <div className="panel rounded-[2rem] border border-teal-300/20 p-6">
       <p className="text-xs font-semibold uppercase tracking-[0.22em] text-teal-200">
-        {evaluation.mode === "local" ? "Temporary rubric feedback" : "AI evaluation"}
+        {evaluation.mode === "local" ? "Self-review guidance" : "Advisory AI feedback · not a readiness assessment"}
       </p>
       {evaluation.mode && evaluation.mode !== "local" ? (
         <p className="mt-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
           Powered by {evaluation.mode}
         </p>
       ) : null}
-      <p className="mt-3 text-5xl font-semibold text-slate-50">{evaluation.score}/100</p>
-      <p className="mt-2 text-sm font-semibold text-teal-100">{verdictLabel(evaluation.score)}</p>
-      <div className="mt-5 space-y-3">
-        {Object.entries(evaluation.rubricBreakdown).map(([key, value]) => (
-          <div key={key}>
-            <div className="flex justify-between text-xs uppercase tracking-[0.16em] text-slate-400">
-              <span>{key}</span>
-              <span>{value}</span>
-            </div>
-            <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-800">
-              <div
-                className="h-full rounded-full bg-teal-300"
-                style={{
-                  width: `${Math.min(
-                    100,
-                    (value / Math.max(1, item.rubric[key as keyof SystemDesignCase["rubric"]])) *
-                      100
-                  )}%`
-                }}
-              />
-            </div>
-          </div>
-        ))}
-      </div>
       {evaluation.strengths.length > 0 ? (
         <div className="mt-5 rounded-3xl border border-teal-300/20 bg-teal-300/10 p-4">
           <p className="text-sm font-semibold text-teal-50">What worked</p>
@@ -764,9 +739,9 @@ function EvaluationPanel({
         </div>
       ) : null}
       <div className="mt-5 rounded-3xl border border-slate-800 bg-slate-950/50 p-4">
-        <p className="text-sm font-semibold text-slate-100">What to improve</p>
+        <p className="text-sm font-semibold text-slate-100">What could fail or needs clarification</p>
         <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-300">
-          {(evaluation.gaps.length ? evaluation.gaps : ["Good coverage. Now tighten the interview framing."]).map(
+          {(evaluation.gaps.length ? evaluation.gaps : ["No specific gap was reported. This is not proof that the design is correct; test its assumptions with the follow-up question."]).map(
             (gap) => (
               <li key={gap}>{gap}</li>
             )
@@ -775,7 +750,7 @@ function EvaluationPanel({
       </div>
       {evaluation.improvedAnswer ? (
         <div className="mt-5 rounded-3xl border border-amber-300/20 bg-amber-300/10 p-4">
-          <p className="text-sm font-semibold text-amber-50">AI suggested stronger framing</p>
+          <p className="text-sm font-semibold text-amber-50">What to improve next</p>
           <p className="mt-3 text-sm leading-6 text-amber-100">{evaluation.improvedAnswer}</p>
         </div>
       ) : null}
@@ -789,27 +764,6 @@ function EvaluationPanel({
           </ul>
         </div>
       ) : null}
-    </div>
-  );
-}
-
-function RubricCard({ item }: { item: SystemDesignCase }) {
-  return (
-    <div className="panel rounded-[2rem] p-6">
-      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
-        Rubric
-      </p>
-      <div className="mt-4 space-y-3">
-        {Object.entries(item.rubric).map(([key, value]) => (
-          <div
-            key={key}
-            className="flex items-center justify-between rounded-2xl border border-slate-800 bg-slate-950/40 px-4 py-3 text-sm"
-          >
-            <span className="capitalize text-slate-300">{key}</span>
-            <span className="font-semibold text-slate-100">{value}</span>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
