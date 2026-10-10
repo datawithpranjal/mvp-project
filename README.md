@@ -199,6 +199,7 @@ variable calendar months. The existing row ceiling still applies. `end_date` is 
 optional inclusive `YYYY-MM-DD` date. Today is explicitly labelled partial.
 
 Configure **REPORTING_API_TOKEN** privately on the backend for read-only access.
+The dashboard now defaults to existing account login (including email OTP). The reporting endpoint validates the bearer session server-side and permits only `REPORTING_ADMIN_EMAIL` (default: `datawithpranjal@gmail.com`). Set this backend-only variable to an empty string to disable account reporting access, or change it to transfer access. This grants aggregate reporting reads only; manual grants and raw support endpoints retain their existing key authorization. Customer authentication and Premium entitlements are unchanged. API keys remain an optional reporting access method. Deploy both backend and frontend; account login does not fix an unrelated network outage. Reports clear when the browser receives logout/account-change events.
 It must be a strong random secret different from **ADMIN_API_TOKEN**. Never put
 either value in a NEXT_PUBLIC variable, Git, chat, a URL, or analytics. Redeploy
 the backend after setting or rotating it. The frontend does not need this secret
