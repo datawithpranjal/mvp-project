@@ -68,6 +68,8 @@ export interface SystemDesignCase {
 }
 
 export interface SystemDesignProgress {
+  guided?: import("../components/system-design/GuidedDesignLab").GuidedDraft;
+  advisoryFeedback?: SystemDesignEvaluation;
   completed?: boolean;
   completedAt?: string;
   score?: number;
