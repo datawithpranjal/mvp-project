@@ -47,6 +47,7 @@ import { useAuthContinuation, useAuthDraftFlush } from "../../lib/use-auth-conti
 import { PremiumAccessBadge } from "../premium-access-badge";
 import { PremiumLockedPreview } from "../premium-locked-preview";
 import { getPracticeStatus, PracticeStatusBadge } from "../practice-status-badge";
+import { TrackedLink } from "../tracked-link";
 
 interface PythonTestResult {
   name: string;
@@ -89,6 +90,13 @@ interface LabRunResult {
 }
 
 type ProgressFilter = "All" | "In progress" | "Done" | "New";
+type ResultMode = "sample" | "full" | null;
+
+const PYTHON_SCOPE_LAB_SLUG = "python-foundry-03-deduplicate-event-ids";
+const PYTHON_SCOPE_CAMPAIGN = "python-scope-2026-10";
+const PYTHON_SCOPE_CONTENT = "python-scope-video";
+const PYTHON_SCOPE_PRICING_HREF =
+  "/pricing?utm_source=youtube&utm_medium=in_product&utm_campaign=python-scope-2026-10&utm_content=python-scope-video#unlock-premium";
 
 declare global {
   interface Window {
@@ -399,7 +407,10 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
   const [hintCount, setHintCount] = useState(0);
   const [showSolution, setShowSolution] = useState(false);
   const [result, setResult] = useState<LabRunResult | null>(null);
+  const [resultMode, setResultMode] = useState<ResultMode>(null);
   const [isRunning, setIsRunning] = useState(false);
+  const [entryCampaign, setEntryCampaign] = useState("");
+  const [entryContent, setEntryContent] = useState("");
   const [topic, setTopic] = useState("All");
   const [difficulty, setDifficulty] = useState("All");
   const [progressFilter, setProgressFilter] = useState<ProgressFilter>("All");
@@ -503,7 +514,10 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
       const authToken = getAuthToken();
       const authUser = getCurrentUser();
       setPersistenceReady(!authToken);
-      const requestedSlug = new URLSearchParams(window.location.search).get("lab");
+      const searchParams = new URLSearchParams(window.location.search);
+      const requestedSlug = searchParams.get("lab");
+      setEntryCampaign(searchParams.get("utm_campaign") ?? "");
+      setEntryContent(searchParams.get("utm_content") ?? "");
       if (requestedSlug && labs.some((lab) => lab.slug === requestedSlug)) {
         setSelectedSlug(requestedSlug);
         setIsLibraryMode(false);
@@ -718,6 +732,10 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
     selectedCompleted,
     (selectedProgress?.attemptCount ?? 0) > 0 || Boolean(answers[selectedLab.slug])
   );
+  const isPythonScopeEntry =
+    selectedLab.slug === PYTHON_SCOPE_LAB_SLUG &&
+    (entryCampaign === PYTHON_SCOPE_CAMPAIGN || entryContent === PYTHON_SCOPE_CONTENT);
+  const currentUser = getCurrentUser();
   const canGoNext = Boolean(nextLab);
   const isPremiumLocked = !selectedLab.isFree && !hasPremiumAccess;
   const authIntentKey = `coding_lab:${track}:${selectedLab.slug}`;
@@ -808,6 +826,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
     try {
       setIsRunning(true);
       setResult(null);
+      setResultMode("full");
       const nextResult =
         selectedLab.track === "sql"
           ? await runSqlLab(selectedLab, answer)
@@ -901,6 +920,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
     try {
       setIsRunning(true);
       setResult(null);
+      setResultMode("sample");
 
       if (selectedLab.track === "sql") {
         if (!selectedLab.expectedSql) {
@@ -1014,6 +1034,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
     setHintCount(0);
     setShowSolution(false);
     setResult(null);
+    setResultMode(null);
     setWorkspaceMessage("");
     setSolutionError("");
   }
@@ -1028,6 +1049,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
     setHintCount(0);
     setShowSolution(false);
     setResult(null);
+    setResultMode(null);
     setWorkspaceMessage("");
     setSolutionError("");
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -1139,6 +1161,8 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
         </div>
       </header>
 
+      {isPythonScopeEntry ? <PythonScopeLaunchGuide /> : null}
+
       {isPremiumLocked ? (
         <div className="mt-5">
           <PremiumLockedPreview
@@ -1246,6 +1270,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
               onChange={(event) =>
                 setAnswers((current) => {
                   setResult(null);
+                  setResultMode(null);
                   setSaveStatus(
                     getAuthToken()
                       ? "Saving to your account..."
@@ -1261,6 +1286,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
                 handleTextareaTabKeyDown(event, (nextValue) =>
                   setAnswers((current) => {
                     setResult(null);
+                    setResultMode(null);
                     setSaveStatus(
                       getAuthToken()
                         ? "Saving to your account..."
@@ -1348,7 +1374,16 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
             </div>
           </div>
 
-          {result ? <ResultPanel result={result} /> : null}
+          {result ? <ResultPanel result={result} mode={resultMode} /> : null}
+          {isPythonScopeEntry && result?.passed === true ? (
+            <PythonScopeNextStep
+              hasFullPass={resultMode === "full" || selectedCompleted}
+              isAuthenticated={Boolean(currentUser)}
+              hasPremiumAccess={hasPremiumAccess}
+              onSubmit={() => void submitLab()}
+              onNext={goToNextLab}
+            />
+          ) : null}
         </section>
 
       </section>
@@ -1569,6 +1604,119 @@ function Stat({ label, value }: { label: string; value: string | number }) {
   );
 }
 
+function PythonScopeLaunchGuide() {
+  return (
+    <section
+      aria-label="Python video practice path"
+      className="mt-5 rounded-[2rem] border border-teal-300/30 bg-gradient-to-br from-teal-300/15 via-slate-950/80 to-amber-300/10 p-5 sm:p-6"
+    >
+      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-teal-200">
+        From How Much Python Do Data Engineers Actually Need?
+      </p>
+      <div className="mt-3 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight text-slate-50">
+            Prove one practical Python skill in about 12 minutes.
+          </h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
+            This exercise is free. Fix a replayed-webhook deduplication problem, test the visible
+            case, then sign in free only when you want hidden edge-case validation and saved progress.
+          </p>
+        </div>
+        <div className="grid gap-2 text-xs font-semibold text-slate-200 sm:grid-cols-3 lg:w-[34rem]">
+          <span className="rounded-2xl border border-slate-700 bg-slate-950/50 px-4 py-3">
+            1. Write the function
+          </span>
+          <span className="rounded-2xl border border-slate-700 bg-slate-950/50 px-4 py-3">
+            2. Run the visible test
+          </span>
+          <span className="rounded-2xl border border-slate-700 bg-slate-950/50 px-4 py-3">
+            3. Validate edge cases
+          </span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function PythonScopeNextStep({
+  hasFullPass,
+  isAuthenticated,
+  hasPremiumAccess,
+  onSubmit,
+  onNext
+}: {
+  hasFullPass: boolean;
+  isAuthenticated: boolean;
+  hasPremiumAccess: boolean;
+  onSubmit: () => void;
+  onNext: () => void;
+}) {
+  if (!hasFullPass) {
+    return (
+      <section className="rounded-[2rem] border border-teal-300/35 bg-teal-300/10 p-5 sm:p-6">
+        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-teal-200">
+          Visible test passed
+        </p>
+        <h2 className="mt-3 text-xl font-semibold text-slate-50">
+          Now prove it against hidden replay and missing-ID cases.
+        </h2>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
+          {isAuthenticated
+            ? "Submit for full validation. Your result and progress will be saved to your account."
+            : "Create a free passwordless account to run the hidden checks. Your current code stays in the workspace, and no payment is required."}
+        </p>
+        <button
+          type="button"
+          onClick={onSubmit}
+          className="mt-5 inline-flex rounded-full bg-teal-300 px-6 py-3 text-sm font-bold text-slate-950 transition hover:bg-teal-200"
+        >
+          {isAuthenticated ? "Run full validation" : "Run hidden checks free"}
+        </button>
+      </section>
+    );
+  }
+
+  return (
+    <section className="rounded-[2rem] border border-amber-300/30 bg-amber-300/10 p-5 sm:p-6">
+      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-200">
+        Full validation passed
+      </p>
+      <h2 className="mt-3 text-xl font-semibold text-slate-50">
+        You handled idempotent event deduplication. Continue with the production Python path.
+      </h2>
+      <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
+        The next practices build toward required-field quarantine, latest-record selection, snapshot
+        reconciliation, sessionization and CDC handling. Continue free, or review Premium when you
+        want the complete advanced path.
+      </p>
+      <div className="mt-5 flex flex-wrap gap-3">
+        <button
+          type="button"
+          onClick={onNext}
+          className="rounded-full border border-teal-300/35 px-6 py-3 text-sm font-bold text-teal-100 transition hover:bg-teal-300/10"
+        >
+          Continue to the next practice
+        </button>
+        {!hasPremiumAccess ? (
+          <TrackedLink
+            href={PYTHON_SCOPE_PRICING_HREF}
+            event="premium_unlock_clicked"
+            eventPayload={{
+              source: "python_scope_completion",
+              lab: PYTHON_SCOPE_LAB_SLUG,
+              campaign: PYTHON_SCOPE_CAMPAIGN
+            }}
+            className="rounded-full bg-amber-300 px-6 py-3 text-sm font-bold text-slate-950 transition hover:bg-amber-200"
+          >
+            See Premium — Rs 199/month or Rs 999/year
+          </TrackedLink>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
 function TableSchemaReference({ tables }: { tables: CodingLabTable[] }) {
   return (
     <div className="space-y-3">
@@ -1629,7 +1777,7 @@ function TablePreview({ table }: { table: CodingLabTable }) {
   );
 }
 
-function ResultPanel({ result }: { result: LabRunResult }) {
+function ResultPanel({ result, mode }: { result: LabRunResult; mode: ResultMode }) {
   const tone =
     result.passed === true
       ? "border-teal-300/25 bg-teal-300/10 text-teal-50"
@@ -1641,9 +1789,17 @@ function ResultPanel({ result }: { result: LabRunResult }) {
     <div className={`rounded-[2rem] border p-6 ${tone}`}>
       <p className="text-xs font-semibold uppercase tracking-[0.22em]">
         {result.passed === true
-          ? "Correct answer"
+          ? mode === "sample"
+            ? "Visible sample passed"
+            : mode === "full"
+              ? "Full validation passed"
+              : "Correct answer"
           : result.passed === false
-            ? "Wrong answer"
+            ? mode === "sample"
+              ? "Visible sample needs work"
+              : mode === "full"
+                ? "Full validation needs work"
+                : "Wrong answer"
             : "Result"}
       </p>
       {typeof result.score === "number" ? (
