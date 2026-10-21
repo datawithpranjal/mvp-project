@@ -164,6 +164,16 @@ export const LAUNCH_READY_SCENARIO_SLUGS = [
 ] as const;
 
 export const LAUNCH_READY_SYSTEM_DESIGN_SLUGS = [
+  "rate-limited-api-ingestion",
+  "historical-sales-territory-model",
+  "inventory-event-analytics",
+  "subscription-billing-reconciliation",
+  "experiment-metrics-platform",
+  "point-in-time-training-data",
+  "fleet-telemetry-platform",
+  "multi-tenant-analytics-isolation",
+  "schema-contract-evolution",
+  "warehouse-migration-cutover",
   "ecommerce-orders-data-platform",
   "clickstream-analytics-platform",
   "postgres-cdc-to-warehouse"

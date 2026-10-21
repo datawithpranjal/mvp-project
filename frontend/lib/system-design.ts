@@ -1,3 +1,5 @@
+import { INTERVIEW_SYSTEM_DESIGN_CASES } from "../data/system-design-interview-cases";
+import { improveOriginalCase } from "../data/system-design-quality";
 import {
   filterLaunchReady,
   isLaunchReadySystemDesign,
@@ -1191,12 +1193,12 @@ const SYSTEM_DESIGN_CASE_DATA: SystemDesignCase[] = [
 
 function withSystemDesignLaunchReady(item: SystemDesignCase): SystemDesignCase {
   return {
-    ...item,
+    ...improveOriginalCase(item),
     launchReady: isLaunchReadySystemDesign(item.slug)
   };
 }
 
-export const ALL_SYSTEM_DESIGN_CASES = SYSTEM_DESIGN_CASE_DATA.map(
+export const ALL_SYSTEM_DESIGN_CASES = [...SYSTEM_DESIGN_CASE_DATA, ...INTERVIEW_SYSTEM_DESIGN_CASES].map(
   withSystemDesignLaunchReady
 );
 

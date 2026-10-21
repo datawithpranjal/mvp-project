@@ -209,7 +209,7 @@ export function SystemDesignStudio() {
           ].join("\n"),
           broken_code: selectedCase.badArchitecture,
           actual_output: "",
-          expected_output: selectedCase.slug === "ecommerce-orders-data-platform" ? "Certified revenue by original order business date: captured payments minus successful refunds; repeat input must not duplicate amounts; late refunds restate affected dates." : selectedCase.architectureStages.join(" -> "),
+          expected_output: selectedCase.slug === "ecommerce-orders-data-platform" ? "Certified revenue by original order business date: captured payments minus successful refunds; repeat input must not duplicate amounts; late refunds restate affected dates." : [...selectedCase.functionalRequirements, ...selectedCase.nonFunctionalRequirements, `Verification guidance: ${selectedCase.modelAnswer.reliability}`].join("\n"),
           model_solution: selectedCase.slug === "ecommerce-orders-data-platform" ? "For this exercise assume 100,000 orders/day, two years of history, two engineers, existing warehouse and object storage, 8 AM IST deadline, stable source IDs and updated_at, repeated extracts and refunds up to seven days late. Version raw extracts; ingest changes with overlap; deduplicate by stable IDs/latest version; aggregate entities at their correct grain; rebuild affected original order dates. Check uniqueness and reconcile before atomic publication. Keep last certified output and alert on failure. SQL/Python is acceptable; Spark is optional and needs justification. Full rebuilds trade simplicity for compute cost. Reward defensible alternatives and evidence, not tool names." : modelAnswer,
           production_explanation: selectedCase.modelAnswer.interviewFraming,
           common_mistakes: [
@@ -498,9 +498,9 @@ function CaseBrief({ item }: { item: SystemDesignCase }) {
       </section>
 
       <InteractiveLearningFlow
-        title="Explore the proposed architecture"
+        title="Explore one possible architecture"
         stages={buildArchitectureFlow(item.architectureStages)}
-        caption="Select any stage to inspect its responsibility. Animated edges show the direction of data movement through the platform."
+        caption="This is a reference flow, not the only correct design. Explain alternatives against the requirements. Select a stage to inspect its responsibility."
       />
 
       <section className="panel rounded-[2rem] border border-rose-300/20 p-6">

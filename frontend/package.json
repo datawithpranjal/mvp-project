@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "validate:system-design": "tsx ../scripts/validate-system-design-quality.ts",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
