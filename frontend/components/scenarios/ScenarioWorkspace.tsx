@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
@@ -55,6 +56,7 @@ import { rememberAuthIntent } from "../../lib/auth-flow";
 import { useAuthContinuation, useAuthDraftFlush } from "../../lib/use-auth-continuation";
 import { PremiumAccessBadge } from "../premium-access-badge";
 import { getPracticeStatus, PracticeStatusBadge } from "../practice-status-badge";
+import { getScenarioContinuationSlug } from "../../lib/scenario-continuation";
 
 interface ScenarioWorkspaceProps {
   scenario: Scenario;
@@ -386,6 +388,8 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
     (scenario.scenarioType === "broken_sql" || scenario.scenarioType === "output_mismatch");
   const canRunPyspark = EXECUTABLE_PYSPARK_SCENARIOS.has(scenario.slug);
   const allScenarios = useMemo(() => getScenarios(), []);
+  const continuationSlug = getScenarioContinuationSlug(scenario.slug, pysparkExecution);
+  const continuationScenario = allScenarios.find((item) => item.slug === continuationSlug);
   const nextScenario = useMemo(() => {
     const index = allScenarios.findIndex((item) => item.slug === scenario.slug);
     if (index < 0) return null;
@@ -1329,6 +1333,17 @@ Impact: ${scenario.incident.impact}`
             <p className="mt-4 text-sm text-slate-400">Earlier completion is retained. A saved Done state alone does not establish a hidden-test pass; check the validation result below.</p>
           ) : null}
           {pysparkExecution ? <ScenarioPysparkResultPanel result={pysparkExecution} /> : null}
+          {continuationScenario ? (
+            <section aria-label="Recommended next practice" className="mt-5 rounded-3xl border border-amber-300/25 bg-amber-300/5 p-5">
+              <div className="flex flex-wrap items-center gap-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-200">Recommended next practice</p>
+                <PremiumAccessBadge locked={false} compact />
+              </div>
+              <h3 className="mt-3 text-xl font-semibold text-slate-50">{continuationScenario.title}</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-300">Next, practise freshness and completeness checks when a pipeline is green but its dashboard is wrong. This follow-up requires Premium. You can keep practising this free exercise.</p>
+              <Link href={`/scenarios/${continuationScenario.slug}`} className="mt-4 inline-flex rounded-full bg-amber-300 px-5 py-3 text-sm font-semibold text-slate-950">Continue to DAG Green but Dashboard Wrong · Premium</Link>
+            </section>
+          ) : null}
           {visibleHints.length ? <section className="panel rounded-[2rem] p-5"><p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-200">Hints revealed</p><div className="mt-4 space-y-3">{visibleHints.map((hint, index) => <p key={hint} className="rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4 text-sm leading-6 text-amber-100">Hint {index + 1}: {hint}</p>)}</div></section> : null}
         </div>
       </section>

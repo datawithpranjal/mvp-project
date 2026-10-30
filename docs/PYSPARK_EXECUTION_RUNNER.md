@@ -152,3 +152,35 @@ improvement is established.
 - After an approved deployment, observe sample success/error classes and latency,
   hidden-result provenance, account-save failures and next-task clicks. Define QA
   exclusion and eligible denominators with Analytics before making business claims.
+
+## Local continuation follow-up — 2026-10-30
+
+Built on `3b20bd19` on the same `codex/support-scenario-runner` branch. This
+supersedes the preceding checkpoint's local recommendation-placement gap only.
+The selected free sales scenario now displays one explicit, Premium-labelled
+“DAG Green but Dashboard Wrong” continuation after a passing executable result.
+Both sample and hidden results qualify; sample success still says “not completed”.
+No result, failure, unavailable execution, empty checks, inconsistent results or
+another source scenario do not qualify. Editing the answer clears the current
+result and the recommendation through the existing workspace behavior.
+
+The link uses the existing catalog title and opens exactly
+`/scenarios/airflow-green-dashboard-wrong`. The card explains the next learning
+step (freshness/completeness checks), states that Premium is required, and keeps
+the free exercise available. Existing Previous/Next navigation and access guards
+are unchanged. No new entitlement, price, persistence or Analytics event contract
+is introduced.
+
+Verification: `cd frontend && node --import tsx ../scripts/validate-scenario-continuation.ts`
+checks passing sample/hidden and remote results, negative eligibility cases, the
+exact target title and its Premium tier. TypeScript passes. Local browser checks
+confirm the card is absent initially, appears after the real 2-order/420 sample,
+and opens the existing Premium lock. A failing starter sample does not display
+the recommendation. The 25-route frontend production build passed.
+Backend code is unchanged from the prior 221-test verification.
+
+Product's launch HOLD remains. Account/save/cross-device continuity, durable
+provenance, Analytics traces, production reliability/isolation and release
+verification remain separate gates. This is local implementation evidence, not
+measured learner or revenue improvement. Rollback is to the preceding local
+commit; no migration or production change exists.
