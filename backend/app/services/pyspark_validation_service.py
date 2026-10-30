@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import signal
 import subprocess
 import sys
 import tempfile
@@ -124,6 +125,10 @@ class PysparkValidationService:
         try:
             with httpx.Client(timeout=self.settings.pyspark_timeout_seconds + 5) as client:
                 response = client.post(url, headers=headers, json={"code": code, "mode": mode})
+        except httpx.TimeoutException as exc:
+            raise PysparkValidationConfigurationError(
+                "PySpark execution timed out. No correctness result was produced. Retry the check."
+            ) from exc
         except httpx.HTTPError as exc:
             raise PysparkValidationConfigurationError(
                 "The PySpark runner could not be reached."
@@ -134,9 +139,17 @@ class PysparkValidationService:
                 f"The PySpark runner rejected the request with status {response.status_code}."
             )
 
-        payload = response.json()
-        payload["execution_engine"] = "remote"
-        return PysparkValidationResponse.model_validate(payload)
+        try:
+            payload = response.json()
+            payload["execution_engine"] = "remote"
+            result = PysparkValidationResponse.model_validate(payload)
+            if result.mode != mode or not result.tests or result.passed != all(test.passed for test in result.tests):
+                raise ValueError("Missing or inconsistent validation evidence")
+            return result
+        except (ValueError, TypeError) as exc:
+            raise PysparkValidationConfigurationError(
+                "The PySpark runner returned an invalid response. No correctness result was produced."
+            ) from exc
 
     def _validate_code_guardrails(self, code: str) -> str | None:
         if len(code) > 8000:
@@ -191,38 +204,55 @@ class PysparkValidationService:
                 "PYSPARK_PYTHON": sys.executable,
                 "SPARK_LOCAL_HOSTNAME": "127.0.0.1",
             }
-            completed = subprocess.run(
-                [sys.executable, str(runner_path)],
-                cwd=str(tmp_path),
-                env=env,
-                capture_output=True,
-                text=True,
-                timeout=self.settings.pyspark_timeout_seconds,
-                check=False,
-            )
+            try:
+                completed = self._run_worker(
+                    [sys.executable, str(runner_path)],
+                    cwd=str(tmp_path),
+                    env=env,
+                    timeout=self.settings.pyspark_timeout_seconds,
+                )
+            except subprocess.TimeoutExpired as exc:
+                raise PysparkValidationConfigurationError(
+                    "PySpark execution timed out. No correctness result was produced. Retry the check."
+                ) from exc
 
         if completed.returncode != 0:
-            message = (completed.stderr or completed.stdout or "PySpark execution failed.").strip()
-            return [
-                PysparkTestResult(
-                    name="runner startup",
-                    passed=False,
-                    message=message[-1200:],
-                )
-            ]
+            raise PysparkValidationConfigurationError(
+                "The PySpark worker could not finish the check. No correctness result was produced."
+            )
 
         try:
             payload = json.loads(completed.stdout)
-        except json.JSONDecodeError:
-            return [
-                PysparkTestResult(
-                    name="runner output",
-                    passed=False,
-                    message="PySpark runner returned an invalid result.",
-                )
-            ]
+            if not payload["tests"]:
+                raise ValueError("No checks returned")
+            return [PysparkTestResult.model_validate(item) for item in payload["tests"]]
+        except (ValueError, TypeError, KeyError) as exc:
+            raise PysparkValidationConfigurationError(
+                "The PySpark worker returned an invalid result. No correctness result was produced."
+            ) from exc
 
-        return [PysparkTestResult.model_validate(item) for item in payload["tests"]]
+    @staticmethod
+    def _run_worker(
+        command: list[str], *, cwd: str, env: dict[str, str], timeout: float,
+    ) -> subprocess.CompletedProcess[str]:
+        # Spark starts a JVM child. Killing only its Python parent leaves work running.
+        with subprocess.Popen(
+            command, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            text=True, start_new_session=True,
+        ) as process:
+            try:
+                stdout, stderr = process.communicate(timeout=timeout)
+            except subprocess.TimeoutExpired:
+                if os.name == "posix":
+                    try:
+                        os.killpg(process.pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+                else:
+                    process.kill()
+                process.communicate(timeout=5)
+                raise
+            return subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
 
     def _runner_script(
         self,

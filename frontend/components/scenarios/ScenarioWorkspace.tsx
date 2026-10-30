@@ -418,7 +418,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
           ? "Completed"
           : "Mark complete";
   const completionButtonDisabled =
-    completionStatus === "saving" || (scenarioCompleted && completionStatus !== "error");
+    canRunPyspark || completionStatus === "saving" || (scenarioCompleted && completionStatus !== "error");
   const completionButtonClass = scenarioCompleted && completionStatus !== "error"
     ? "rounded-full border border-teal-300/30 bg-teal-300/10 px-5 py-3 text-sm font-semibold text-teal-100"
     : completionStatus === "error"
@@ -905,7 +905,8 @@ Impact: ${scenario.incident.impact}`
   }
 
   async function completeLab() {
-    if (completionStatus === "saving") return;
+    // Executable scenarios complete only through a submitted hidden-test result.
+    if (canRunPyspark || completionStatus === "saving") return;
     const nextProgress = markScenarioCompleted(scenario.slug);
     setProgress(summarizeScenarioProgress(nextProgress, scenario.slug));
     setCompletionMessage(null);
@@ -1280,7 +1281,9 @@ Impact: ${scenario.incident.impact}`
                     <div className="rounded-3xl border border-teal-300/20 bg-teal-300/5 p-5">
                       {evaluation ? <p className="text-xl font-semibold text-slate-50">Score: {evaluation.score}/100</p> : null}
                       <div className="mt-4 flex flex-wrap gap-3">
-                        <button type="button" onClick={() => void completeLab()} disabled={completionButtonDisabled} className={completionButtonClass}>{completionButtonLabel}</button>
+                        {canRunPyspark ? (
+                          <p className="text-sm text-slate-300">Completion requires a hidden-test submission. Reviewing a solution does not complete this exercise. Earlier saved progress is retained.</p>
+                        ) : <button type="button" onClick={() => void completeLab()} disabled={completionButtonDisabled} className={completionButtonClass}>{completionButtonLabel}</button>}
                         <button type="button" onClick={goToPreviousScenario} disabled={!previousScenario} className="rounded-full border border-slate-700 px-5 py-3 text-sm font-semibold text-slate-200 disabled:cursor-not-allowed disabled:text-slate-600">← Previous</button>
                         <button type="button" onClick={goToNextScenario} disabled={!canGoToNextScenario} className={nextScenarioButtonClass}>Next scenario →</button>
                       </div>
@@ -1322,6 +1325,9 @@ Impact: ${scenario.incident.impact}`
           </section>
 
           {sqlExecution ? <ScenarioSqlResultPanel result={sqlExecution} /> : null}
+          {canRunPyspark && scenarioCompleted ? (
+            <p className="mt-4 text-sm text-slate-400">Earlier completion is retained. A saved Done state alone does not establish a hidden-test pass; check the validation result below.</p>
+          ) : null}
           {pysparkExecution ? <ScenarioPysparkResultPanel result={pysparkExecution} /> : null}
           {visibleHints.length ? <section className="panel rounded-[2rem] p-5"><p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-200">Hints revealed</p><div className="mt-4 space-y-3">{visibleHints.map((hint, index) => <p key={hint} className="rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4 text-sm leading-6 text-amber-100">Hint {index + 1}: {hint}</p>)}</div></section> : null}
         </div>
@@ -1422,7 +1428,7 @@ function ScenarioPysparkResultPanel({ result }: { result: PysparkValidationRespo
               result.passed ? "text-teal-100" : "text-amber-100"
             }`}
           >
-            {result.passed ? "PySpark tests passed" : "PySpark tests failed"}
+            {result.passed ? (result.mode === "sample" ? "Visible sample passed · not completed" : "Hidden tests passed") : "No passing result"}
           </p>
           <p className="mt-3 text-sm leading-6 text-slate-200">{result.message}</p>
         </div>
@@ -1449,7 +1455,7 @@ function ScenarioPysparkResultPanel({ result }: { result: PysparkValidationRespo
                     : "bg-amber-300 text-slate-950"
                 }`}
               >
-                {test.passed ? "Passed" : "Mismatch"}
+                {test.passed ? "Passed" : test.name === "executor" ? "Unavailable" : "Mismatch"}
               </span>
             </div>
             <p className="mt-2 text-sm leading-6 text-slate-300">{test.message}</p>
