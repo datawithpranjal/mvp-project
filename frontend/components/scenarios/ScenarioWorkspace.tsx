@@ -57,6 +57,7 @@ import { useAuthContinuation, useAuthDraftFlush } from "../../lib/use-auth-conti
 import { PremiumAccessBadge } from "../premium-access-badge";
 import { getPracticeStatus, PracticeStatusBadge } from "../practice-status-badge";
 import { getScenarioContinuationSlug } from "../../lib/scenario-continuation";
+import { AttemptSaveRecovery, type AttemptSaveScope, type AttemptSaveStatus } from "../../lib/attempt-save-recovery";
 
 interface ScenarioWorkspaceProps {
   scenario: Scenario;
@@ -65,6 +66,15 @@ interface ScenarioWorkspaceProps {
 const EXECUTABLE_PYSPARK_SCENARIOS = new Set([
   "yesterdays-sales-missing-late-source-arrival"
 ]);
+
+const ATTEMPT_SAVE_LABELS: Record<AttemptSaveStatus, string> = {
+  idle: "",
+  saving: "Saving attempt…",
+  unsaved: "Result available on this device. Attempt not saved to your account.",
+  saved: "Attempt saved to your account",
+  restored: "Earlier attempt restored from your account",
+  unconfirmed: "Account storage is unconfirmed. Your result is available on this device."
+};
 
 const EXECUTABLE_PYSPARK_STARTERS: Record<string, string> = {
   "yesterdays-sales-missing-late-source-arrival": `from pyspark.sql import functions as F
@@ -118,6 +128,39 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
   const [authEpoch, setAuthEpoch] = useState(0);
   const draftRevisionRef = useRef(0);
   const pendingAttemptRef = useRef({ slug: "", answer: "", key: "" });
+  const [attemptSaveStatus, setAttemptSaveStatus] = useState<AttemptSaveStatus>("idle");
+  const activeScenarioRef = useRef(scenario.slug);
+  activeScenarioRef.current = scenario.slug;
+  const validationRunRef = useRef<{ scope: AttemptSaveScope } | null>(null);
+  const recoveryEnabled = scenario.slug === "yesterdays-sales-missing-late-source-arrival";
+  const attemptSaverRef = useRef<AttemptSaveRecovery | null>(null);
+  const recoveryMountedRef = useRef(true);
+  if (!attemptSaverRef.current) {
+    attemptSaverRef.current = new AttemptSaveRecovery(
+      isCurrentAttemptScope,
+      (scope, payload) => saveLearnerAttempt(scope.token, "scenario", scope.slug, payload),
+      (status) => { if (recoveryMountedRef.current) setAttemptSaveStatus(status); }
+    );
+  }
+
+  function readAttemptScope(): AttemptSaveScope | null {
+    const token = getAuthToken();
+    const user = getCurrentUser();
+    return token && user ? { token, accountId: user.id, slug: activeScenarioRef.current } : null;
+  }
+
+  function isCurrentAttemptScope(scope: AttemptSaveScope): boolean {
+    const current = readAttemptScope();
+    return recoveryMountedRef.current && current?.token === scope.token && current.accountId === scope.accountId && current.slug === scope.slug;
+  }
+
+  async function retrySavingAttempt() {
+    const ack = await attemptSaverRef.current!.save(persistenceReady && hydratedScenarioSlug === scenario.slug);
+    if (!ack || !isCurrentAttemptScope(ack.scope)) return;
+    const persistedProgress = scenarioProgressFromRemote(ack.response.item);
+    setProgress(summarizeScenarioProgress(persistedProgress, ack.scope.slug));
+    pendingAttemptRef.current = { slug: "", answer: "", key: "" };
+  }
   const authIntentKey = `scenario:${scenario.slug}`;
   useAuthDraftFlush(() => {
     if (hydratedScenarioSlug === scenario.slug) {
@@ -130,12 +173,49 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
   });
 
   useEffect(() => {
-    const syncAuth = () => setAuthEpoch((value) => value + 1);
+    const syncAuth = () => {
+      if (attemptSaverRef.current!.setScope(readAttemptScope())) {
+        pendingAttemptRef.current = { slug: "", answer: "", key: "" };
+        setIsChecking(false);
+      }
+      if (validationRunRef.current && !isCurrentAttemptScope(validationRunRef.current.scope)) {
+        validationRunRef.current = null;
+        pendingAttemptRef.current = { slug: "", answer: "", key: "" };
+        setIsChecking(false);
+      }
+      setAuthEpoch((value) => value + 1);
+    };
     window.addEventListener(AUTH_UPDATED_EVENT, syncAuth);
     window.addEventListener("storage", syncAuth);
     return () => {
       window.removeEventListener(AUTH_UPDATED_EVENT, syncAuth);
       window.removeEventListener("storage", syncAuth);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (attemptSaverRef.current!.setScope(readAttemptScope())) {
+      pendingAttemptRef.current = { slug: "", answer: "", key: "" };
+      setIsChecking(false);
+    }
+    if (validationRunRef.current && !isCurrentAttemptScope(validationRunRef.current.scope)) {
+      validationRunRef.current = null;
+      pendingAttemptRef.current = { slug: "", answer: "", key: "" };
+      setIsChecking(false);
+    }
+  }, [scenario.slug, authEpoch]);
+
+  useEffect(() => {
+    validationRunRef.current = null;
+    setIsChecking(false);
+  }, [scenario.slug]);
+
+  useEffect(() => {
+    recoveryMountedRef.current = true;
+    return () => {
+      recoveryMountedRef.current = false;
+      validationRunRef.current = null;
+      attemptSaverRef.current!.setScope(null);
     };
   }, []);
 
@@ -149,6 +229,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
       const migrated =
         authToken && authUser ? migrateGuestScenarioProgressToUser(authUser.id) : null;
       const savedProgress = migrated?.[scenario.slug] ?? getScenarioProgress(scenario.slug);
+      if (recoveryEnabled) attemptSaverRef.current!.restore(false, savedProgress.attempts.length > 0);
       const savedAnswer = savedProgress.draftAnswer;
       if (
         scenario.scenarioType === "mcq" &&
@@ -249,6 +330,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
 
         if (cancelled) return;
         const resolvedAnswer = resolvedProgress.draftAnswer;
+        if (recoveryEnabled) attemptSaverRef.current!.restore(Boolean(record?.attempts.length), savedProgress.attempts.length > 0);
         if (
           scenario.scenarioType === "mcq" &&
           scenario.mcqOptions?.some((option) => option.id === resolvedAnswer)
@@ -297,6 +379,11 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
 
   useEffect(() => {
     if (hydratedScenarioSlug !== scenario.slug || !persistenceReady) return;
+    const scheduledScope = readAttemptScope();
+    const scheduledSlug = scenario.slug;
+    const draftIsCurrent = () => activeScenarioRef.current === scheduledSlug && (
+      scheduledScope ? isCurrentAttemptScope(scheduledScope) : readAttemptScope() === null
+    );
     const draft =
       scenario.scenarioType === "mcq" ? selectedOptionId : answer;
     const authToken = getAuthToken();
@@ -304,6 +391,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
       authToken ? "Saving to your account..." : "Saving on this device..."
     );
     const timer = window.setTimeout(() => {
+      if (recoveryEnabled && !draftIsCurrent()) return;
       const nextProgress = saveScenarioDraft(
         scenario.slug,
         draft,
@@ -331,7 +419,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
         client_revision: revision
       })
         .then(() => {
-          if (draftRevisionRef.current === revision) {
+          if (draftRevisionRef.current === revision && (!recoveryEnabled || draftIsCurrent())) {
             setAutoSaveStatus(
               `Saved to your account at ${new Intl.DateTimeFormat(undefined, {
                 hour: "numeric",
@@ -341,7 +429,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
           }
         })
         .catch(() => {
-          if (draftRevisionRef.current === revision) {
+          if (draftRevisionRef.current === revision && (!recoveryEnabled || draftIsCurrent())) {
             setAutoSaveStatus("Account sync failed — retry save");
           }
         });
@@ -471,6 +559,8 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
   }
 
   function saveDraft() {
+    const draftScope = readAttemptScope();
+    const draftIsCurrent = () => !recoveryEnabled || (draftScope !== null && isCurrentAttemptScope(draftScope));
     const draft = scenario.scenarioType === "mcq" ? selectedOptionId : answer;
     const nextProgress = saveScenarioDraft(scenario.slug, draft, interviewAnswer, selectedDiagnosisId);
     setProgress(summarizeScenarioProgress(nextProgress, scenario.slug));
@@ -487,9 +577,12 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
       hints_revealed: hintsRevealed,
       client_revision: Date.now()
     })
-      .then(() => setAutoSaveStatus("Saved to your account"))
-      .then(() => setDraftMessage("Draft saved to your account."))
-      .catch(() => setAutoSaveStatus("Account sync failed — retry save"));
+      .then(() => {
+        if (!draftIsCurrent()) return;
+        setAutoSaveStatus("Saved to your account");
+        setDraftMessage("Draft saved to your account.");
+      })
+      .catch(() => { if (draftIsCurrent()) setAutoSaveStatus("Account sync failed — retry save"); });
   }
 
   function getAttemptKey(answerText: string): string {
@@ -532,6 +625,20 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
       return;
     }
     const { authToken } = authSession;
+    const attemptScope: AttemptSaveScope = { token: authToken, accountId: authSession.currentAuthUser.id, slug: scenario.slug };
+    if (recoveryEnabled && (validationRunRef.current || attemptSaverRef.current!.hasPending())) {
+      setDraftMessage("Retry saving the previous attempt before submitting another answer.");
+      return;
+    }
+    const validationRun = { scope: attemptScope };
+    const isCurrentRun = () => !recoveryEnabled || (
+      validationRunRef.current === validationRun && isCurrentAttemptScope(attemptScope)
+    );
+    if (recoveryEnabled) {
+      attemptSaverRef.current!.setScope(attemptScope);
+      attemptSaverRef.current!.beginEvaluation();
+      validationRunRef.current = validationRun;
+    }
 
     const submittedAnswer =
       scenario.scenarioType === "mcq"
@@ -560,6 +667,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
           )
         : null;
 
+      if (!isCurrentRun()) return;
       if (runnableSqlResult) {
         setSqlExecution(runnableSqlResult);
       }
@@ -623,6 +731,7 @@ Impact: ${scenario.incident.impact}`
               }
             }
           });
+          if (!isCurrentRun()) return;
           nextEvaluation = {
             score: aiResult.score,
             verdict: aiResult.verdict,
@@ -640,6 +749,7 @@ Impact: ${scenario.incident.impact}`
             model: aiResult.model
           };
         } catch (error) {
+          if (!isCurrentRun()) return;
           const reason =
             error instanceof Error ? error.message : "The AI service returned an unknown error.";
           console.error("AI scenario evaluation failed:", reason);
@@ -691,6 +801,7 @@ Impact: ${scenario.incident.impact}`
         pysparkExecution: runnablePysparkResult,
         evaluationNotice: aiFallbackMessage
       };
+      if (!isCurrentRun()) return;
       const nextProgress = recordScenarioAttempt(scenario.slug, {
         passed,
         answer: submittedAnswer,
@@ -701,7 +812,18 @@ Impact: ${scenario.incident.impact}`
       setEvaluation(nextEvaluation);
       setProgress(summarizeScenarioProgress(feedbackEntry ?? nextProgress, scenario.slug));
       setDraftMessage(aiFallbackMessage);
-      if (authToken && persistenceReady) {
+      if (recoveryEnabled) {
+        attemptSaverRef.current!.stage(attemptScope, {
+          idempotency_key: getAttemptKey(submittedAnswer),
+          answer: submittedAnswer,
+          passed,
+          message,
+          result: latestResult,
+          ai_feedback: aiFeedback
+        });
+        await retrySavingAttempt();
+        if (!isCurrentRun()) return;
+      } else if (authToken && persistenceReady) {
         try {
           const persisted = await saveLearnerAttempt(authToken, "scenario", scenario.slug, {
             idempotency_key: getAttemptKey(submittedAnswer),
@@ -749,7 +871,7 @@ Impact: ${scenario.incident.impact}`
       });
       if (passed) {
         setDraftMessage(
-          nextScenario
+          recoveryEnabled ? "Hidden tests passed. Your result is available on this device." : nextScenario
             ? "Correct. This scenario is completed. Use Next scenario when you are ready."
             : "Correct. This scenario is completed."
         );
@@ -765,6 +887,7 @@ Impact: ${scenario.incident.impact}`
         setDraftMessage("Not correct yet. Review the feedback, adjust your answer, and submit again.");
       }
     } catch (error) {
+      if (!isCurrentRun()) return;
       const message = error instanceof Error ? error.message : "The query checker could not run this answer.";
       const nextProgress = recordScenarioAttempt(scenario.slug, {
         passed: false,
@@ -797,7 +920,18 @@ Impact: ${scenario.incident.impact}`
           expected: { columns: [], rows: [] }
         });
       }
-      if (authToken && persistenceReady) {
+      if (recoveryEnabled) {
+        attemptSaverRef.current!.stage(attemptScope, {
+          idempotency_key: getAttemptKey(submittedAnswer),
+          answer: submittedAnswer,
+          passed: false,
+          message,
+          result: { evaluation: null, sqlExecution: null, pysparkExecution: null, evaluationNotice: message },
+          ai_feedback: null
+        });
+        await retrySavingAttempt();
+        if (!isCurrentRun()) return;
+      } else if (authToken && persistenceReady) {
         try {
           await saveLearnerAttempt(authToken, "scenario", scenario.slug, {
             idempotency_key: getAttemptKey(submittedAnswer),
@@ -818,7 +952,10 @@ Impact: ${scenario.incident.impact}`
       }
       setDraftMessage(null);
     } finally {
-      setIsChecking(false);
+      if (isCurrentRun()) {
+        validationRunRef.current = null;
+        setIsChecking(false);
+      }
     }
   }
 
@@ -827,6 +964,11 @@ Impact: ${scenario.incident.impact}`
     if (!authSession) {
       return;
     }
+    const sampleScope = readAttemptScope();
+    const sampleSlug = scenario.slug;
+    const sampleIsCurrent = () => !recoveryEnabled || (
+      recoveryMountedRef.current && activeScenarioRef.current === sampleSlug && (sampleScope ? isCurrentAttemptScope(sampleScope) : readAttemptScope() === null)
+    );
 
     if (
       !canRunPyspark &&
@@ -844,6 +986,7 @@ Impact: ${scenario.incident.impact}`
           code: answer,
           mode: "sample"
         }, authSession.authToken);
+        if (!sampleIsCurrent()) return;
         setPysparkExecution(result);
         setDraftMessage(
           result.passed
@@ -864,6 +1007,7 @@ Impact: ${scenario.incident.impact}`
         );
       }
     } catch (error) {
+      if (!sampleIsCurrent()) return;
       const message = error instanceof Error ? error.message : "The query could not be run.";
       if (canRunPyspark) {
         setPysparkExecution({
@@ -893,7 +1037,7 @@ Impact: ${scenario.incident.impact}`
         setDraftMessage("Query execution failed.");
       }
     } finally {
-      setIsChecking(false);
+      if (sampleIsCurrent()) setIsChecking(false);
     }
   }
 
@@ -1309,13 +1453,13 @@ Impact: ${scenario.incident.impact}`
                     {workspaceStep === "fix" && canRunSql ? <button type="button" onClick={copySchema} className="rounded-full border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-200">Copy schema</button> : null}
                     {workspaceStep === "fix" && (canRunSql || canRunPyspark) ? <button type="button" onClick={runSampleCheck} disabled={isChecking} className="rounded-full border border-teal-300/35 px-4 py-2.5 text-sm font-semibold text-teal-100 disabled:opacity-50">Run sample</button> : null}
                     {workspaceStep === "fix" ? <button type="button" onClick={() => setWorkspaceStep("explain")} className="rounded-full bg-teal-300 px-5 py-2.5 text-sm font-semibold text-slate-950">Continue to explain</button> : null}
-                    {workspaceStep === "explain" ? <button type="button" onClick={checkAnswer} disabled={isChecking} className="rounded-full bg-teal-300 px-5 py-2.5 text-sm font-semibold text-slate-950 disabled:opacity-60">{isChecking ? "Submitting..." : submitLabel}</button> : null}
+                    {workspaceStep === "explain" ? <button type="button" onClick={checkAnswer} disabled={isChecking || (recoveryEnabled && attemptSaverRef.current!.hasPending())} className="rounded-full bg-teal-300 px-5 py-2.5 text-sm font-semibold text-slate-950 disabled:opacity-60">{isChecking ? "Submitting..." : submitLabel}</button> : null}
                     {workspaceStep === "review" ? <button type="button" onClick={() => setWorkspaceStep("fix")} className="rounded-full border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-200">Edit answer</button> : null}
                     {workspaceStep === "review" ? <button type="button" onClick={requestModelSolution} className="rounded-full bg-amber-300 px-5 py-2.5 text-sm font-semibold text-slate-950">Reveal model solution</button> : null}
                     {workspaceStep === "review" && scenario.followUps.length ? <button type="button" onClick={tryFollowUp} className="rounded-full border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-200">Try follow-up</button> : null}
                   </div>
                 </div>
-                {autoSaveStatus.toLowerCase().includes("retry") ? <button type="button" onClick={saveDraft} className="mt-3 text-xs font-semibold text-amber-100 underline">Retry save</button> : null}
+                {autoSaveStatus.toLowerCase().includes("retry") ? <button type="button" onClick={saveDraft} className="mt-3 text-xs font-semibold text-amber-100 underline">{recoveryEnabled ? "Retry saving draft" : "Retry save"}</button> : null}
               </div>
 
               {showRevealConfirmation ? (
@@ -1333,6 +1477,19 @@ Impact: ${scenario.incident.impact}`
             <p className="mt-4 text-sm text-slate-400">Earlier completion is retained. A saved Done state alone does not establish a hidden-test pass; check the validation result below.</p>
           ) : null}
           {pysparkExecution ? <ScenarioPysparkResultPanel result={pysparkExecution} /> : null}
+          {recoveryEnabled && attemptSaveStatus !== "idle" ? (
+            <section aria-label="Account attempt save" className={`mt-4 rounded-3xl border p-5 ${attemptSaveStatus === "unsaved" || attemptSaveStatus === "unconfirmed" ? "border-amber-300/30 bg-amber-300/10" : "border-teal-300/20 bg-teal-300/5"}`}>
+              <p role="status" className="text-sm font-semibold text-slate-100">
+                {ATTEMPT_SAVE_LABELS[attemptSaveStatus]}
+              </p>
+              {attemptSaveStatus === "unsaved" || attemptSaveStatus === "saving" ? (
+                <>
+                  <p className="mt-2 text-sm leading-6 text-slate-300">Retry saves the original submitted attempt without running the checks again. Draft saving is separate. Save this attempt before submitting another answer.</p>
+                  <button type="button" onClick={() => void retrySavingAttempt()} disabled={attemptSaveStatus === "saving" || !persistenceReady || hydratedScenarioSlug !== scenario.slug} className="mt-3 rounded-full border border-amber-300/40 px-4 py-2 text-sm font-semibold text-amber-100 disabled:opacity-50">Retry saving attempt</button>
+                </>
+              ) : null}
+            </section>
+          ) : null}
           {continuationScenario ? (
             <section aria-label="Recommended next practice" className="mt-5 rounded-3xl border border-amber-300/25 bg-amber-300/5 p-5">
               <div className="flex flex-wrap items-center gap-3">

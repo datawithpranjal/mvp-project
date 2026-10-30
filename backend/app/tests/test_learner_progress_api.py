@@ -1,4 +1,5 @@
 from fastapi.testclient import TestClient
+import pytest
 
 from app.api.routes import learner_progress as learner_progress_route
 from app.api.routes import auth as auth_route
@@ -98,3 +99,34 @@ def test_progress_is_scoped_to_the_authenticated_account(monkeypatch, tmp_path) 
     )
     assert second_view.status_code == 200
     assert second_view.json()["items"] == []
+
+
+@pytest.mark.parametrize("passed", [True, False])
+def test_scenario_attempt_replay_after_lost_ack_preserves_payload_and_newer_draft(monkeypatch, tmp_path, passed) -> None:
+    monkeypatch.setattr(learner_progress_route, "learner_progress_store", LearnerProgressStore(storage_path=tmp_path / "replay.json"))
+    token = create_session(f"replay.{passed}@example.com", "Retry Learner")
+    headers = {"Authorization": f"Bearer {token}"}
+    path = "/api/v1/learner-progress/scenario/yesterdays-sales-missing-late-source-arrival"
+    payload = {
+        "idempotency_key": f"original-{passed}", "answer": "original evaluated code", "passed": passed,
+        "message": "original result", "result": {"validator": "pyspark", "passed": passed},
+        "ai_feedback": {"text": "original explanation"},
+    }
+    assert client.post(path + "/attempt", json=payload).status_code == 401
+    first = client.post(path + "/attempt", headers=headers, json=payload)
+    assert first.status_code == 200  # Simulate this acknowledgement being lost in transit.
+    draft = client.put(path + "/draft", headers=headers, json={"draft_answer": "new edited draft", "client_revision": 50})
+    assert draft.status_code == 200
+    for _ in range(2):
+        replay = client.post(path + "/attempt", headers=headers, json=payload)
+        assert replay.status_code == 200
+        item = replay.json()["item"]
+        assert replay.json()["duplicate"] is True
+        assert len(item["attempts"]) == 1
+        assert item["attempts"][0]["answer"] == payload["answer"]
+        assert item["attempts"][0]["result"] == payload["result"]
+        assert item["draft_answer"] == "new edited draft"
+        assert item["completed"] is passed
+    other_token = create_session(f"other.replay.{passed}@example.com", "Other Learner")
+    other = client.get("/api/v1/learner-progress", headers={"Authorization": f"Bearer {other_token}"})
+    assert other.status_code == 200 and other.json()["items"] == []
