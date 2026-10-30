@@ -17,7 +17,7 @@ export function SiteFooter() {
               Questions, access issues, or complaints?
             </h2>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
-              Contact the Data with Pranjal support team. For payment or account issues,
+              Contact The Data Foundry support. For payment or account issues,
               include your registered email and payment reference so we can help faster.
             </p>
             <div className="mt-5 flex flex-wrap gap-3">
@@ -51,7 +51,7 @@ export function SiteFooter() {
         </div>
 
         <div className="mt-8 border-t border-slate-800 pt-5 text-sm text-slate-400">
-          The Data Foundry. Built by Data with Pranjal.
+          The Data Foundry.
         </div>
       </div>
     </footer>

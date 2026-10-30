@@ -2,7 +2,7 @@ import type { ScenarioSummary, ValidationType } from "./types";
 
 export const BRAND = {
   name: "The Data Foundry",
-  trustLine: "Built by Data with Pranjal",
+  trustLine: "Built by Pranjal from Data with Pranjal",
   positioning:
     "A practice-first platform for Data Engineering interviews, production scenarios, and job readiness."
 };

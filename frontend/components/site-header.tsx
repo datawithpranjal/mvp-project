@@ -89,9 +89,6 @@ export function SiteHeader() {
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-200">
               The Data Foundry
             </p>
-            <p className="mt-1 truncate text-sm text-slate-400">
-              Built by Data with Pranjal
-            </p>
           </Link>
 
           <nav className="hidden items-center gap-4 text-sm font-semibold text-slate-300 lg:flex">

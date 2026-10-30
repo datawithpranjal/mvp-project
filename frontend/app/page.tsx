@@ -69,7 +69,7 @@ export default function HomePage() {
               Start with one complete free scenario. No account is required until you want
               to keep your progress across devices.
             </p>
-            <p className="mt-3 text-sm font-semibold uppercase tracking-[0.22em] text-teal-200">
+            <p className="mt-3 text-sm leading-6 text-slate-400">
               {BRAND.trustLine}
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
