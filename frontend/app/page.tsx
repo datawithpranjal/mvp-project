@@ -1,3 +1,5 @@
+import { hubMetadata } from "../lib/discovery";
+
 import Link from "next/link";
 
 import { CoreLabGrid } from "../components/core-lab-grid";
@@ -11,6 +13,8 @@ import {
 } from "../lib/product";
 import { getRecommendedScenarioSlug, getScenarios } from "../lib/scenarios";
 import { SYSTEM_DESIGN_CASES } from "../lib/system-design";
+
+export const metadata = hubMetadata("/");
 
 export default function HomePage() {
   const codingLabs = getCodingLabs();

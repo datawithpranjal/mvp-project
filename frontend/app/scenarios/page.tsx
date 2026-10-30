@@ -1,4 +1,8 @@
+import { hubMetadata } from "../../lib/discovery";
+
 import { BrokenPipelineLab } from "../../components/scenarios/BrokenPipelineLab";
+
+export const metadata = hubMetadata("/scenarios");
 
 export default function ScenariosPage() {
   return (

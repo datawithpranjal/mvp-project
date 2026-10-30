@@ -1,6 +1,10 @@
+import { hubMetadata } from "../../../lib/discovery";
+
 import Link from "next/link";
 
 import { OperationsDecisionLab } from "../../../components/labs/OperationsDecisionLab";
+
+export const metadata = hubMetadata("/labs/airflow");
 
 export default function AirflowLabPage() {
   return (

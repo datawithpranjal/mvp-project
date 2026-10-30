@@ -1,6 +1,10 @@
+import { hubMetadata } from "../../../lib/discovery";
+
 import Link from "next/link";
 
 import { BrowserCodingLab } from "../../../components/labs/BrowserCodingLab";
+
+export const metadata = hubMetadata("/labs/pyspark");
 
 export default function PySparkLabPage() {
   return (
