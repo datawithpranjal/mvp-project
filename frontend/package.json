@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "validate:scenario-chooser": "tsx scripts/validate-scenario-chooser.tsx && tsx ../scripts/validate-scenario-continuation.ts",
     "validate:system-design": "tsx ../scripts/validate-system-design-quality.ts",
     "dev": "next dev",
     "build": "next build",

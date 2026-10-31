@@ -58,6 +58,8 @@ import { PremiumAccessBadge } from "../premium-access-badge";
 import { getPracticeStatus, PracticeStatusBadge } from "../practice-status-badge";
 import { getScenarioContinuationSlug } from "../../lib/scenario-continuation";
 import { AttemptSaveRecovery, type AttemptSaveScope, type AttemptSaveStatus } from "../../lib/attempt-save-recovery";
+import { ScenarioChooser, ScenarioChooserBoundary } from "./ScenarioChooser";
+import { selectChooserScenario } from "../../lib/scenario-chooser";
 
 interface ScenarioWorkspaceProps {
   scenario: Scenario;
@@ -475,7 +477,9 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
     Boolean(scenario.expectedSql && scenario.sampleTables?.length) &&
     (scenario.scenarioType === "broken_sql" || scenario.scenarioType === "output_mismatch");
   const canRunPyspark = EXECUTABLE_PYSPARK_SCENARIOS.has(scenario.slug);
-  const allScenarios = useMemo(() => getScenarios(), []);
+  const allScenarios = useMemo(() => {
+    try { return getScenarios(); } catch { return []; }
+  }, []);
   const continuationSlug = getScenarioContinuationSlug(scenario.slug, pysparkExecution);
   const continuationScenario = allScenarios.find((item) => item.slug === continuationSlug);
   const nextScenario = useMemo(() => {
@@ -1165,21 +1169,13 @@ Impact: ${scenario.incident.impact}`
             </p>
           </div>
           <div className="flex w-full shrink-0 flex-col gap-2 xl:w-80">
-          <label className="block w-full">
-            <span className="mb-2 hidden text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 sm:block">
-              Choose scenario
-            </span>
-            <select
-              value={scenario.slug}
-              onChange={(event) => router.push(`/scenarios/${event.target.value}`)}
-              aria-label="Choose scenario"
-              className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm font-semibold text-slate-100 outline-none transition focus:border-teal-300/50 sm:py-3"
-            >
-              {allScenarios.map((item) => (
-                <option key={item.slug} value={item.slug}>{item.title}</option>
-              ))}
-            </select>
-          </label>
+          <ScenarioChooserBoundary>
+            <ScenarioChooser current={scenario} catalog={allScenarios} onSelect={(slug) => {
+              selectChooserScenario(scenario.slug, slug, () => {
+                if (hydratedScenarioSlug === scenario.slug && persistenceReady) saveDraft();
+              }, (href) => router.push(href));
+            }} />
+          </ScenarioChooserBoundary>
           <div className="grid grid-cols-2 gap-2">
             <button type="button" onClick={goToPreviousScenario} disabled={!previousScenario} className="rounded-full border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 disabled:cursor-not-allowed disabled:text-slate-600">← Previous</button>
             <button type="button" onClick={goToNextScenario} disabled={!nextScenario} className="rounded-full border border-teal-300/30 px-4 py-2 text-sm font-semibold text-teal-100 disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-600">Next →</button>
