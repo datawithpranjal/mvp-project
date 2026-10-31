@@ -263,6 +263,7 @@ class PysparkValidationService:
         payload = {
             "output_columns": list(spec.output_columns),
             "output_variable_names": list(spec.output_variable_names),
+            "numeric_tolerances": spec.numeric_tolerances,
             "cases": [
                 {
                     "name": case.name,
@@ -271,11 +272,13 @@ class PysparkValidationService:
                             "name": input_table.name,
                             "rows": input_table.rows,
                             "timestamp_columns": list(input_table.timestamp_columns),
+                            "input_schema": input_table.input_schema,
                         }
                         for input_table in case.inputs
                     ],
                     "context": case.context,
                     "expected_rows": case.expected_rows,
+                    "session_timezone": case.session_timezone,
                 }
                 for case in cases
             ],
@@ -287,6 +290,7 @@ class PysparkValidationService:
             import contextlib
             import datetime as _dt
             import json
+            import math
             import sys
             import traceback
             from decimal import Decimal
@@ -300,6 +304,8 @@ class PysparkValidationService:
                 if isinstance(value, Decimal):
                     value = float(value)
                 if isinstance(value, float):
+                    if PAYLOAD["numeric_tolerances"]:
+                        return value if math.isfinite(value) else str(value)
                     return round(value, 2)
                 if isinstance(value, _dt.datetime):
                     return value.isoformat(sep=" ")[:19]
@@ -318,6 +324,39 @@ class PysparkValidationService:
                 normalized = [[normalize_value(value) for value in row] for row in rows]
                 return sorted(normalized, key=lambda row: json.dumps(row, sort_keys=True))
 
+            def rows_match(actual, expected):
+                if not PAYLOAD["numeric_tolerances"]:
+                    return normalize_rows(actual) == normalize_rows(expected)
+                if len(actual) != len(expected):
+                    return False
+
+                def row_match(left, right):
+                    for column, a, b in zip(PAYLOAD["output_columns"], left, right):
+                        tolerance = PAYLOAD["numeric_tolerances"].get(column)
+                        if tolerance is None:
+                            if normalize_value(a) != normalize_value(b):
+                                return False
+                        else:
+                            if any(isinstance(v, bool) or not isinstance(v, (int, float, Decimal)) for v in (a, b)):
+                                return False
+                            a, b = Decimal(str(a)), Decimal(str(b))
+                            if not a.is_finite() or not b.is_finite() or abs(a - b) > Decimal(tolerance):
+                                return False
+                    return True
+
+                # One-to-one multiset matching preserves duplicates and accepts
+                # numeric representation differences without rounding the answer.
+                matches = {{}}
+                def assign(index, seen):
+                    for target, row in enumerate(expected):
+                        if target not in seen and row_match(actual[index], row):
+                            seen.add(target)
+                            if target not in matches or assign(matches[target], seen):
+                                matches[target] = index
+                                return True
+                    return False
+                return all(assign(index, set()) for index in range(len(actual)))
+
             tests = []
             spark = (
                 SparkSession.builder
@@ -332,18 +371,20 @@ class PysparkValidationService:
             try:
                 user_code = open(PAYLOAD["submission_path"], "r", encoding="utf-8").read()
                 for case in PAYLOAD["cases"]:
+                    # Fixture/runtime setup errors must escape to an unavailable
+                    # worker result, rather than being graded as learner mistakes.
+                    if case.get("session_timezone"):
+                        spark.conf.set("spark.sql.session.timeZone", case["session_timezone"])
+                        spark.conf.set("spark.sql.timestampType", "TIMESTAMP_LTZ")
+                    namespace = {{"spark": spark, "F": F}}
+                    for input_table in case["inputs"]:
+                        df = spark.createDataFrame(input_table["rows"], schema=input_table.get("input_schema"))
+                        for timestamp_column in input_table.get("timestamp_columns", []):
+                            df = df.withColumn(timestamp_column, F.to_timestamp(timestamp_column))
+                        namespace[input_table["name"]] = df
+                    for context_key, context_value in case.get("context", {{}}).items():
+                        namespace[context_key] = context_value
                     try:
-                        namespace = {{
-                            "spark": spark,
-                            "F": F,
-                        }}
-                        for input_table in case["inputs"]:
-                            df = spark.createDataFrame(input_table["rows"])
-                            for timestamp_column in input_table.get("timestamp_columns", []):
-                                df = df.withColumn(timestamp_column, F.to_timestamp(timestamp_column))
-                            namespace[input_table["name"]] = df
-                        for context_key, context_value in case.get("context", {{}}).items():
-                            namespace[context_key] = context_value
                         exec(compile(user_code, "submission.py", "exec"), namespace, namespace)
                         output_df = None
                         for variable_name in PAYLOAD["output_variable_names"]:
@@ -362,11 +403,9 @@ class PysparkValidationService:
                         if missing_columns:
                             raise ValueError("Missing output columns: " + ", ".join(missing_columns))
                         selected_df = output_df.select(*PAYLOAD["output_columns"])
-                        actual_rows = normalize_rows(
-                            [list(row) for row in selected_df.collect()]
-                        )
-                        expected_rows = normalize_rows(case["expected_rows"])
-                        passed = actual_rows == expected_rows
+                        actual_rows = [list(row) for row in selected_df.collect()]
+                        expected_rows = case["expected_rows"]
+                        passed = rows_match(actual_rows, expected_rows)
                         tests.append({{
                             "name": case["name"],
                             "passed": passed,
@@ -375,8 +414,8 @@ class PysparkValidationService:
                                 if passed else
                                 "Output mismatch. Check the expected grain, filters, deduplication, and projected columns."
                             ),
-                            "actual_output": query_result(PAYLOAD["output_columns"], actual_rows),
-                            "expected_output": query_result(PAYLOAD["output_columns"], expected_rows),
+                            "actual_output": query_result(PAYLOAD["output_columns"], normalize_rows(actual_rows)),
+                            "expected_output": query_result(PAYLOAD["output_columns"], normalize_rows(expected_rows)),
                         }})
                     except Exception as exc:
                         tests.append({{
