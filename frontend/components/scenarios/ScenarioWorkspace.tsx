@@ -1220,6 +1220,12 @@ Impact: ${scenario.incident.impact}`
             ))}
           </div>
           <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4 sm:p-5">
+            {scenario.inputContract && referenceTab !== "broken" ? (
+              <section aria-label="Input and output contract" className="rounded-2xl border border-teal-300/20 bg-teal-300/5 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-teal-200">Input and output contract</p>
+                <p className="mt-2 text-sm leading-6 text-slate-300">{scenario.inputContract}</p>
+              </section>
+            ) : null}
             {referenceTab === "task" ? (
               <>
                 <div>
