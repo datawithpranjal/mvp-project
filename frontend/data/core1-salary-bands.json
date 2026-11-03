@@ -1,0 +1,582 @@
+{
+  "businessContext": "A fictional department compensation review requests every employee in its top three distinct salary bands. Omitting a lower-band cutoff includes out-of-scope people; choosing three employees can exclude someone tied at a qualifying band. This is a synthetic reporting rule, not pay advice or a real employee dataset.",
+  "problemStatement": "Return every employee in the top three distinct salary bands independently per department, including all employees tied at the qualifying boundary.",
+  "studentTask": "Using employees, return department, emp_name and salary for every employee whose salary is in that department's top three distinct salary values. Restart the rule independently for each department. Keep all employees at the third qualifying salary value, and keep all employees if a department has fewer than three distinct values. Submit one read-only SELECT/WITH query; do not modify tables.",
+  "estimatedMinutes": 20,
+  "starterCode": "-- This query runs, but does not yet apply the required salary-band rule.\n-- Keep the requested columns and preserve qualifying employees, including ties.\nSELECT department, emp_name, salary\nFROM employees",
+  "tables": [
+    {
+      "name": "employees",
+      "columns": [
+        "emp_id",
+        "emp_name",
+        "department",
+        "manager_id",
+        "salary"
+      ],
+      "rows": [
+        [
+          1,
+          "Data-A",
+          "Data",
+          null,
+          900
+        ],
+        [
+          2,
+          "Data-B",
+          "Data",
+          null,
+          800
+        ],
+        [
+          3,
+          "Data-C",
+          "Data",
+          null,
+          700
+        ],
+        [
+          4,
+          "Data-D",
+          "Data",
+          null,
+          700
+        ],
+        [
+          5,
+          "Data-E",
+          "Data",
+          null,
+          600
+        ],
+        [
+          6,
+          "Analytics-A",
+          "Analytics",
+          null,
+          500
+        ],
+        [
+          7,
+          "Analytics-B",
+          "Analytics",
+          null,
+          400
+        ],
+        [
+          8,
+          "Analytics-C",
+          "Analytics",
+          null,
+          300
+        ],
+        [
+          9,
+          "Analytics-D",
+          "Analytics",
+          null,
+          200
+        ],
+        [
+          10,
+          "Platform-A",
+          "Platform",
+          null,
+          1000
+        ],
+        [
+          11,
+          "Platform-B",
+          "Platform",
+          null,
+          1000
+        ]
+      ]
+    }
+  ],
+  "expectedSql": "WITH ranked AS (\n    SELECT department, emp_name, salary,\n           DENSE_RANK() OVER (\n               PARTITION BY department ORDER BY salary DESC\n           ) AS salary_rank\n    FROM employees\n)\nSELECT department, emp_name, salary\nFROM ranked\nWHERE salary_rank <= 3",
+  "solutionCode": "WITH ranked AS (\n    SELECT department, emp_name, salary,\n           DENSE_RANK() OVER (\n               PARTITION BY department ORDER BY salary DESC\n           ) AS salary_rank\n    FROM employees\n)\nSELECT department, emp_name, salary\nFROM ranked\nWHERE salary_rank <= 3",
+  "hints": [
+    "Is this cutoff shared across the whole company, or does each department start its own comparison?",
+    "For one department, list distinct salary values from highest to lowest. Are you counting employees or distinct values?",
+    "At the third qualifying value, can one tied employee be included while another at the same salary is excluded under this rule?",
+    "Give equal salaries the same consecutive band position within each department, without gaps after ties. Keep the first three positions. A different query that returns the same employee population is also valid."
+  ],
+  "expectedOutcome": "Columns: department, emp_name, salary (in that order).\nOne row per qualifying employee; output order is not graded and duplicate output rows count. Keep all qualifying ties, independently per department.",
+  "explanation": "Equal salaries share one band. DENSE_RANK assigns consecutive band positions independently per department; the filter keeps positions 1–3. Keep every qualifying employee, even if two projected rows look identical. A correlated count of higher distinct salaries is an equivalent approach.",
+  "commonMistakes": [
+    "Returning all employees without applying the three-band cutoff.",
+    "Selecting three employees instead of three distinct salary values.",
+    "Using RANK with gaps after ties, ranking globally, or deduplicating projected employees."
+  ],
+  "sqlTestCases": [
+    {
+      "name": "Tie in first band does not skip third band",
+      "description": "Additional output check for the stated salary-band rule.",
+      "tables": [
+        {
+          "name": "employees",
+          "columns": [
+            "emp_id",
+            "emp_name",
+            "department",
+            "manager_id",
+            "salary"
+          ],
+          "rows": [
+            [
+              21,
+              "North-A",
+              "North",
+              null,
+              990
+            ],
+            [
+              22,
+              "North-B",
+              "North",
+              null,
+              990
+            ],
+            [
+              23,
+              "North-C",
+              "North",
+              null,
+              880
+            ],
+            [
+              24,
+              "North-D",
+              "North",
+              null,
+              770
+            ],
+            [
+              25,
+              "North-E",
+              "North",
+              null,
+              660
+            ]
+          ]
+        }
+      ],
+      "expectedSql": "WITH ranked AS (\n    SELECT department, emp_name, salary,\n           DENSE_RANK() OVER (\n               PARTITION BY department ORDER BY salary DESC\n           ) AS salary_rank\n    FROM employees\n)\nSELECT department, emp_name, salary\nFROM ranked\nWHERE salary_rank <= 3"
+    },
+    {
+      "name": "Department scales restart ranking",
+      "description": "Additional output check for the stated salary-band rule.",
+      "tables": [
+        {
+          "name": "employees",
+          "columns": [
+            "emp_id",
+            "emp_name",
+            "department",
+            "manager_id",
+            "salary"
+          ],
+          "rows": [
+            [
+              31,
+              "Large-A",
+              "Large",
+              null,
+              10000
+            ],
+            [
+              32,
+              "Large-B",
+              "Large",
+              null,
+              9000
+            ],
+            [
+              33,
+              "Large-C",
+              "Large",
+              null,
+              8000
+            ],
+            [
+              34,
+              "Large-D",
+              "Large",
+              null,
+              7000
+            ],
+            [
+              35,
+              "Small-A",
+              "Small",
+              null,
+              100
+            ],
+            [
+              36,
+              "Small-B",
+              "Small",
+              null,
+              90
+            ],
+            [
+              37,
+              "Small-C",
+              "Small",
+              null,
+              80
+            ],
+            [
+              38,
+              "Small-D",
+              "Small",
+              null,
+              70
+            ]
+          ]
+        }
+      ],
+      "expectedSql": "WITH ranked AS (\n    SELECT department, emp_name, salary,\n           DENSE_RANK() OVER (\n               PARTITION BY department ORDER BY salary DESC\n           ) AS salary_rank\n    FROM employees\n)\nSELECT department, emp_name, salary\nFROM ranked\nWHERE salary_rank <= 3"
+    },
+    {
+      "name": "Fewer bands and zero salary",
+      "description": "Additional output check for the stated salary-band rule.",
+      "tables": [
+        {
+          "name": "employees",
+          "columns": [
+            "emp_id",
+            "emp_name",
+            "department",
+            "manager_id",
+            "salary"
+          ],
+          "rows": [
+            [
+              41,
+              "Zero-A",
+              "Zero",
+              null,
+              0
+            ],
+            [
+              42,
+              "Zero-B",
+              "Zero",
+              null,
+              0
+            ],
+            [
+              43,
+              "Zero-C",
+              "Zero",
+              null,
+              0
+            ],
+            [
+              44,
+              "Pair-A",
+              "Pair",
+              null,
+              30
+            ],
+            [
+              45,
+              "Pair-B",
+              "Pair",
+              null,
+              20
+            ],
+            [
+              46,
+              "Pair-C",
+              "Pair",
+              null,
+              20
+            ],
+            [
+              47,
+              "Pair-D",
+              "Pair",
+              null,
+              30
+            ]
+          ]
+        }
+      ],
+      "expectedSql": "WITH ranked AS (\n    SELECT department, emp_name, salary,\n           DENSE_RANK() OVER (\n               PARTITION BY department ORDER BY salary DESC\n           ) AS salary_rank\n    FROM employees\n)\nSELECT department, emp_name, salary\nFROM ranked\nWHERE salary_rank <= 3"
+    },
+    {
+      "name": "Distinct employees with identical projected values",
+      "description": "Additional output check for the stated salary-band rule.",
+      "tables": [
+        {
+          "name": "employees",
+          "columns": [
+            "emp_id",
+            "emp_name",
+            "department",
+            "manager_id",
+            "salary"
+          ],
+          "rows": [
+            [
+              51,
+              "Alex",
+              "Ops",
+              null,
+              700
+            ],
+            [
+              52,
+              "Alex",
+              "Ops",
+              null,
+              700
+            ],
+            [
+              53,
+              "Nia",
+              "Ops",
+              null,
+              600
+            ],
+            [
+              54,
+              "Omi",
+              "Ops",
+              null,
+              500
+            ],
+            [
+              55,
+              "Pax",
+              "Ops",
+              null,
+              400
+            ]
+          ]
+        }
+      ],
+      "expectedSql": "WITH ranked AS (\n    SELECT department, emp_name, salary,\n           DENSE_RANK() OVER (\n               PARTITION BY department ORDER BY salary DESC\n           ) AS salary_rank\n    FROM employees\n)\nSELECT department, emp_name, salary\nFROM ranked\nWHERE salary_rank <= 3"
+    },
+    {
+      "name": "Single employee",
+      "description": "Additional output check for the stated salary-band rule.",
+      "tables": [
+        {
+          "name": "employees",
+          "columns": [
+            "emp_id",
+            "emp_name",
+            "department",
+            "manager_id",
+            "salary"
+          ],
+          "rows": [
+            [
+              61,
+              "Solo-A",
+              "Solo",
+              null,
+              77
+            ]
+          ]
+        }
+      ],
+      "expectedSql": "WITH ranked AS (\n    SELECT department, emp_name, salary,\n           DENSE_RANK() OVER (\n               PARTITION BY department ORDER BY salary DESC\n           ) AS salary_rank\n    FROM employees\n)\nSELECT department, emp_name, salary\nFROM ranked\nWHERE salary_rank <= 3"
+    },
+    {
+      "name": "Empty employees",
+      "description": "Additional output check for the stated salary-band rule.",
+      "tables": [
+        {
+          "name": "employees",
+          "columns": [
+            "emp_id",
+            "emp_name",
+            "department",
+            "manager_id",
+            "salary"
+          ],
+          "rows": []
+        }
+      ],
+      "expectedSql": "WITH ranked AS (\n    SELECT department, emp_name, salary,\n           DENSE_RANK() OVER (\n               PARTITION BY department ORDER BY salary DESC\n           ) AS salary_rank\n    FROM employees\n)\nSELECT department, emp_name, salary\nFROM ranked\nWHERE salary_rank <= 3"
+    },
+    {
+      "name": "Legacy visible regression",
+      "description": "Additional output check for the stated salary-band rule.",
+      "tables": [
+        {
+          "name": "employees",
+          "columns": [
+            "emp_id",
+            "emp_name",
+            "department",
+            "manager_id",
+            "salary"
+          ],
+          "rows": [
+            [
+              1,
+              "Asha",
+              "Data",
+              null,
+              120000
+            ],
+            [
+              2,
+              "Ben",
+              "Data",
+              1,
+              105000
+            ],
+            [
+              3,
+              "Chen",
+              "Data",
+              1,
+              105000
+            ],
+            [
+              4,
+              "Diya",
+              "Analytics",
+              1,
+              90000
+            ],
+            [
+              5,
+              "Evan",
+              "Analytics",
+              4,
+              82000
+            ],
+            [
+              6,
+              "Fatima",
+              "Platform",
+              1,
+              115000
+            ],
+            [
+              7,
+              "Gopal",
+              "Platform",
+              6,
+              76000
+            ]
+          ]
+        }
+      ],
+      "expectedSql": "WITH ranked AS (\n    SELECT department, emp_name, salary,\n           DENSE_RANK() OVER (\n               PARTITION BY department ORDER BY salary DESC\n           ) AS salary_rank\n    FROM employees\n)\nSELECT department, emp_name, salary\nFROM ranked\nWHERE salary_rank <= 3"
+    },
+    {
+      "name": "Legacy regression",
+      "description": "Additional output check for the stated salary-band rule.",
+      "tables": [
+        {
+          "name": "employees",
+          "columns": [
+            "emp_id",
+            "emp_name",
+            "department",
+            "manager_id",
+            "salary"
+          ],
+          "rows": [
+            [
+              10,
+              "Nora",
+              "Data",
+              null,
+              200000
+            ],
+            [
+              11,
+              "Omar",
+              "Data",
+              10,
+              180000
+            ],
+            [
+              12,
+              "Pia",
+              "Data",
+              10,
+              180000
+            ],
+            [
+              13,
+              "Quinn",
+              "Data",
+              11,
+              150000
+            ],
+            [
+              14,
+              "Ravi",
+              "Analytics",
+              null,
+              130000
+            ],
+            [
+              15,
+              "Sara",
+              "Analytics",
+              14,
+              130000
+            ],
+            [
+              16,
+              "Tenzin",
+              "Platform",
+              null,
+              99000
+            ]
+          ]
+        }
+      ],
+      "expectedSql": "WITH ranked AS (\n    SELECT department, emp_name, salary,\n           DENSE_RANK() OVER (\n               PARTITION BY department ORDER BY salary DESC\n           ) AS salary_rank\n    FROM employees\n)\nSELECT department, emp_name, salary\nFROM ranked\nWHERE salary_rank <= 3"
+    }
+  ],
+  "practiceGuidance": {
+    "contract": [
+      "Target SQLite SQL in SQL.js. Author checks use SQL.js 1.14.1 with SQLite 3.49.1; this does not establish your current browser or production version.",
+      "employees has emp_id, emp_name, department, manager_id and salary. emp_id is a unique positive integer. emp_name and department are non-empty, non-null strings; use department values as supplied and case-sensitively. manager_id may be NULL and is irrelevant to this task.",
+      "salary is a non-null, finite non-negative whole number between 0 and 10,000,000 in synthetic notional units. Zero is valid. No currency conversion, decimals/rounding, NULL salary ordering, pay-policy design or real compensation claim is tested.",
+      "A salary band is one distinct salary value within one department. Equal salaries share a band. Count bands from highest to lowest without gaps; select the first three bands independently per department. Ties never reduce the number of eligible bands.",
+      "The output grain remains one row per qualifying employee. Different emp_id values can have the same name, department and salary; preserve both resulting rows. Input replayed/duplicate emp_id rows and identity cleanup are outside this task.",
+      "Return exactly the columns department, emp_name, salary in that order. Output row order is not graded; duplicate output rows count. No rank column or employee ID is requested. Use readable aliases; the current comparator ignores column-name case.",
+      "The fixtures are tiny, at most 11 employees each, and use integers exactly representable by the runtime numeric values. The existing comparator normalizes numeric results to six decimal places; this exercise does not certify arbitrary financial precision or data types.",
+      "With no employees, return no employee rows. The existing helper may show an empty result without headers; that empty comparison checks absence of rows, not column-schema correctness. Do not invent a placeholder or zero-salary employee."
+    ],
+    "assessment": [
+      "A visible-sample pass means your query matched that sample only. Passing integrated additional checks establishes output correctness on those tested inputs, not production safety, job readiness, mastery or proof of an unaided attempt.",
+      "Additional practice checks are not a secure examination or proof that answers were unseen. Cases kept out of the initial view should not be treated as adversarially secret grading in a browser-based exercise.",
+      "Hints and reference viewing are assisted/reviewed practice. Revealing a solution does not itself create a validated attempt or prove independent skill. Output checking cannot distinguish a correct copied general solution from one you reasoned out.",
+      "The reporting explanation and next transfer below are ungraded reflection unless a separately identified reviewed assessment is provided. The SQL check does not grade that explanation.",
+      "An unavailable checker, platform setup failure or timeout gives no correctness judgment. Keep your query and retry when checking is available; platform failure is neither your wrong answer nor a pass. A valid executed mismatch is an incorrect result; a learner SQL error needs an actionable query error.",
+      "A checked result and an account-save acknowledgement are different. If saving fails, preserve the query/result and use save retry; an unsaved result does not mean the SQL is incorrect."
+    ],
+    "nextTransfer": {
+      "title": "Predict how one new salary band moves the boundary",
+      "when": "After a passing tested result, try this once on paper without hints or the reference if you want unaided practice.",
+      "instructions": "Add a new fictional employee (emp_id 12, emp_name Data-New, department Data, manager_id NULL, salary 750) to the visible example. Keep every existing row and the same top-three-distinct-band rule.",
+      "deliverable": "Write the included and excluded employees for Data, explain what happens to both employees at the old third-band salary, and state why the other departments do or do not change.",
+      "assessment": "Ungraded transfer reflection, not an added hidden test, new catalog item, automatic completion or mastery credit. No fixture-editing feature is promised.",
+      "url": null
+    },
+    "alternativeSql": "SELECT e.department, e.emp_name, e.salary\nFROM employees e\nWHERE (\n    SELECT COUNT(DISTINCT higher.salary)\n    FROM employees higher\n    WHERE higher.department = e.department\n      AND higher.salary > e.salary\n) < 3",
+    "feedback": {
+      "visible_pass": "Your result matches the visible sample. This is a sample check, not full validation or independent mastery.",
+      "integrated_suite_pass": "Your result matched the integrated test datasets. This certifies only those tested results; hints/reference use and reflection remain separate.",
+      "incorrect": "The query ran but the employee population differs. Recheck department boundaries, distinct salary values, cutoff direction and qualifying ties.",
+      "unavailable": "No correctness result was produced. Your query should be preserved; retry checking when the service is available.",
+      "query_error": "Your SQL could not be executed. Review the query error and retry; no passing result was produced."
+    }
+  }
+}

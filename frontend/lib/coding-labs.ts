@@ -13,6 +13,7 @@ import {
   type LaunchReadyFilterOptions
 } from "./launch-ready-content";
 import { GOLD_CORE_CODING_OVERRIDES } from "./gold-core";
+import core1SalaryBands from "../data/core1-salary-bands.json";
 
 export type CodingLabTrack = "sql" | "python" | "pyspark";
 export type CodingLabDifficulty = "beginner" | "intermediate" | "advanced";
@@ -65,6 +66,7 @@ export interface CodingLab {
   launchReady?: boolean;
   validationMode?: "sql" | "python" | "pyspark" | "review";
   serverValidation?: "python";
+  practiceGuidance?: typeof core1SalaryBands.practiceGuidance;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -203,7 +205,8 @@ function normalizeLab(value: unknown): CodingLab | null {
               ? { ...testCase, description: goldOverride.edgeCaseDescription as string }
               : testCase
           )
-        : normalized.sqlTestCases
+        : normalized.sqlTestCases,
+    ...(slug === "sql-coding-03-top-3-salaries-per-department" ? core1SalaryBands : {})
   };
 }
 

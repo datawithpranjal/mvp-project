@@ -20,6 +20,17 @@ export interface BrowserSqlValidationResult {
   expected: BrowserSqlResultTable;
 }
 
+export class BrowserSqlError extends Error {
+  constructor(public readonly kind: "query_error" | "unavailable", message: string) {
+    super(message);
+    this.name = "BrowserSqlError";
+  }
+}
+
+function executionError(kind: BrowserSqlError["kind"], error: unknown): BrowserSqlError {
+  return new BrowserSqlError(kind, error instanceof Error ? error.message : "SQL execution failed.");
+}
+
 let sqlJsPromise: Promise<SqlJsStatic> | null = null;
 
 export function getSqlJs() {
@@ -135,15 +146,34 @@ export async function validateSqlOutput(
   expectedSql: string
 ): Promise<BrowserSqlValidationResult> {
   if (!isReadOnlySql(answerSql)) {
-    throw new Error("Only read-only SELECT or WITH queries can be checked.");
+    throw new BrowserSqlError("query_error", "Only read-only SELECT or WITH queries can be checked.");
   }
 
-  const SQL = await getSqlJs();
-  const db = new SQL.Database();
+  let db;
   try {
-    db.run(buildSetupSql(tables));
-    const actual = resultFromExec(db.exec(answerSql));
-    const expected = resultFromExec(db.exec(expectedSql));
+    const SQL = await getSqlJs();
+    db = new SQL.Database();
+  } catch (error) {
+    throw executionError("unavailable", error);
+  }
+  try {
+    try {
+      db.run(buildSetupSql(tables));
+    } catch (error) {
+      throw executionError("unavailable", error);
+    }
+    let actual;
+    try {
+      actual = resultFromExec(db.exec(answerSql));
+    } catch (error) {
+      throw executionError("query_error", error);
+    }
+    let expected;
+    try {
+      expected = resultFromExec(db.exec(expectedSql));
+    } catch (error) {
+      throw executionError("unavailable", error);
+    }
     const passed = sameSqlOutput(actual, expected);
     return {
       passed,
