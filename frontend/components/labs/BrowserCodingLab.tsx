@@ -20,6 +20,7 @@ import { AUTH_UPDATED_EVENT, getAuthToken, getCurrentUser } from "../../lib/auth
 import { codingProgressFromRemote } from "../../lib/learner-progress";
 import { sendUsageEvent } from "../../lib/usage";
 import { handleTextareaTabKeyDown } from "../../lib/textarea-tab";
+import { checkCore1SalaryBands } from "../../lib/core1-salary-check";
 import { usePremiumEntitlement } from "../../lib/use-premium-entitlement";
 import {
   formatTrackLabel,
@@ -80,6 +81,7 @@ interface PysparkCaseResult {
 
 interface LabRunResult {
   passed: boolean | null;
+  status?: "query_error" | "unavailable";
   message: string;
   table?: BrowserSqlResultTable;
   sqlResults?: SqlCaseResult[];
@@ -147,6 +149,7 @@ async function getPyodide() {
 }
 
 async function runSqlLab(lab: CodingLab, answer: string): Promise<LabRunResult> {
+  if (lab.practiceGuidance) return checkCore1SalaryBands(lab, answer, "full");
   if (!lab.expectedSql) {
     return {
       passed: null,
@@ -836,6 +839,9 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
               ? await runPysparkLab(selectedLab, answer, "hidden", authToken)
           : evaluateCodeReviewLab(selectedLab, answer);
       setResult(nextResult);
+      // A checker/setup failure or query error is not an executed wrong result.
+      if (selectedLab.practiceGuidance && nextResult.passed === null) return;
+      let attemptSaveNotice = "";
       const nextProgressMap = recordCodingLabAttempt(
         selectedLab.slug,
         selectedLab.track,
@@ -867,7 +873,9 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
             [selectedLab.slug]: { latestResult: persisted.item.latest_result ?? undefined }
           }));
           pendingAttemptRef.current = null;
+          if (selectedLab.practiceGuidance) attemptSaveNotice = "Result saved to your account. ";
         } catch {
+          if (selectedLab.practiceGuidance) attemptSaveNotice = "Result shown, but it could not be saved to your account. Please retry submit. ";
           setWorkspaceMessage("Result shown, but it could not be saved to your account. Please retry submit.");
         }
       }
@@ -886,7 +894,9 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
       });
       if (nextResult.passed) {
         setWorkspaceMessage(
-          nextLab
+          selectedLab.practiceGuidance
+            ? `${attemptSaveNotice}Your query matched the tested datasets. Continue when you are ready; this is practice, not proof of independent mastery.`
+            : nextLab
             ? "Correct. Passed full validation and edge-case checks. Use Next question when you are ready."
             : "Correct. Passed full validation and edge-case checks."
         );
@@ -898,7 +908,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
         });
         trackEvent("lab_completed", { lab: selectedLab.slug, track: selectedLab.track });
       } else if (nextResult.passed === false) {
-        setWorkspaceMessage("Not correct yet. Review the result details, fix the answer, and submit again.");
+        setWorkspaceMessage(`${attemptSaveNotice}Not correct yet. Review the result details, fix the answer, and submit again.`);
       }
     } catch (error) {
       setResult({
@@ -923,6 +933,10 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
       setResultMode("sample");
 
       if (selectedLab.track === "sql") {
+        if (selectedLab.practiceGuidance) {
+          setResult(await checkCore1SalaryBands(selectedLab, answer, "sample"));
+          return;
+        }
         if (!selectedLab.expectedSql) {
           const table = await runReadOnlySql(selectedLab.tables, answer);
           setResult({
@@ -1200,6 +1214,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
               <div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Problem</p><p className="mt-2 text-sm leading-6 text-slate-200">{selectedLab.problemStatement}</p></div>
               <div className="rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-100">Your task</p><p className="mt-2 text-sm font-semibold leading-6 text-amber-50">{selectedLab.studentTask}</p></div>
               {selectedLab.expectedOutcome ? <div className="rounded-2xl border border-teal-300/20 bg-teal-300/10 p-4"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-teal-100">Outcome contract</p><p className="mt-2 whitespace-pre-line text-sm leading-6 text-teal-50">{selectedLab.expectedOutcome}</p></div> : null}
+              {selectedLab.practiceGuidance ? <details className="rounded-2xl border border-slate-800 p-4"><summary className="cursor-pointer text-sm font-semibold text-teal-100">SQL & output details</summary><ul className="mt-3 space-y-3 text-sm leading-6 text-slate-300">{selectedLab.practiceGuidance.contract.map((item) => <li key={item}>{item}</li>)}</ul></details> : null}
             </> : null}
 
             {referenceTab === "data" ? <>
@@ -1207,7 +1222,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-teal-200">{referenceLabels.sourceTitle}</p>
                 <p className="mt-2 text-xs leading-5 text-slate-500">{referenceLabels.sourceDescription}</p>
                 <div className="mt-4 space-y-4">
-                  {selectedLab.tables.map((table) => <TablePreview key={table.name} table={table} />)}
+                  {selectedLab.tables.map((table) => <TablePreview key={table.name} table={table} showAllRows={Boolean(selectedLab.practiceGuidance)} />)}
                   {selectedLab.track === "python" && selectedLab.testCases?.length ? selectedLab.testCases.map((testCase, index) => <div key={`${testCase.name}-${index}`} className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4"><p className="text-xs font-semibold text-slate-500">Example {index + 1}</p><pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-words text-xs leading-5 text-slate-100"><code>{formatPythonCall(selectedLab.functionName, testCase.args)}</code></pre></div>) : null}
                   {!selectedLab.tables.length && !(selectedLab.track === "python" && selectedLab.testCases?.length) ? <p className="rounded-2xl border border-slate-800 p-4 text-sm text-slate-400">Use the starter code and task contract as the input for this review question.</p> : null}
                 </div>
@@ -1226,9 +1241,10 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
             </> : null}
 
             {referenceTab === "help" ? <>
+              {selectedLab.practiceGuidance ? <details className="rounded-2xl border border-slate-800 p-4"><summary className="cursor-pointer text-sm font-semibold text-teal-100">What checking and saved results mean</summary><ul className="mt-3 space-y-3 text-sm leading-6 text-slate-300">{selectedLab.practiceGuidance.assessment.map((item) => <li key={item}>{item}</li>)}</ul></details> : null}
               {selectedLab.tables.length ? <div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Table schema</p><div className="mt-3"><TableSchemaReference tables={selectedLab.tables} /></div></div> : null}
               <div><div className="flex items-center justify-between gap-3"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Hints</p><button type="button" onClick={() => setHintCount((count) => Math.min(count + 1, selectedLab.hints.length))} className="rounded-full border border-teal-300/30 px-3 py-2 text-xs font-semibold text-teal-100">Get hint</button></div><div className="mt-3 space-y-3">{selectedLab.hints.slice(0, hintCount).map((hint, index) => <div key={hint} className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4"><p className="text-xs font-semibold text-teal-200">Hint {index + 1}</p><p className="mt-2 text-sm leading-6 text-slate-300">{hint}</p></div>)}{hintCount === 0 ? <p className="text-sm leading-6 text-slate-400">Try once, then reveal one hint at a time.</p> : null}</div></div>
-              <div className="border-t border-slate-800 pt-5"><button type="button" onClick={toggleSolution} disabled={isLoadingSolution} className="w-full rounded-full bg-amber-300 px-5 py-3 text-sm font-bold text-slate-950">{showSolution ? "Hide model answer" : isLoadingSolution ? "Loading solution..." : "Reveal model answer"}</button>{solutionError ? <p className="mt-3 text-sm leading-6 text-amber-100">{solutionError}</p> : null}{showSolution ? <div className="mt-4 space-y-4"><pre className="max-h-[420px] overflow-auto rounded-2xl border border-slate-800 bg-slate-950/70 p-4 text-xs leading-6 text-teal-50"><code>{selectedLab.serverValidation === "python" ? serverSolutions[selectedLab.slug]?.solutionCode ?? "Model answer is loading." : selectedLab.solutionCode}</code></pre><p className="text-sm leading-6 text-slate-300">{selectedLab.serverValidation === "python" ? serverSolutions[selectedLab.slug]?.explanation ?? selectedLab.explanation : selectedLab.explanation}</p>{selectedLab.commonMistakes?.length ? <div className="rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-100">Common mistakes</p><ul className="mt-3 space-y-2 text-sm leading-6 text-amber-50">{selectedLab.commonMistakes.map((mistake) => <li key={mistake}>{mistake}</li>)}</ul></div> : null}</div> : null}</div>
+              <div className="border-t border-slate-800 pt-5"><button type="button" onClick={toggleSolution} disabled={isLoadingSolution} className="w-full rounded-full bg-amber-300 px-5 py-3 text-sm font-bold text-slate-950">{showSolution ? "Hide model answer" : isLoadingSolution ? "Loading solution..." : "Reveal model answer"}</button>{solutionError ? <p className="mt-3 text-sm leading-6 text-amber-100">{solutionError}</p> : null}{showSolution ? <div className="mt-4 space-y-4"><pre className="max-h-[420px] overflow-auto rounded-2xl border border-slate-800 bg-slate-950/70 p-4 text-xs leading-6 text-teal-50"><code>{selectedLab.serverValidation === "python" ? serverSolutions[selectedLab.slug]?.solutionCode ?? "Model answer is loading." : selectedLab.solutionCode}</code></pre><p className="text-sm leading-6 text-slate-300">{selectedLab.serverValidation === "python" ? serverSolutions[selectedLab.slug]?.explanation ?? selectedLab.explanation : selectedLab.explanation}</p>{selectedLab.practiceGuidance ? <details className="rounded-2xl border border-slate-800 p-4"><summary className="cursor-pointer text-sm font-semibold text-teal-100">Equivalent approach</summary><pre className="mt-3 overflow-x-auto whitespace-pre-wrap break-words text-xs leading-6 text-teal-50"><code>{selectedLab.practiceGuidance.alternativeSql}</code></pre><p className="mt-3 text-sm text-slate-300">A result-equivalent query is accepted; no function name is required.</p></details> : null}{selectedLab.commonMistakes?.length ? <div className="rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-100">Common mistakes</p><ul className="mt-3 space-y-2 text-sm leading-6 text-amber-50">{selectedLab.commonMistakes.map((mistake) => <li key={mistake}>{mistake}</li>)}</ul></div> : null}</div> : null}</div>
             </> : null}
           </div>
         </aside>
@@ -1375,6 +1391,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
           </div>
 
           {result ? <ResultPanel result={result} mode={resultMode} /> : null}
+          {selectedLab.practiceGuidance && result?.passed === true ? <details className="panel rounded-3xl p-5"><summary className="cursor-pointer font-semibold text-teal-100">Try a new example (ungraded)</summary><div className="mt-4 space-y-3 text-sm leading-6 text-slate-300"><p>{selectedLab.practiceGuidance.nextTransfer.when}</p><p>{selectedLab.practiceGuidance.nextTransfer.instructions}</p><p>{selectedLab.practiceGuidance.nextTransfer.deliverable}</p><p>{selectedLab.practiceGuidance.nextTransfer.assessment}</p></div></details> : null}
           {isPythonScopeEntry && result?.passed === true ? (
             <PythonScopeNextStep
               hasFullPass={resultMode === "full" || selectedCompleted}
@@ -1735,7 +1752,7 @@ function TableSchemaReference({ tables }: { tables: CodingLabTable[] }) {
   );
 }
 
-function TablePreview({ table }: { table: CodingLabTable }) {
+function TablePreview({ table, showAllRows = false }: { table: CodingLabTable; showAllRows?: boolean }) {
   return (
     <div className="w-full min-w-0 overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/40">
       <div className="border-b border-slate-800 px-4 py-3">
@@ -1757,7 +1774,7 @@ function TablePreview({ table }: { table: CodingLabTable }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800 text-slate-200">
-            {table.rows.slice(0, 7).map((row, rowIndex) => (
+            {table.rows.slice(0, showAllRows ? table.rows.length : 7).map((row, rowIndex) => (
               <tr key={`${table.name}-${rowIndex}`}>
                 {table.columns.map((column, columnIndex) => (
                   <td
@@ -1788,7 +1805,11 @@ function ResultPanel({ result, mode }: { result: LabRunResult; mode: ResultMode 
   return (
     <div className={`rounded-[2rem] border p-6 ${tone}`}>
       <p className="text-xs font-semibold uppercase tracking-[0.22em]">
-        {result.passed === true
+        {result.status === "unavailable"
+          ? "Checking unavailable"
+          : result.status === "query_error"
+            ? "SQL needs a correction"
+            : result.passed === true
           ? mode === "sample"
             ? "Visible sample passed"
             : mode === "full"
