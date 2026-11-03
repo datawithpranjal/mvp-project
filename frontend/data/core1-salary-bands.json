@@ -567,7 +567,7 @@
       "when": "After a passing tested result, try this once on paper without hints or the reference if you want unaided practice.",
       "instructions": "Add a new fictional employee (emp_id 12, emp_name Data-New, department Data, manager_id NULL, salary 750) to the visible example. Keep every existing row and the same top-three-distinct-band rule.",
       "deliverable": "Write the included and excluded employees for Data, explain what happens to both employees at the old third-band salary, and state why the other departments do or do not change.",
-      "assessment": "Ungraded transfer reflection, not an added hidden test, new catalog item, automatic completion or mastery credit. No fixture-editing feature is promised.",
+      "assessment": "This optional reflection is not graded and does not mark another exercise complete. Work it out on paper; the sample data in the editor will stay unchanged.",
       "url": null
     },
     "alternativeSql": "SELECT e.department, e.emp_name, e.salary\nFROM employees e\nWHERE (\n    SELECT COUNT(DISTINCT higher.salary)\n    FROM employees higher\n    WHERE higher.department = e.department\n      AND higher.salary > e.salary\n) < 3",

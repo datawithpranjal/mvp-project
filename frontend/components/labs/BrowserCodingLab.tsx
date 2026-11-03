@@ -1391,7 +1391,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
           </div>
 
           {result ? <ResultPanel result={result} mode={resultMode} /> : null}
-          {selectedLab.practiceGuidance && result?.passed === true ? <details className="panel rounded-3xl p-5"><summary className="cursor-pointer font-semibold text-teal-100">Try the next transfer (ungraded)</summary><div className="mt-4 space-y-3 text-sm leading-6 text-slate-300"><p>{selectedLab.practiceGuidance.nextTransfer.when}</p><p>{selectedLab.practiceGuidance.nextTransfer.instructions}</p><p>{selectedLab.practiceGuidance.nextTransfer.deliverable}</p><p>{selectedLab.practiceGuidance.nextTransfer.assessment}</p></div></details> : null}
+          {selectedLab.practiceGuidance && result?.passed === true ? <details className="panel rounded-3xl p-5"><summary className="cursor-pointer font-semibold text-teal-100">Try a new example (ungraded)</summary><div className="mt-4 space-y-3 text-sm leading-6 text-slate-300"><p>{selectedLab.practiceGuidance.nextTransfer.when}</p><p>{selectedLab.practiceGuidance.nextTransfer.instructions}</p><p>{selectedLab.practiceGuidance.nextTransfer.deliverable}</p><p>{selectedLab.practiceGuidance.nextTransfer.assessment}</p></div></details> : null}
           {isPythonScopeEntry && result?.passed === true ? (
             <PythonScopeNextStep
               hasFullPass={resultMode === "full" || selectedCompleted}
