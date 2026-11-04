@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
+  BrowserSqlError,
   runReadOnlySql,
   validateSqlOutput,
   type BrowserSqlResultTable
@@ -22,6 +23,7 @@ import { codingProgressFromRemote } from "../../lib/learner-progress";
 import { sendUsageEvent } from "../../lib/usage";
 import { handleTextareaTabKeyDown } from "../../lib/textarea-tab";
 import { checkGuidedSqlLab } from "../../lib/guided-sql-check";
+import { isSqlSalaryEntry, sqlSalarySampleMessage, sqlSalaryFullMessage } from "../../lib/sql-workspace-clarity";
 import { CodingDraftSession, chooseSavedCodingDraft, sameCodingAnswers, type CodingDraftConflict } from "../../lib/coding-draft-conflicts";
 import { usePremiumEntitlement } from "../../lib/use-premium-entitlement";
 import {
@@ -193,7 +195,9 @@ async function runSqlLab(lab: CodingLab, answer: string): Promise<LabRunResult> 
 
   return {
     passed,
-    message: passed
+    message: isSqlSalaryEntry(lab)
+      ? sqlSalaryFullMessage(passed, passedCount, sqlResults.length)
+      : passed
       ? `Correct. Your query passed all ${sqlResults.length} validation cases, including edge cases.`
       : `Not yet. ${passedCount}/${sqlResults.length} validation cases passed. Compare columns, grain, filters, joins, NULL handling, and tie behavior.`,
     table: sqlResults[0]?.actual,
@@ -408,6 +412,8 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
   const labs = useMemo(() => getCodingLabs(track), [track]);
   const { hasPremiumAccess, status: premiumStatus } = usePremiumEntitlement();
   const workspaceRef = useRef<HTMLElement | null>(null);
+  const sqlHelpRef = useRef<HTMLDetailsElement | null>(null);
+  const sqlHelpSummaryRef = useRef<HTMLElement | null>(null);
   const [selectedSlug, setSelectedSlug] = useState(labs[0]?.slug ?? "");
   const selectedLab = labs.find((lab) => lab.slug === selectedSlug) ?? labs[0];
   const [isLibraryMode, setIsLibraryMode] = useState(true);
@@ -1061,6 +1067,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
     } catch (error) {
       const failedResult: LabRunResult = {
         passed: false,
+        ...(selectedLab.track === "sql" && error instanceof BrowserSqlError ? { status: error.kind } : {}),
         message: error instanceof Error ? error.message : "Code execution failed."
       };
       setResult(failedResult);
@@ -1113,7 +1120,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
         setResult({
           passed: validation.passed,
           message: validation.passed
-            ? "Sample check passed. Submit your answer to run hidden edge-case validation."
+            ? isSqlSalaryEntry(selectedLab) ? sqlSalarySampleMessage() : "Sample check passed. Submit your answer to run hidden edge-case validation."
             : "Wrong answer on the visible sample data. Compare your output with the expected result before submitting.",
           sqlResults: [
             {
@@ -1174,6 +1181,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
     } catch (error) {
       const failedResult: LabRunResult = {
         passed: false,
+        ...(selectedLab.track === "sql" && error instanceof BrowserSqlError ? { status: error.kind } : {}),
         message: error instanceof Error ? error.message : "The query could not run.",
         table: { columns: [], rows: [] }
       };
@@ -1423,7 +1431,9 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
                   Fix workspace
                 </p>
                 <p className="mt-2 text-sm text-slate-400">
-                  {isPythonIntro
+                  {isSqlSalaryEntry(selectedLab)
+                    ? selectedLab.studentTask
+                    : isPythonIntro
                     ? "Define reverse_a_string and return the expected output for the example below."
                     : track === "sql"
                     ? "Write a read-only query that returns the expected result."
@@ -1459,6 +1469,18 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
                 </div>
               </section>
             ) : null}
+            {track === "sql" ? <section aria-label="SQL engine and syntax" className="mt-5 rounded-2xl border border-teal-300/25 bg-teal-300/5 p-4">
+              <p className="text-sm font-bold text-teal-100">SQLite</p>
+              <p className="mt-2 text-sm leading-6 text-slate-300">This workspace runs SQLite in your browser. Use a read-only SELECT or WITH query.</p>
+              <details ref={sqlHelpRef} className="mt-3">
+                <summary ref={sqlHelpSummaryRef} className="cursor-pointer rounded-lg py-2 text-sm font-semibold text-teal-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]">SQL syntax help</summary>
+                <div className="mt-2 space-y-3 text-sm leading-6 text-slate-300">
+                  <p>For a row limit, use <code>LIMIT</code>, not SQL Server&apos;s <code>TOP</code>. Some PostgreSQL, MySQL and SQL Server functions use different syntax here.</p>
+                  <p>For a year-month key, SQLite supports <code className="break-words">strftime(&apos;%Y-%m&apos;, date_column)</code>.</p>
+                  <p>Use the tables shown in Data; database installation is not required.</p>
+                </div>
+              </details>
+            </section> : null}
             <textarea
               aria-label="Your code"
               value={answer}
@@ -1478,7 +1500,9 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
                     Validation flow
                   </p>
                   <p className="mt-2 text-sm leading-6 text-slate-300">
-                    {isPythonIntro
+                    {isSqlSalaryEntry(selectedLab)
+                      ? "Run sample checks the visible example without an account. Submit checks that example and one additional configured salary-ranking dataset and requires an account. These are finite checks, not proof that every edge case has been tested."
+                      : isPythonIntro
                       ? `This lab has one configured example. Run sample checks it without an account. Submit checks the same example and completes the question only when it passes. ${currentUser ? "Submit your answer to record your progress." : "Sign in to submit and record your progress."} Passing one example does not establish general correctness.`
                       : "Run checks the visible sample only. Submit runs full validation and completes the question only when every case passes."}
                   </p>
@@ -1546,7 +1570,12 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
           </div>
 
           {result ? <ResultPanel result={result} mode={resultMode} pythonIntro={isPythonIntro}
-            pythonError={pythonError?.result === result ? pythonError.presentation : undefined} /> : null}
+            pythonError={pythonError?.result === result ? pythonError.presentation : undefined}
+            onSqlHelp={track === "sql" ? () => {
+              if (sqlHelpRef.current) sqlHelpRef.current.open = true;
+              sqlHelpSummaryRef.current?.focus();
+              sqlHelpRef.current?.scrollIntoView({ block: "nearest" });
+            } : undefined} /> : null}
           {selectedLab.practiceGuidance && result?.passed === true ? <details className="panel rounded-3xl p-5"><summary className="cursor-pointer font-semibold text-teal-100">Try a new example (ungraded)</summary><div className="mt-4 space-y-3 text-sm leading-6 text-slate-300"><p>{selectedLab.practiceGuidance.nextTransfer.when}</p><p>{selectedLab.practiceGuidance.nextTransfer.instructions}</p><p>{selectedLab.practiceGuidance.nextTransfer.deliverable}</p><p>{selectedLab.practiceGuidance.nextTransfer.assessment}</p></div></details> : null}
           {isPythonScopeEntry && result?.passed === true ? (
             <PythonScopeNextStep
@@ -1950,7 +1979,7 @@ function TablePreview({ table, showAllRows = false }: { table: CodingLabTable; s
   );
 }
 
-function ResultPanel({ result, mode, pythonIntro, pythonError }: { result: LabRunResult; mode: ResultMode; pythonIntro?: boolean; pythonError?: PythonIntroError }) {
+function ResultPanel({ result, mode, pythonIntro, pythonError, onSqlHelp }: { result: LabRunResult; mode: ResultMode; pythonIntro?: boolean; pythonError?: PythonIntroError; onSqlHelp?: () => void }) {
   const tone =
     result.passed === true
       ? "border-teal-300/25 bg-teal-300/10 text-teal-50"
@@ -1985,6 +2014,7 @@ function ResultPanel({ result, mode, pythonIntro, pythonError }: { result: LabRu
         <p className="mt-3 text-3xl font-semibold tracking-tight">{result.score}/100</p>
       ) : null}
       <p className={`mt-3 text-sm leading-6 ${pythonIntro ? "break-words" : ""}`}>{pythonIntro && pythonError ? pythonError.message : pythonIntro && mode === "full" && result.passed ? "Your code passed this lab's configured example." : result.message}</p>
+      {result.status === "query_error" && onSqlHelp ? <button type="button" onClick={onSqlHelp} className="mt-3 rounded-full border border-amber-200/50 px-4 py-3 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-2)]">Open SQL syntax help</button> : null}
       {pythonIntro && pythonError?.technicalDetail ? <details className="mt-3 rounded-2xl border border-slate-700 px-3">
         <summary className="cursor-pointer py-3 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-2)]">Technical details</summary>
         <pre className="mb-3 max-h-60 overflow-auto whitespace-pre-wrap break-words text-sm leading-6">{pythonError.technicalDetail}</pre>
