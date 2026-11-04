@@ -1327,6 +1327,12 @@ Impact: ${scenario.incident.impact}`
                 </button>
                 <PracticeStatusBadge status={scenarioStatus} />
               </div>
+              {scenario.slug === "wrong-group-by-grain-customer-revenue" ? (
+                <section aria-label="Free practice" className="rounded-2xl border border-teal-300/20 bg-teal-300/5 p-4">
+                  <p className="text-sm font-semibold text-teal-200">Free practice</p>
+                  <p className="mt-2 text-sm leading-[21px] text-slate-300">Run the visible SQL sample without signing in. A free account is required to submit for evaluation. Signing in does not require buying Premium.</p>
+                </section>
+              ) : null}
               <div className="grid grid-cols-3 gap-1 rounded-2xl border border-slate-800 bg-slate-950/45 p-1" role="tablist" aria-label="Attempt workflow">
                 {(["fix", "explain", "review"] as const).map((step, index) => (
                   <button

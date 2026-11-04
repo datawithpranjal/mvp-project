@@ -50,46 +50,44 @@ export default function HomePage() {
   ];
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-7xl min-w-0 overflow-x-clip px-4 py-6 sm:px-6 lg:px-8">
-      <section className="panel relative min-w-0 overflow-hidden rounded-[2rem] p-6 sm:p-8 lg:p-9">
+    <main className="mx-auto min-h-screen w-full max-w-7xl min-w-0 overflow-x-clip px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
+      <section className="panel relative min-w-0 overflow-hidden rounded-[2rem] p-4 sm:p-8 lg:p-9">
         <div className="absolute inset-y-0 right-0 hidden w-1/2 bg-[radial-gradient(circle_at_center,rgba(94,234,212,0.18),transparent_55%)] lg:block" />
         <div className="relative grid min-w-0 gap-7 lg:grid-cols-[minmax(0,1fr)_minmax(340px,400px)] lg:items-center">
           <div className="min-w-0">
-            <span className="badge rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.28em]">
-              {BRAND.name}
-            </span>
-            <h1 className="mt-5 max-w-3xl text-4xl font-semibold leading-[1.05] tracking-tight text-slate-50 sm:text-5xl lg:text-[3.25rem]">
+            <h1 className="max-w-3xl text-4xl font-semibold leading-[1.05] tracking-tight text-slate-50 sm:text-5xl lg:text-[3.25rem]">
               Practice Data Engineering like real work.
             </h1>
-            <p className="mt-4 max-w-3xl text-base leading-7 text-slate-300">
-              Practice real data engineering scenarios, get feedback, and strengthen how
-              you explain SQL, PySpark, Airflow, AWS, and production-debugging decisions.
-            </p>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
-              Start with one complete free scenario. No account is required until you want
-              to keep your progress across devices.
-            </p>
-            <p className="mt-3 text-sm leading-6 text-slate-400">
-              {BRAND.trustLine}
-            </p>
-            <div className="mt-6 flex flex-wrap gap-3">
+            <section aria-label="Recommended start" className="mt-4 rounded-3xl border border-slate-800 bg-slate-950/80 p-4 sm:p-5">
+              <p className="text-sm font-semibold leading-5 text-teal-200">Start here · Free SQL practice</p>
+              <h2 className="mt-2 text-xl font-semibold leading-[26px] text-slate-50 sm:text-[22px] sm:leading-7">Fix an inflated customer revenue report.</h2>
+              <p className="mt-2 text-base leading-6 text-slate-300">Inspect the data, correct the query, and run the visible sample.</p>
               <TrackedLink
                 href={firstFreeScenarioHref}
                 event="homepage_start_clicked"
                 eventPayload={{ destination: "first_free_scenario" }}
-                className="rounded-full bg-amber-300 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-200"
+                aria-describedby="free-sql-account"
+                className="mt-3 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-teal-300 px-4 py-3 text-base font-semibold leading-6 text-slate-950 transition hover:bg-teal-200 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-4 focus-visible:outline-[color:var(--accent)] sm:w-auto sm:px-5"
               >
-                Complete a Free Scenario
+                Try the free SQL scenario
               </TrackedLink>
-              <TrackedLink
-                href="/labs"
-                event="homepage_start_clicked"
-                eventPayload={{ choice: "explore_labs" }}
-                className="rounded-full border border-slate-700 bg-slate-950/30 px-6 py-3 text-sm font-semibold text-slate-100 transition hover:border-teal-300/50 hover:text-teal-100"
-              >
-                Explore All Practice
-              </TrackedLink>
-            </div>
+              <p id="free-sql-account" className="mt-2 max-w-md text-sm leading-[21px] text-slate-300">No sign-in for the sample. A free account is required to submit for evaluation.</p>
+            </section>
+            <TrackedLink
+              href="/labs"
+              event="homepage_start_clicked"
+              eventPayload={{ choice: "explore_labs" }}
+              className="mt-2 inline-flex min-h-11 items-center text-base font-semibold leading-6 text-teal-200 underline underline-offset-4 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-4 focus-visible:outline-[color:var(--accent)]"
+            >
+              Explore all practice
+            </TrackedLink>
+            <p className="mt-3 max-w-3xl text-base leading-7 text-slate-300">
+              Practice real data engineering scenarios, get feedback, and strengthen how
+              you explain SQL, PySpark, Airflow, AWS, and production-debugging decisions.
+            </p>
+            <p className="mt-3 text-sm leading-6 text-slate-400">
+              {BRAND.trustLine}
+            </p>
           </div>
           <ProductPreview />
         </div>
