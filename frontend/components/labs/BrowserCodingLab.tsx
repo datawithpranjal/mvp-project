@@ -8,6 +8,7 @@ import {
   type BrowserSqlResultTable
 } from "../../lib/browser-sql";
 import {
+  ApiDecodeError,
   getLearnerProgress,
   getPythonLabSolution,
   saveLearnerAttempt,
@@ -32,7 +33,9 @@ import {
   type PythonTestCase,
   type SqlTestCase
 } from "../../lib/coding-labs";
-import type { QueryResult } from "../../lib/types";
+import type { LearnerDraftRequest, QueryResult } from "../../lib/types";
+import { CodingSyncFeedback, confirmCodingDraft, type CodingSyncDetails, type SyncTrigger } from "../../lib/coding-sync-feedback";
+import { CodingSyncStatus } from "./CodingSyncStatus";
 import {
   getCodingLabDrafts,
   getCodingLabProgressMap,
@@ -424,6 +427,20 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
   const [workspaceMessage, setWorkspaceMessage] = useState("");
   const [draftsLoaded, setDraftsLoaded] = useState(false);
   const [saveStatus, setSaveStatus] = useState("Preparing save...");
+  const [syncDetails, setSyncDetails] = useState<CodingSyncDetails>();
+  const syncFeedbackRef = useRef<CodingSyncFeedback | null>(null);
+  if (!syncFeedbackRef.current) syncFeedbackRef.current = new CodingSyncFeedback(setSyncDetails);
+  const syncFeedback = syncFeedbackRef.current;
+  const selectedSlugRef = useRef(selectedSlug);
+  selectedSlugRef.current = selectedSlug;
+  const answersRef = useRef(answers);
+  answersRef.current = answers;
+  const trackRef = useRef(track);
+  trackRef.current = track;
+  const [loadRetryEpoch, setLoadRetryEpoch] = useState(0);
+  const nextLoadTriggerRef = useRef<SyncTrigger>("initial");
+  const retryLoadRef = useRef<(() => void) | null>(null);
+  const retryDraftRef = useRef<(() => void) | null>(null);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [serverSolutions, setServerSolutions] = useState<
     Record<string, { solutionCode: string; explanation: string }>
@@ -440,6 +457,45 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
   const pendingAttemptRef = useRef<{ slug: string; answer: string; key: string } | null>(null);
   const referenceLabels = getReferenceLabels(track);
 
+  function clearSyncFeedback() {
+    syncFeedback.reset();
+    retryLoadRef.current = null;
+    retryDraftRef.current = null;
+  }
+
+  function currentEditorAnswer(slug: string) {
+    return answersRef.current[slug] ?? labs.find((lab) => lab.slug === slug)?.starterCode;
+  }
+
+  function syncGuard(token: string, slug: string, code?: string, revision?: number) {
+    const userId = getCurrentUser()?.id;
+    const session = draftSessionRef.current;
+    const operationTrack = track;
+    return () => getAuthToken() === token && getCurrentUser()?.id === userId &&
+      trackRef.current === operationTrack && selectedSlugRef.current === slug &&
+      draftSessionRef.current === session && !session?.conflicts[slug] &&
+      (code === undefined || currentEditorAnswer(slug) === code) &&
+      (revision === undefined || draftRevisionRef.current[slug] === revision);
+  }
+
+  async function syncAccountDraft(token: string, slug: string, code: string, payload: LearnerDraftRequest, trigger: SyncTrigger, manualRetry = false) {
+    const visible = selectedSlugRef.current === slug && currentEditorAnswer(slug) === code;
+    if (visible) draftRevisionRef.current[slug] = payload.client_revision;
+    const current = syncGuard(token, slug, code, payload.client_revision);
+    const feedback = visible ? syncFeedback.begin("draft-save", trigger, current, manualRetry) : null;
+    if (visible) retryDraftRef.current = () => {
+      if (syncFeedback.pending || !current()) return;
+      void syncAccountDraft(token, slug, code, payload, "manual", true);
+    };
+    try {
+      const response = await saveLearnerDraft(token, `coding_lab:${track}`, slug, payload);
+      confirmCodingDraft(response, `coding_lab:${track}`, slug, payload);
+      feedback?.success();
+    } catch (error) {
+      feedback?.failure(error);
+    }
+  }
+
   function reconcileAnswers(saved: Record<string, string>) {
     const user = getCurrentUser();
     const scope = user ? `user-${user.id}` : "guest";
@@ -450,8 +506,10 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
     }
     const session = draftSessionRef.current;
     const next = session.reconcile(saved);
+    answersRef.current = next;
     setAnswers((current) => sameCodingAnswers(current, next) ? current : next);
     setDraftConflicts(session.conflicts);
+    if (session.conflicts[selectedSlugRef.current]) clearSyncFeedback();
     return session;
   }
 
@@ -480,15 +538,17 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
       const draft = saveCodingLabDraft(slug, code);
       session.saved(slug, code);
       setDraftConflicts(session.conflicts);
+      setSaveStatus("Saved on this device");
       return draft;
     } catch {
+      clearSyncFeedback();
       setSaveStatus("Device save failed — copy your draft, then retry save");
       return null;
     }
   }
 
   useEffect(() => {
-    const syncAuth = () => setAuthEpoch((value) => value + 1);
+    const syncAuth = () => { clearSyncFeedback(); setAuthEpoch((value) => value + 1); };
     window.addEventListener(AUTH_UPDATED_EVENT, syncAuth);
     window.addEventListener("storage", syncAuth);
     return () => {
@@ -564,6 +624,9 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
 
   useEffect(() => {
     let cancelled = false;
+    const trigger = nextLoadTriggerRef.current;
+    nextLoadTriggerRef.current = "initial";
+    clearSyncFeedback();
     async function hydrateProgress() {
       const authToken = getAuthToken();
       const authUser = getCurrentUser();
@@ -573,39 +636,50 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
       setEntryCampaign(searchParams.get("utm_campaign") ?? "");
       setEntryContent(searchParams.get("utm_content") ?? "");
       if (requestedSlug && labs.some((lab) => lab.slug === requestedSlug)) {
+        selectedSlugRef.current = requestedSlug;
         setSelectedSlug(requestedSlug);
         setIsLibraryMode(false);
       } else {
         const lastSlug = getLastCodingLab(track);
         if (lastSlug && labs.some((lab) => lab.slug === lastSlug)) {
+          selectedSlugRef.current = lastSlug;
           setSelectedSlug(lastSlug);
         }
       }
 
-      const migrated =
-        authToken && authUser ? migrateGuestCodingLabStateToUser(authUser.id) : null;
-      const savedDrafts = migrated?.drafts ?? getCodingLabDrafts();
-      const localProgress = migrated?.progress ?? getCodingLabProgressMap();
-      refreshSavedDrafts(savedDrafts);
-      setProgressMap(localProgress);
-      setDraftsLoaded(true);
-      setRemoteProgress(
-        Object.fromEntries(
-          Object.entries(localProgress).map(([slug, item]) => [
-            slug,
-            { latestResult: item.lastResult }
-          ])
-        )
-      );
-
-      if (!authToken) {
-        setSaveStatus("Saved on this device");
+      let migrated = null;
+      try {
+        migrated = trigger !== "manual" && authToken && authUser ? migrateGuestCodingLabStateToUser(authUser.id) : null;
+      } catch {
+        refreshSavedDrafts();
+        setDraftsLoaded(true);
+        setPersistenceReady(true);
+        setSaveStatus("Device save failed — copy your draft, then retry save");
         return;
       }
-
+      const savedDrafts = migrated?.drafts ?? getCodingLabDrafts();
+      const localProgress = migrated?.progress ?? getCodingLabProgressMap();
+      if (trigger !== "manual") {
+        refreshSavedDrafts(savedDrafts);
+        setProgressMap(localProgress);
+        setDraftsLoaded(true);
+        setRemoteProgress(
+          Object.fromEntries(Object.entries(localProgress).map(([slug, item]) => [slug, { latestResult: item.lastResult }]))
+        );
+        setSaveStatus(savedDrafts[selectedSlugRef.current] ? "Device draft loaded" : "Your answer is in the editor. Save a device copy.");
+      }
+      if (!authToken) return;
+      const current = syncGuard(authToken, selectedSlugRef.current);
+      const loadFeedback = syncFeedback.begin("load", trigger, () => !cancelled && current(), trigger === "manual");
+      retryLoadRef.current = () => {
+        if (syncFeedback.pending || !current()) return;
+        nextLoadTriggerRef.current = "manual";
+        setLoadRetryEpoch((epoch) => epoch + 1);
+      };
       try {
         const response = await getLearnerProgress(authToken);
         if (cancelled) return;
+        if (!Array.isArray(response?.items)) throw new ApiDecodeError("Account response could not be confirmed.", 200);
         const records = response.items.filter(
           (item) => item.content_type === `coding_lab:${track}`
         );
@@ -613,7 +687,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
         const nextAnswers: Record<string, string> = {};
         const nextProgress: Record<string, CodingLabProgress> = {};
         const nextRemote: Record<string, { latestResult?: unknown }> = {};
-        const pendingSync: Array<Promise<unknown>> = [];
+        const pendingSync: Array<{ slug: string; code: string; payload: LearnerDraftRequest }> = [];
 
         labs.forEach((lab) => {
           const localDraft = savedDrafts[lab.slug];
@@ -652,30 +726,23 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
             localDraft &&
             (localRevision > remoteRevision || Boolean(localItem?.completed && !remote?.completed))
           ) {
-            pendingSync.push(
-              saveLearnerDraft(authToken, `coding_lab:${track}`, lab.slug, {
-                draft_answer: localDraft.code,
-                draft_interview_answer: "",
-                hints_revealed: 0,
-                client_revision: Math.max(localRevision, Date.now()),
-                completed: localItem?.completed || undefined
-              })
-            );
+            pendingSync.push({ slug: lab.slug, code: localDraft.code, payload: {
+              draft_answer: localDraft.code,
+              draft_interview_answer: "",
+              hints_revealed: 0,
+              client_revision: Math.max(localRevision, Date.now()),
+              completed: localItem?.completed || undefined
+            } });
           }
         });
 
         reconcileAnswers(nextAnswers);
         setProgressMap(nextProgress);
         setRemoteProgress(nextRemote);
-        const syncResults = await Promise.allSettled(pendingSync);
-        if (cancelled) return;
-        setSaveStatus(
-          syncResults.some((result) => result.status === "rejected")
-            ? "Account sync failed — local recovery copy kept"
-            : "Saved to your account"
-        );
-      } catch {
-        if (!cancelled) setSaveStatus("Account sync failed — local recovery copy kept");
+        loadFeedback.success();
+        await Promise.allSettled(pendingSync.map((job) => syncAccountDraft(authToken, job.slug, job.code, job.payload, "initial")));
+      } catch (error) {
+        if (!cancelled) loadFeedback.failure(error);
       } finally {
         if (!cancelled) setPersistenceReady(true);
       }
@@ -685,8 +752,9 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
 
     return () => {
       cancelled = true;
+      clearSyncFeedback();
     };
-  }, [authEpoch, labs, track]);
+  }, [authEpoch, labs, track, loadRetryEpoch]);
 
   useEffect(() => {
     if (!draftsLoaded || !selectedLab) return;
@@ -698,7 +766,11 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
 
   useEffect(() => {
     if (!draftsLoaded || !selectedLab) return;
-    saveLastCodingLab(track, selectedLab.slug);
+    try { saveLastCodingLab(track, selectedLab.slug); }
+    catch {
+      clearSyncFeedback();
+      setSaveStatus("Device save failed — copy your draft, then retry save");
+    }
   }, [draftsLoaded, selectedLab, track]);
 
   useEffect(() => {
@@ -709,7 +781,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
     if (!session?.canAutosave(selectedLab.slug, currentAnswer)) return;
 
     const authToken = getAuthToken();
-    setSaveStatus(authToken ? "Saving to your account..." : "Saving on this device...");
+    setSaveStatus("Saving on this device...");
     const slug = selectedLab.slug;
     const revision = Date.now();
     draftRevisionRef.current[slug] = Math.max(draftRevisionRef.current[slug] ?? 0, revision);
@@ -727,27 +799,13 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
         );
         return;
       }
-      saveLearnerDraft(authToken, `coding_lab:${track}`, slug, {
+      setSaveStatus("Saved on this device");
+      void syncAccountDraft(authToken, slug, currentAnswer, {
         draft_answer: currentAnswer,
         draft_interview_answer: "",
         hints_revealed: 0,
         client_revision: revision
-      })
-        .then(() => {
-          if (draftRevisionRef.current[slug] === revision) {
-            setSaveStatus(
-              `Saved to your account at ${new Intl.DateTimeFormat(undefined, {
-                hour: "numeric",
-                minute: "2-digit"
-              }).format(new Date())}`
-            );
-          }
-        })
-        .catch(() => {
-          if (draftRevisionRef.current[slug] === revision) {
-            setSaveStatus("Account sync failed — retry save");
-          }
-        });
+      }, "autosave");
     }, 500);
 
     return () => window.clearTimeout(timer);
@@ -811,46 +869,36 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
     : "rounded-full border border-slate-700 px-5 py-3 text-sm font-bold text-slate-500 disabled:cursor-not-allowed";
 
   async function saveDraftNow(code: string = answer, slug: string = selectedLab.slug, keepConflict = false) {
+    if (syncFeedback.pending && !keepConflict) return;
     draftSessionRef.current?.edit(slug, code);
     const draft = saveLocalDraft(slug, code, keepConflict);
     if (!draft) return;
+    setSaveStatus("Saved on this device");
     const authToken = getAuthToken();
-    if (!authToken) {
-      setSaveStatus(
-        `Saved on this device at ${new Intl.DateTimeFormat(undefined, {
-          hour: "numeric",
-          minute: "2-digit"
-        }).format(new Date(draft.savedAt))}`
-      );
-      return;
-    }
-
-    setSaveStatus("Saving to your account...");
+    if (!authToken) return;
     const revision = Date.now();
     draftRevisionRef.current[slug] = revision;
-    try {
-      await saveLearnerDraft(authToken, `coding_lab:${track}`, slug, {
-        draft_answer: code,
-        draft_interview_answer: "",
-        hints_revealed: 0,
-        client_revision: revision
-      });
-      setSaveStatus("Saved to your account");
-    } catch {
-      setSaveStatus("Account sync failed — retry save");
-    }
+    await syncAccountDraft(authToken, slug, code, {
+      draft_answer: code,
+      draft_interview_answer: "",
+      hints_revealed: 0,
+      client_revision: revision
+    }, "manual");
   }
 
   function editAnswer(code: string) {
+    if (syncFeedback.operation === "draft-save") clearSyncFeedback();
+    answersRef.current = { ...answersRef.current, [selectedLab.slug]: code };
     draftSessionRef.current?.edit(selectedLab.slug, code);
     setDraftConflicts(draftSessionRef.current?.conflicts ?? {});
     setAnswers((current) => ({ ...current, [selectedLab.slug]: code }));
     setResult(null);
     setResultMode(null);
-    setSaveStatus(getAuthToken() ? "Saving to your account..." : "Saving on this device...");
+    setSaveStatus("Saving on this device...");
   }
 
   function useSavedDraft() {
+    clearSyncFeedback();
     const previous = draftSessionRef.current?.conflicts[selectedLab.slug];
     const choice = chooseSavedCodingDraft(selectedLab.slug, previous, refreshSavedDrafts);
     if (!choice) return;
@@ -1124,6 +1172,8 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
     const url = new URL(window.location.href);
     url.searchParams.set("lab", slug);
     window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+    clearSyncFeedback();
+    selectedSlugRef.current = slug;
     setSelectedSlug(slug);
     setIsLibraryMode(false);
     setReferenceTab("task");
@@ -1143,6 +1193,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
   }
 
   function returnToLibrary() {
+    clearSyncFeedback();
     setIsLibraryMode(true);
     setHintCount(0);
     setShowSolution(false);
@@ -1353,18 +1404,11 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
             {workspaceMessage ? (
               <p className="mt-3 text-sm font-semibold text-teal-100">{workspaceMessage}</p>
             ) : null}
-            <div aria-live="polite" className="mt-3 flex flex-wrap items-center gap-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-              <span>{draftConflict ? "Draft choice needed — automatic saving paused" : saveStatus}</span>
-              {!draftConflict && saveStatus.toLowerCase().includes("retry") ? (
-                <button
-                  type="button"
-                  onClick={() => void saveDraftNow()}
-                  className="rounded-full border border-amber-300/40 px-3 py-1 text-[10px] text-amber-100 transition hover:bg-amber-300/10"
-                >
-                  Retry save
-                </button>
-              ) : null}
-            </div>
+            <CodingSyncStatus localStatus={saveStatus} details={syncDetails} conflict={Boolean(draftConflict)}
+              onRetryLoad={() => retryLoadRef.current?.()}
+              onRetrySave={() => retryDraftRef.current?.()}
+              onRetryLocal={() => void saveDraftNow()}
+              onSignIn={() => { saveLocalDraft(selectedLab.slug, answer); setIsAuthOpen(true); }} />
             {draftConflict ? (
               <section aria-label="Draft conflict" role="status" className="mt-4 rounded-2xl border border-amber-300/40 bg-amber-300/10 p-4 text-sm text-amber-50">
                 <h2 className="font-bold">Another saved draft is available</h2>
@@ -1405,7 +1449,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
                   <button
                     type="button"
                     onClick={() => void saveDraftNow()}
-                    disabled={Boolean(draftConflict)}
+                    disabled={Boolean(draftConflict) || syncDetails?.outcome === "pending"}
                     className="rounded-full border border-slate-700 px-4 py-3 text-sm font-semibold text-slate-300 transition hover:border-teal-300/40 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Save draft

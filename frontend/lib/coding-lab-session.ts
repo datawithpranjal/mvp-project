@@ -44,7 +44,11 @@ function emptyStore(): CodingLabSessionStore {
 }
 
 function canUseStorage(): boolean {
-  return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
+  try {
+    return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
+  } catch {
+    return false;
+  }
 }
 
 function readStore(suffix: string = storageSuffix()): CodingLabSessionStore {
@@ -67,9 +71,10 @@ function readStore(suffix: string = storageSuffix()): CodingLabSessionStore {
   }
 }
 
-function writeStore(store: CodingLabSessionStore, suffix: string = storageSuffix()): void {
-  if (!canUseStorage()) return;
+function writeStore(store: CodingLabSessionStore, suffix: string = storageSuffix()): boolean {
+  if (!canUseStorage()) return false;
   window.localStorage.setItem(sessionStorageKey(suffix), JSON.stringify(store));
+  return true;
 }
 
 export function getCodingLabDrafts(): Record<string, CodingLabDraft> {
@@ -82,13 +87,14 @@ export function saveCodingLabDraft(slug: string, code: string): CodingLabDraft {
     code,
     savedAt: new Date().toISOString()
   };
-  writeStore({
+  const written = writeStore({
     ...store,
     drafts: {
       ...store.drafts,
       [slug]: draft
     }
   });
+  if (!written) throw new Error("Device storage unavailable.");
   return draft;
 }
 
