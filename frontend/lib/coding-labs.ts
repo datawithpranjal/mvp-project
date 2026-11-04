@@ -14,6 +14,7 @@ import {
 } from "./launch-ready-content";
 import { GOLD_CORE_CODING_OVERRIDES } from "./gold-core";
 import core1SalaryBands from "../data/core1-salary-bands.json";
+import core2DailyRunningTotal from "../data/core2-daily-running-total.json";
 
 export type CodingLabTrack = "sql" | "python" | "pyspark";
 export type CodingLabDifficulty = "beginner" | "intermediate" | "advanced";
@@ -206,7 +207,8 @@ function normalizeLab(value: unknown): CodingLab | null {
               : testCase
           )
         : normalized.sqlTestCases,
-    ...(slug === "sql-coding-03-top-3-salaries-per-department" ? core1SalaryBands : {})
+    ...(slug === "sql-coding-03-top-3-salaries-per-department" ? core1SalaryBands : {}),
+    ...(slug === "sql-coding-06-running-total-by-date" ? core2DailyRunningTotal : {})
   };
 }
 
