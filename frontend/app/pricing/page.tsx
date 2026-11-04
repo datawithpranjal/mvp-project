@@ -103,7 +103,7 @@ export default function PricingPage() {
                 event="homepage_start_clicked"
                 eventPayload={{ source: "pricing_free", destination: "first_free_scenario" }}
                 aria-describedby="pricing-free-account"
-                className="mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-full border border-teal-300/30 bg-teal-300/10 px-5 py-3 text-base font-semibold text-teal-50 transition hover:bg-teal-300/20 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-4 focus-visible:outline-[color:var(--accent)]"
+                className="mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-full border border-teal-300/30 bg-teal-300/10 px-5 py-3 text-base font-semibold text-[color:var(--text)] transition hover:bg-teal-300/20 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-4 focus-visible:outline-[color:var(--accent)]"
               >
                 Try the free SQL scenario
               </TrackedLink>
