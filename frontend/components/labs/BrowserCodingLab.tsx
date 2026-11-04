@@ -21,6 +21,7 @@ import { codingProgressFromRemote } from "../../lib/learner-progress";
 import { sendUsageEvent } from "../../lib/usage";
 import { handleTextareaTabKeyDown } from "../../lib/textarea-tab";
 import { checkCore1SalaryBands } from "../../lib/core1-salary-check";
+import { CodingDraftSession, chooseSavedCodingDraft, sameCodingAnswers, type CodingDraftConflict } from "../../lib/coding-draft-conflicts";
 import { usePremiumEntitlement } from "../../lib/use-premium-entitlement";
 import {
   formatTrackLabel,
@@ -433,8 +434,58 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
   const [authEpoch, setAuthEpoch] = useState(0);
   const [remoteProgress, setRemoteProgress] = useState<Record<string, { latestResult?: unknown }>>({});
   const draftRevisionRef = useRef<Record<string, number>>({});
+  const draftSessionRef = useRef<CodingDraftSession | null>(null);
+  const localDraftSnapshotRef = useRef<{ scope: string; answers: Record<string, string> } | null>(null);
+  const [draftConflicts, setDraftConflicts] = useState<Record<string, CodingDraftConflict>>({});
   const pendingAttemptRef = useRef<{ slug: string; answer: string; key: string } | null>(null);
   const referenceLabels = getReferenceLabels(track);
+
+  function reconcileAnswers(saved: Record<string, string>) {
+    const user = getCurrentUser();
+    const scope = user ? `user-${user.id}` : "guest";
+    if (draftSessionRef.current?.scope !== scope) {
+      let recoveryStorage: Storage | undefined;
+      try { recoveryStorage = window.sessionStorage; } catch { /* Recovery notice covers unavailable storage. */ }
+      draftSessionRef.current = new CodingDraftSession(scope, recoveryStorage);
+    }
+    const session = draftSessionRef.current;
+    const next = session.reconcile(saved);
+    setAnswers((current) => sameCodingAnswers(current, next) ? current : next);
+    setDraftConflicts(session.conflicts);
+    return session;
+  }
+
+  function refreshSavedDrafts(drafts = getCodingLabDrafts()) {
+    const saved = Object.fromEntries(Object.entries(drafts).map(([slug, draft]) => [slug, draft.code]));
+    const user = getCurrentUser();
+    const scope = user ? `user-${user.id}` : "guest";
+    const previous = localDraftSnapshotRef.current;
+    // Account hydration may be newer than the local recovery copy. Only a changed
+    // local snapshot is an external update; rereading it must not undo account sync.
+    if (draftSessionRef.current?.scope === scope && previous?.scope === scope && sameCodingAnswers(previous.answers, saved)) {
+      return draftSessionRef.current;
+    }
+    localDraftSnapshotRef.current = { scope, answers: saved };
+    return reconcileAnswers(saved);
+  }
+
+  function saveLocalDraft(slug: string, code: string, keepConflict = false) {
+    const previousConflict = draftSessionRef.current?.conflicts[slug];
+    const session = refreshSavedDrafts();
+    const conflict = session.conflicts[slug];
+    if (conflict && (!keepConflict || conflict.savedCode !== previousConflict?.savedCode)) return null;
+    // Refresh can synchronise a clean tab before its click/flush handler runs.
+    if (!conflict && !session.canAutosave(slug, code) && getCodingLabDrafts()[slug]?.code !== code) return null;
+    try {
+      const draft = saveCodingLabDraft(slug, code);
+      session.saved(slug, code);
+      setDraftConflicts(session.conflicts);
+      return draft;
+    } catch {
+      setSaveStatus("Device save failed — copy your draft, then retry save");
+      return null;
+    }
+  }
 
   useEffect(() => {
     const syncAuth = () => setAuthEpoch((value) => value + 1);
@@ -535,11 +586,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
         authToken && authUser ? migrateGuestCodingLabStateToUser(authUser.id) : null;
       const savedDrafts = migrated?.drafts ?? getCodingLabDrafts();
       const localProgress = migrated?.progress ?? getCodingLabProgressMap();
-      setAnswers(
-        Object.fromEntries(
-          Object.entries(savedDrafts).map(([slug, draft]) => [slug, draft.code])
-        )
-      );
+      refreshSavedDrafts(savedDrafts);
       setProgressMap(localProgress);
       setDraftsLoaded(true);
       setRemoteProgress(
@@ -617,7 +664,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
           }
         });
 
-        setAnswers(nextAnswers);
+        reconcileAnswers(nextAnswers);
         setProgressMap(nextProgress);
         setRemoteProgress(nextRemote);
         const syncResults = await Promise.allSettled(pendingSync);
@@ -658,6 +705,8 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
     if (!draftsLoaded || !persistenceReady || !selectedLab) return;
     const currentAnswer = answers[selectedLab.slug];
     if (typeof currentAnswer !== "string") return;
+    const session = draftSessionRef.current;
+    if (!session?.canAutosave(selectedLab.slug, currentAnswer)) return;
 
     const authToken = getAuthToken();
     setSaveStatus(authToken ? "Saving to your account..." : "Saving on this device...");
@@ -665,7 +714,9 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
     const revision = Date.now();
     draftRevisionRef.current[slug] = Math.max(draftRevisionRef.current[slug] ?? 0, revision);
     const timer = window.setTimeout(() => {
-      const draft = saveCodingLabDraft(selectedLab.slug, currentAnswer);
+      if (draftSessionRef.current !== session || !session.canAutosave(slug, currentAnswer)) return;
+      const draft = saveLocalDraft(slug, currentAnswer);
+      if (!draft) return;
       const authToken = getAuthToken();
       if (!authToken) {
         setSaveStatus(
@@ -721,6 +772,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
   }
 
   const answer = answers[selectedLab.slug] ?? selectedLab.starterCode;
+  const draftConflict = draftConflicts[selectedLab.slug];
   const activeLabQueue = filteredLabs.length > 0 ? filteredLabs : labs;
   const currentQueueIndex = activeLabQueue.findIndex((lab) => lab.slug === selectedLab.slug);
   const nextLab =
@@ -744,7 +796,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
   const authIntentKey = `coding_lab:${track}:${selectedLab.slug}`;
   useAuthDraftFlush(() => {
     if (draftsLoaded && !isLibraryMode) {
-      saveCodingLabDraft(selectedLab.slug, answer);
+      saveLocalDraft(selectedLab.slug, answer);
       const url = new URL(window.location.href);
       url.searchParams.set("lab", selectedLab.slug);
       window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
@@ -758,8 +810,10 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
     ? "rounded-full bg-teal-300 px-5 py-3 text-sm font-bold text-slate-950 shadow-[0_0_28px_rgba(94,234,212,0.2)] transition hover:bg-teal-200"
     : "rounded-full border border-slate-700 px-5 py-3 text-sm font-bold text-slate-500 disabled:cursor-not-allowed";
 
-  async function saveDraftNow(code: string = answer, slug: string = selectedLab.slug) {
-    const draft = saveCodingLabDraft(slug, code);
+  async function saveDraftNow(code: string = answer, slug: string = selectedLab.slug, keepConflict = false) {
+    draftSessionRef.current?.edit(slug, code);
+    const draft = saveLocalDraft(slug, code, keepConflict);
+    if (!draft) return;
     const authToken = getAuthToken();
     if (!authToken) {
       setSaveStatus(
@@ -787,6 +841,32 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
     }
   }
 
+  function editAnswer(code: string) {
+    draftSessionRef.current?.edit(selectedLab.slug, code);
+    setDraftConflicts(draftSessionRef.current?.conflicts ?? {});
+    setAnswers((current) => ({ ...current, [selectedLab.slug]: code }));
+    setResult(null);
+    setResultMode(null);
+    setSaveStatus(getAuthToken() ? "Saving to your account..." : "Saving on this device...");
+  }
+
+  function useSavedDraft() {
+    const previous = draftSessionRef.current?.conflicts[selectedLab.slug];
+    const choice = chooseSavedCodingDraft(selectedLab.slug, previous, refreshSavedDrafts);
+    if (!choice) return;
+    const { code } = choice;
+    setAnswers((current) => {
+      const next = { ...current };
+      if (code === undefined) delete next[selectedLab.slug];
+      else next[selectedLab.slug] = code;
+      return next;
+    });
+    setDraftConflicts(draftSessionRef.current?.conflicts ?? {});
+    setResult(null);
+    setResultMode(null);
+    setSaveStatus("Saved draft loaded on this device");
+  }
+
   function getAttemptKey(slug: string, code: string): string {
     const pending = pendingAttemptRef.current;
     if (pending?.slug === slug && pending.answer === code) return pending.key;
@@ -798,6 +878,10 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
   }
 
   function requireLoginForValidation(action: "run" | "submit") {
+    if (draftSessionRef.current?.conflicts[selectedLab.slug]) {
+      setWorkspaceMessage("Choose which draft to keep before submitting or signing in.");
+      return false;
+    }
     const currentUser = getCurrentUser();
     const authToken = getAuthToken();
     if (currentUser && authToken) {
@@ -809,7 +893,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
         ? "Log in or create an account to run this code."
         : "Log in or create an account to submit this answer."
     );
-    saveCodingLabDraft(selectedLab.slug, answer);
+    saveLocalDraft(selectedLab.slug, answer);
     rememberAuthIntent(authIntentKey, action);
     setIsAuthOpen(true);
     trackEvent("signup_started", {
@@ -1036,7 +1120,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
   }
 
   function switchLab(slug: string) {
-    if (draftsLoaded && !isLibraryMode) saveCodingLabDraft(selectedLab.slug, answer);
+    if (draftsLoaded && !isLibraryMode) saveLocalDraft(selectedLab.slug, answer);
     const url = new URL(window.location.href);
     url.searchParams.set("lab", slug);
     window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
@@ -1270,8 +1354,8 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
               <p className="mt-3 text-sm font-semibold text-teal-100">{workspaceMessage}</p>
             ) : null}
             <div aria-live="polite" className="mt-3 flex flex-wrap items-center gap-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-              <span>{saveStatus}</span>
-              {saveStatus.toLowerCase().includes("retry") ? (
+              <span>{draftConflict ? "Draft choice needed — automatic saving paused" : saveStatus}</span>
+              {!draftConflict && saveStatus.toLowerCase().includes("retry") ? (
                 <button
                   type="button"
                   onClick={() => void saveDraftNow()}
@@ -1281,40 +1365,28 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
                 </button>
               ) : null}
             </div>
+            {draftConflict ? (
+              <section aria-label="Draft conflict" role="status" className="mt-4 rounded-2xl border border-amber-300/40 bg-amber-300/10 p-4 text-sm text-amber-50">
+                <h2 className="font-bold">Another saved draft is available</h2>
+                <p className="mt-2 leading-6">Your edits are still in the editor. Choose which version to keep before saving or submitting.</p>
+                <p className="mt-2 leading-6">{draftConflict.recoverySaved
+                  ? "Both versions are kept in this tab if you reload."
+                  : "Reload recovery is unavailable. Copy your edits before leaving this tab."}</p>
+                <details className="mt-3">
+                  <summary className="cursor-pointer font-semibold">View saved draft</summary>
+                  <pre className="mt-3 max-h-60 overflow-auto whitespace-pre-wrap break-words rounded-xl bg-slate-950 p-3 font-mono text-xs leading-6 text-slate-100">{draftConflict.savedCode ?? "No saved draft. Choosing this version restores the starter code."}</pre>
+                </details>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <button type="button" onClick={() => void saveDraftNow(answer, selectedLab.slug, true)} className="rounded-full bg-amber-300 px-4 py-3 font-bold text-slate-950">Keep my draft</button>
+                  <button type="button" onClick={useSavedDraft} className="rounded-full border border-amber-200/50 px-4 py-3 font-semibold text-amber-50">Use saved draft</button>
+                </div>
+              </section>
+            ) : null}
             <textarea
+              aria-label="Your code"
               value={answer}
-              onChange={(event) =>
-                setAnswers((current) => {
-                  setResult(null);
-                  setResultMode(null);
-                  setSaveStatus(
-                    getAuthToken()
-                      ? "Saving to your account..."
-                      : "Saving on this device..."
-                  );
-                  return {
-                    ...current,
-                    [selectedLab.slug]: event.target.value
-                  };
-                })
-              }
-              onKeyDown={(event) =>
-                handleTextareaTabKeyDown(event, (nextValue) =>
-                  setAnswers((current) => {
-                    setResult(null);
-                    setResultMode(null);
-                    setSaveStatus(
-                      getAuthToken()
-                        ? "Saving to your account..."
-                        : "Saving on this device..."
-                    );
-                    return {
-                      ...current,
-                      [selectedLab.slug]: nextValue
-                    };
-                  })
-                )
-              }
+              onChange={(event) => editAnswer(event.target.value)}
+              onKeyDown={(event) => handleTextareaTabKeyDown(event, editAnswer)}
               spellCheck={false}
               className="mt-5 min-h-[360px] w-full resize-y rounded-3xl border border-slate-700 bg-slate-950/80 p-5 font-mono text-sm leading-7 text-teal-50 outline-none transition focus:border-teal-300/70"
             />
@@ -1333,7 +1405,8 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
                   <button
                     type="button"
                     onClick={() => void saveDraftNow()}
-                    className="rounded-full border border-slate-700 px-4 py-3 text-sm font-semibold text-slate-300 transition hover:border-teal-300/40"
+                    disabled={Boolean(draftConflict)}
+                    className="rounded-full border border-slate-700 px-4 py-3 text-sm font-semibold text-slate-300 transition hover:border-teal-300/40 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Save draft
                   </button>
@@ -1364,7 +1437,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
                   <button
                     type="button"
                     onClick={submitLab}
-                    disabled={isRunning}
+                    disabled={isRunning || Boolean(draftConflict)}
                     className="rounded-full bg-amber-300 px-7 py-3 text-sm font-bold text-slate-950 transition hover:bg-amber-200 disabled:cursor-wait disabled:opacity-70"
                   >
                     {isRunning ? "Submitting..." : "Submit for completion"}
