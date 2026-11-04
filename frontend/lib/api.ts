@@ -72,6 +72,12 @@ export class ApiError extends Error {
   }
 }
 
+// Keep request-phase information without exposing it to user-facing copy.
+export class ApiTransportError extends Error {}
+export class ApiDecodeError extends Error {
+  constructor(message: string, public readonly status: number) { super(message); }
+}
+
 export function getAuthProviders(): Promise<{ google: boolean; email: boolean }> {
   return apiFetch("/api/v1/auth/providers", { cache: "no-store" });
 }
@@ -89,10 +95,12 @@ async function apiFetch<T>(path: string, init?: ApiFetchOptions): Promise<T> {
     headers.set("Authorization", `Bearer ${authToken}`);
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...requestInit,
-    headers
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, { ...requestInit, headers });
+  } catch (error) {
+    throw new ApiTransportError(error instanceof Error ? error.message : "Request could not be completed.");
+  }
 
   if (!response.ok) {
     let errorMessage = `Request failed with status ${response.status}`;
@@ -109,7 +117,11 @@ async function apiFetch<T>(path: string, init?: ApiFetchOptions): Promise<T> {
     throw new ApiError(errorMessage, response.status);
   }
 
-  return response.json() as Promise<T>;
+  try {
+    return await response.json() as T;
+  } catch (error) {
+    throw new ApiDecodeError(error instanceof Error ? error.message : "Response could not be read.", response.status);
+  }
 }
 
 export function getScenarios(): Promise<ScenarioSummary[]> {
