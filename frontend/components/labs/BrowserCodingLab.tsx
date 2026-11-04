@@ -36,6 +36,7 @@ import {
 import type { LearnerDraftRequest, QueryResult } from "../../lib/types";
 import { CodingSyncFeedback, confirmCodingDraft, type CodingSyncDetails, type SyncTrigger } from "../../lib/coding-sync-feedback";
 import { CodingSyncStatus } from "./CodingSyncStatus";
+import { isPythonIntroLab, isPythonIntroStarter, pythonIntroError, pythonIntroSampleSuccess, type PythonCheckPhase, type PythonIntroError } from "../../lib/python-intro-feedback";
 import {
   getCodingLabDrafts,
   getCodingLabProgressMap,
@@ -236,7 +237,8 @@ async function runPythonLab(
   answer: string,
   testCases: PythonTestCase[] = lab.testCases ?? [],
   mode: "sample" | "hidden" = "sample",
-  authToken?: string | null
+  authToken?: string | null,
+  onPhase?: (phase: PythonCheckPhase) => void
 ): Promise<LabRunResult> {
   // Guest samples use the existing browser runtime and public example only.
   // Do not expose the server-side Python process runner to anonymous requests.
@@ -267,7 +269,9 @@ async function runPythonLab(
     };
   }
 
+  onPhase?.("preparing");
   const pyodide = await getPyodide();
+  onPhase?.("checking");
   const raw = await pyodide.runPythonAsync(`${answer}\n\n${buildPythonHarness(lab, testCases)}`);
   const pythonResults = JSON.parse(String(raw)) as PythonTestResult[];
   const passed = pythonResults.every((result) => result.passed);
@@ -416,6 +420,8 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
   const [result, setResult] = useState<LabRunResult | null>(null);
   const [resultMode, setResultMode] = useState<ResultMode>(null);
   const [isRunning, setIsRunning] = useState(false);
+  const [pythonPhase, setPythonPhase] = useState<{ slug: string; code: string; phase: PythonCheckPhase } | null>(null);
+  const [pythonError, setPythonError] = useState<{ result: LabRunResult; presentation: PythonIntroError } | null>(null);
   const [entryCampaign, setEntryCampaign] = useState("");
   const [entryContent, setEntryContent] = useState("");
   const [topic, setTopic] = useState("All");
@@ -830,6 +836,9 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
   }
 
   const answer = answers[selectedLab.slug] ?? selectedLab.starterCode;
+  const isPythonIntro = isPythonIntroLab(selectedLab);
+  const introRunningLabel = pythonPhase?.slug === selectedLab.slug && pythonPhase.code === answer && pythonPhase.phase === "preparing"
+    ? "Preparing Python..." : "Checking your code...";
   const draftConflict = draftConflicts[selectedLab.slug];
   const activeLabQueue = filteredLabs.length > 0 ? filteredLabs : labs;
   const currentQueueIndex = activeLabQueue.findIndex((lab) => lab.slug === selectedLab.slug);
@@ -957,6 +966,11 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
     if (!authToken) {
       return;
     }
+    let phase: PythonCheckPhase | undefined;
+    const onPhase = isPythonIntro ? (next: PythonCheckPhase) => {
+      phase = next;
+      setPythonPhase({ slug: selectedLab.slug, code: answer, phase: next });
+    } : undefined;
 
     try {
       setIsRunning(true);
@@ -966,7 +980,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
         selectedLab.track === "sql"
           ? await runSqlLab(selectedLab, answer)
           : selectedLab.track === "python"
-            ? await runPythonLab(selectedLab, answer, selectedLab.testCases ?? [], "hidden", authToken)
+            ? await runPythonLab(selectedLab, answer, selectedLab.testCases ?? [], "hidden", authToken, onPhase)
             : selectedLab.validationMode === "pyspark"
               ? await runPysparkLab(selectedLab, answer, "hidden", authToken)
           : evaluateCodeReviewLab(selectedLab, answer);
@@ -1028,6 +1042,8 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
         setWorkspaceMessage(
           selectedLab.practiceGuidance
             ? `${attemptSaveNotice}Your query matched the tested datasets. Continue when you are ready; this is practice, not proof of independent mastery.`
+            : isPythonIntro
+              ? "Your code matched this lab's configured example. Use Next question when you are ready."
             : nextLab
             ? "Correct. Passed full validation and edge-case checks. Use Next question when you are ready."
             : "Correct. Passed full validation and edge-case checks."
@@ -1043,11 +1059,15 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
         setWorkspaceMessage(`${attemptSaveNotice}Not correct yet. Review the result details, fix the answer, and submit again.`);
       }
     } catch (error) {
-      setResult({
+      const failedResult: LabRunResult = {
         passed: false,
         message: error instanceof Error ? error.message : "Code execution failed."
-      });
+      };
+      setResult(failedResult);
+      const presentation = pythonIntroError(selectedLab, answer, phase, error);
+      if (presentation) setPythonError({ result: failedResult, presentation });
     } finally {
+      if (isPythonIntro) setPythonPhase(null);
       setIsRunning(false);
     }
   }
@@ -1058,6 +1078,11 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
       return;
     }
     sendUsageEvent("sample_run_started", { metadata: { content_id: selectedLab.slug, track } });
+    let phase: PythonCheckPhase | undefined;
+    const onPhase = isPythonIntro ? (next: PythonCheckPhase) => {
+      phase = next;
+      setPythonPhase({ slug: selectedLab.slug, code: answer, phase: next });
+    } : undefined;
 
     try {
       setIsRunning(true);
@@ -1120,11 +1145,13 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
           });
           return;
         }
-        const sampleResult = await runPythonLab(selectedLab, answer, [sampleCase]);
+        const sampleResult = await runPythonLab(selectedLab, answer, [sampleCase], "sample", authToken, onPhase);
         setResult({
           ...sampleResult,
           message: sampleResult.passed
-            ? "Sample check passed. Submit your answer to run the full hidden edge-case validation."
+            ? isPythonIntro
+              ? pythonIntroSampleSuccess(Boolean(authToken))
+              : "Sample check passed. Submit your answer to run the full hidden edge-case validation."
             : "Wrong answer on the visible sample case. Fix the failing input/output before submitting."
         });
         return;
@@ -1145,12 +1172,16 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
             : "Add a concrete PySpark fix before submitting. Mention the API change and production trade-off."
       });
     } catch (error) {
-      setResult({
+      const failedResult: LabRunResult = {
         passed: false,
         message: error instanceof Error ? error.message : "The query could not run.",
         table: { columns: [], rows: [] }
-      });
+      };
+      setResult(failedResult);
+      const presentation = pythonIntroError(selectedLab, answer, phase, error);
+      if (presentation) setPythonError({ result: failedResult, presentation });
     } finally {
+      if (isPythonIntro) setPythonPhase(null);
       setIsRunning(false);
     }
   }
@@ -1392,7 +1423,9 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
                   Fix workspace
                 </p>
                 <p className="mt-2 text-sm text-slate-400">
-                  {track === "sql"
+                  {isPythonIntro
+                    ? "Define reverse_a_string and return the expected output for the example below."
+                    : track === "sql"
                     ? "Write a read-only query that returns the expected result."
                     : track === "python"
                       ? `Define the function ${selectedLab.functionName ?? ""} and pass the sample plus edge-case checks.`
@@ -1434,6 +1467,10 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
               spellCheck={false}
               className="mt-5 min-h-[360px] w-full resize-y rounded-3xl border border-slate-700 bg-slate-950/80 p-5 font-mono text-sm leading-7 text-teal-50 outline-none transition focus:border-teal-300/70"
             />
+            {isPythonIntro ? <p className="mt-3 text-sm leading-6 text-slate-300">
+              Run sample tests the code in your editor against the visible example.
+              {isPythonIntroStarter(selectedLab, answer) ? " The starter is unfinished—replace the placeholder with your solution." : ""}
+            </p> : null}
             <div className="mt-5 rounded-3xl border border-slate-800 bg-slate-950/35 p-4">
               <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                 <div>
@@ -1441,8 +1478,9 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
                     Validation flow
                   </p>
                   <p className="mt-2 text-sm leading-6 text-slate-300">
-                    Run checks the visible sample only. Submit runs full validation and completes
-                    the question only when every case passes.
+                    {isPythonIntro
+                      ? `This lab has one configured example. Run sample checks it without an account. Submit checks the same example and completes the question only when it passes. ${currentUser ? "Submit your answer to record your progress." : "Sign in to submit and record your progress."} Passing one example does not establish general correctness.`
+                      : "Run checks the visible sample only. Submit runs full validation and completes the question only when every case passes."}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-3">
@@ -1474,9 +1512,9 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
                     type="button"
                     onClick={runSampleCheck}
                     disabled={isRunning}
-                    className="rounded-full border border-amber-300/35 px-6 py-3 text-sm font-bold text-amber-100 transition hover:bg-amber-300/10 disabled:cursor-wait disabled:opacity-70"
+                    className={`rounded-full border border-amber-300/35 px-6 py-3 text-sm font-bold text-amber-100 transition hover:bg-amber-300/10 disabled:cursor-wait disabled:opacity-70 ${isPythonIntro ? "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-2)]" : ""}`}
                   >
-                    {isRunning ? "Running sample..." : "Run sample"}
+                    {isRunning ? isPythonIntro ? introRunningLabel : "Running sample..." : "Run sample"}
                   </button>
                   <button
                     type="button"
@@ -1484,7 +1522,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
                     disabled={isRunning || Boolean(draftConflict)}
                     className="rounded-full bg-amber-300 px-7 py-3 text-sm font-bold text-slate-950 transition hover:bg-amber-200 disabled:cursor-wait disabled:opacity-70"
                   >
-                    {isRunning ? "Submitting..." : "Submit for completion"}
+                    {isRunning ? isPythonIntro ? introRunningLabel : "Submitting..." : "Submit for completion"}
                   </button>
                   <button
                     type="button"
@@ -1507,7 +1545,8 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
             </div>
           </div>
 
-          {result ? <ResultPanel result={result} mode={resultMode} /> : null}
+          {result ? <ResultPanel result={result} mode={resultMode} pythonIntro={isPythonIntro}
+            pythonError={pythonError?.result === result ? pythonError.presentation : undefined} /> : null}
           {selectedLab.practiceGuidance && result?.passed === true ? <details className="panel rounded-3xl p-5"><summary className="cursor-pointer font-semibold text-teal-100">Try a new example (ungraded)</summary><div className="mt-4 space-y-3 text-sm leading-6 text-slate-300"><p>{selectedLab.practiceGuidance.nextTransfer.when}</p><p>{selectedLab.practiceGuidance.nextTransfer.instructions}</p><p>{selectedLab.practiceGuidance.nextTransfer.deliverable}</p><p>{selectedLab.practiceGuidance.nextTransfer.assessment}</p></div></details> : null}
           {isPythonScopeEntry && result?.passed === true ? (
             <PythonScopeNextStep
@@ -1911,7 +1950,7 @@ function TablePreview({ table, showAllRows = false }: { table: CodingLabTable; s
   );
 }
 
-function ResultPanel({ result, mode }: { result: LabRunResult; mode: ResultMode }) {
+function ResultPanel({ result, mode, pythonIntro, pythonError }: { result: LabRunResult; mode: ResultMode; pythonIntro?: boolean; pythonError?: PythonIntroError }) {
   const tone =
     result.passed === true
       ? "border-teal-300/25 bg-teal-300/10 text-teal-50"
@@ -1921,8 +1960,10 @@ function ResultPanel({ result, mode }: { result: LabRunResult; mode: ResultMode 
 
   return (
     <div className={`rounded-[2rem] border p-6 ${tone}`}>
-      <p className="text-xs font-semibold uppercase tracking-[0.22em]">
-        {result.status === "unavailable"
+      <p className={`${pythonIntro ? "text-sm" : "text-xs"} font-semibold uppercase tracking-[0.22em]`}>
+        {pythonIntro && pythonError
+          ? pythonError.heading
+          : result.status === "unavailable"
           ? "Checking unavailable"
           : result.status === "query_error"
             ? "SQL needs a correction"
@@ -1930,7 +1971,7 @@ function ResultPanel({ result, mode }: { result: LabRunResult; mode: ResultMode 
           ? mode === "sample"
             ? "Visible sample passed"
             : mode === "full"
-              ? "Full validation passed"
+              ? pythonIntro ? "Configured example passed" : "Full validation passed"
               : "Correct answer"
           : result.passed === false
             ? mode === "sample"
@@ -1943,8 +1984,12 @@ function ResultPanel({ result, mode }: { result: LabRunResult; mode: ResultMode 
       {typeof result.score === "number" ? (
         <p className="mt-3 text-3xl font-semibold tracking-tight">{result.score}/100</p>
       ) : null}
-      <p className="mt-3 text-sm leading-6">{result.message}</p>
-      {result.table ? (
+      <p className={`mt-3 text-sm leading-6 ${pythonIntro ? "break-words" : ""}`}>{pythonIntro && pythonError ? pythonError.message : pythonIntro && mode === "full" && result.passed ? "Your code passed this lab's configured example." : result.message}</p>
+      {pythonIntro && pythonError?.technicalDetail ? <details className="mt-3 rounded-2xl border border-slate-700 px-3">
+        <summary className="cursor-pointer py-3 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-2)]">Technical details</summary>
+        <pre className="mb-3 max-h-60 overflow-auto whitespace-pre-wrap break-words text-sm leading-6">{pythonError.technicalDetail}</pre>
+      </details> : null}
+      {result.table && !(pythonIntro && pythonError) ? (
         <div className="mt-5 overflow-x-auto rounded-3xl border border-slate-800 bg-slate-950/70">
           <table className="min-w-full text-left text-xs text-slate-200">
             <thead>
