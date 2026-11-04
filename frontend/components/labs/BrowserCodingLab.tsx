@@ -20,7 +20,7 @@ import { AUTH_UPDATED_EVENT, getAuthToken, getCurrentUser } from "../../lib/auth
 import { codingProgressFromRemote } from "../../lib/learner-progress";
 import { sendUsageEvent } from "../../lib/usage";
 import { handleTextareaTabKeyDown } from "../../lib/textarea-tab";
-import { checkCore1SalaryBands } from "../../lib/core1-salary-check";
+import { checkGuidedSqlLab } from "../../lib/guided-sql-check";
 import { CodingDraftSession, chooseSavedCodingDraft, sameCodingAnswers, type CodingDraftConflict } from "../../lib/coding-draft-conflicts";
 import { usePremiumEntitlement } from "../../lib/use-premium-entitlement";
 import {
@@ -150,7 +150,7 @@ async function getPyodide() {
 }
 
 async function runSqlLab(lab: CodingLab, answer: string): Promise<LabRunResult> {
-  if (lab.practiceGuidance) return checkCore1SalaryBands(lab, answer, "full");
+  if (lab.practiceGuidance) return checkGuidedSqlLab(lab, answer, "full");
   if (!lab.expectedSql) {
     return {
       passed: null,
@@ -1018,7 +1018,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
 
       if (selectedLab.track === "sql") {
         if (selectedLab.practiceGuidance) {
-          setResult(await checkCore1SalaryBands(selectedLab, answer, "sample"));
+          setResult(await checkGuidedSqlLab(selectedLab, answer, "sample"));
           return;
         }
         if (!selectedLab.expectedSql) {

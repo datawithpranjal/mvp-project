@@ -1,0 +1,479 @@
+{
+  "businessContext": "A fictional reporting check finds multiple sales contributions on the same date. A transaction-row running total creates multiple daily report rows; a month reset would discard earlier available contributions.",
+  "problemStatement": "Produce one row per available business date with total daily revenue and its inclusive cumulative revenue across all available dates.",
+  "studentTask": "Using daily_sales, combine every contribution for each sale_date. Return sale_date, daily_revenue and running_revenue, where running_revenue includes every available date up to and including that date. Do not reset at a month or year boundary or invent missing-date rows.",
+  "estimatedMinutes": 18,
+  "starterCode": "-- This executable draft is still at contribution-row grain.\n-- Return one row per available date and the correct cumulative daily revenue.\nSELECT sale_date,\n       CAST(amount AS REAL) AS daily_revenue,\n       SUM(CAST(amount AS REAL)) OVER (ORDER BY sale_date) AS running_revenue\nFROM daily_sales\nORDER BY sale_date;",
+  "tables": [
+    {
+      "name": "daily_sales",
+      "columns": [
+        "sale_date",
+        "city",
+        "region",
+        "customer_id",
+        "amount"
+      ],
+      "rows": [
+        [
+          "2026-05-02",
+          "Cedar",
+          "East",
+          3,
+          20
+        ],
+        [
+          "2026-04-30",
+          "Elm",
+          "West",
+          1,
+          40
+        ],
+        [
+          "2026-05-01",
+          "Cedar",
+          "East",
+          3,
+          30
+        ],
+        [
+          "2026-05-01",
+          "Elm",
+          "West",
+          1,
+          30
+        ],
+        [
+          "2026-05-02",
+          "Pine",
+          "North",
+          2,
+          10
+        ],
+        [
+          "2026-05-04",
+          "Elm",
+          "West",
+          1,
+          0
+        ]
+      ]
+    }
+  ],
+  "expectedSql": "WITH daily AS (\n    SELECT sale_date, SUM(CAST(amount AS REAL)) AS daily_revenue\n    FROM daily_sales\n    GROUP BY sale_date\n)\nSELECT sale_date, daily_revenue,\n       SUM(daily_revenue) OVER (\n           ORDER BY sale_date\n           ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW\n       ) AS running_revenue\nFROM daily\nORDER BY sale_date;",
+  "solutionCode": "WITH daily AS (\n    SELECT sale_date, SUM(CAST(amount AS REAL)) AS daily_revenue\n    FROM daily_sales\n    GROUP BY sale_date\n)\nSELECT sale_date, daily_revenue,\n       SUM(daily_revenue) OVER (\n           ORDER BY sale_date\n           ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW\n       ) AS running_revenue\nFROM daily\nORDER BY sale_date;",
+  "explanation": "First sum every contribution for each sale_date, including equal amounts and identical rows. Then add the daily totals from the earliest available date through the current date. Month and year boundaries do not reset this prefix. A correlated sum or a result-equivalent peer-window query is also valid.",
+  "hints": [
+    "What does one input row represent, and how many rows should the final report have when three contributions share a date?",
+    "Find the total for each distinct sale_date first. Equal amounts still represent separate contributions; city is not the report grain.",
+    "For one output date, which already-combined daily totals belong in the prefix, including the current day? Does a new month change the stated rule?",
+    "On a one-row-per-date result, add daily totals in ascending date order from the first available date through the current date. A cumulative window or a different result-equivalent query may be used."
+  ],
+  "expectedOutcome": "Columns: sale_date, daily_revenue, running_revenue (in that order).\nOne row per available date, including zero-total dates. Include the current date in the cumulative total across all available dates. Do not invent missing-date rows; output row order is not graded.",
+  "commonMistakes": [
+    "Returning contribution rows instead of one combined row per available date.",
+    "Discarding equal amounts or identical input rows before computing the daily total.",
+    "Resetting at a month/year boundary, grouping by city, or omitting zero-total dates.",
+    "Returning the daily amount, a full-period total or a reverse-date total as the inclusive running total."
+  ],
+  "sqlTestCases": [
+    {
+      "name": "Identical contributions count separately",
+      "description": "Additional output check for the stated daily-grain and inclusive cumulative rule.",
+      "tables": [
+        {
+          "name": "daily_sales",
+          "columns": [
+            "sale_date",
+            "city",
+            "region",
+            "customer_id",
+            "amount"
+          ],
+          "rows": [
+            [
+              "2026-06-15",
+              "Fir",
+              "West",
+              5,
+              12
+            ],
+            [
+              "2026-06-15",
+              "Fir",
+              "West",
+              5,
+              12
+            ],
+            [
+              "2026-06-15",
+              "Oak",
+              "East",
+              6,
+              4
+            ]
+          ]
+        }
+      ],
+      "expectedSql": "WITH daily AS (\n    SELECT sale_date, SUM(CAST(amount AS REAL)) AS daily_revenue\n    FROM daily_sales\n    GROUP BY sale_date\n)\nSELECT sale_date, daily_revenue,\n       SUM(daily_revenue) OVER (\n           ORDER BY sale_date\n           ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW\n       ) AS running_revenue\nFROM daily\nORDER BY sale_date;"
+    },
+    {
+      "name": "Daily totals combine all cities",
+      "description": "Additional output check for the stated daily-grain and inclusive cumulative rule.",
+      "tables": [
+        {
+          "name": "daily_sales",
+          "columns": [
+            "sale_date",
+            "city",
+            "region",
+            "customer_id",
+            "amount"
+          ],
+          "rows": [
+            [
+              "2026-02-03",
+              "Northport",
+              "N",
+              4,
+              9
+            ],
+            [
+              "2026-02-01",
+              "Southport",
+              "S",
+              8,
+              5
+            ],
+            [
+              "2026-02-03",
+              "Southport",
+              "S",
+              8,
+              1
+            ],
+            [
+              "2026-02-01",
+              "Northport",
+              "N",
+              4,
+              2
+            ]
+          ]
+        }
+      ],
+      "expectedSql": "WITH daily AS (\n    SELECT sale_date, SUM(CAST(amount AS REAL)) AS daily_revenue\n    FROM daily_sales\n    GROUP BY sale_date\n)\nSELECT sale_date, daily_revenue,\n       SUM(daily_revenue) OVER (\n           ORDER BY sale_date\n           ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW\n       ) AS running_revenue\nFROM daily\nORDER BY sale_date;"
+    },
+    {
+      "name": "Running total carries across years and months",
+      "description": "Additional output check for the stated daily-grain and inclusive cumulative rule.",
+      "tables": [
+        {
+          "name": "daily_sales",
+          "columns": [
+            "sale_date",
+            "city",
+            "region",
+            "customer_id",
+            "amount"
+          ],
+          "rows": [
+            [
+              "2027-02-01",
+              "Hill",
+              "H",
+              2,
+              1
+            ],
+            [
+              "2026-12-31",
+              "Vale",
+              "V",
+              1,
+              8
+            ],
+            [
+              "2027-01-01",
+              "Hill",
+              "H",
+              2,
+              3
+            ],
+            [
+              "2026-12-31",
+              "Hill",
+              "H",
+              2,
+              2
+            ],
+            [
+              "2027-01-01",
+              "Vale",
+              "V",
+              1,
+              4
+            ]
+          ]
+        }
+      ],
+      "expectedSql": "WITH daily AS (\n    SELECT sale_date, SUM(CAST(amount AS REAL)) AS daily_revenue\n    FROM daily_sales\n    GROUP BY sale_date\n)\nSELECT sale_date, daily_revenue,\n       SUM(daily_revenue) OVER (\n           ORDER BY sale_date\n           ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW\n       ) AS running_revenue\nFROM daily\nORDER BY sale_date;"
+    },
+    {
+      "name": "Zero totals and missing dates",
+      "description": "Additional output check for the stated daily-grain and inclusive cumulative rule.",
+      "tables": [
+        {
+          "name": "daily_sales",
+          "columns": [
+            "sale_date",
+            "city",
+            "region",
+            "customer_id",
+            "amount"
+          ],
+          "rows": [
+            [
+              "2026-07-09",
+              "Bay",
+              "B",
+              7,
+              0
+            ],
+            [
+              "2026-07-01",
+              "Bay",
+              "B",
+              7,
+              0
+            ],
+            [
+              "2026-07-05",
+              "Bay",
+              "B",
+              7,
+              6
+            ],
+            [
+              "2026-07-01",
+              "Cape",
+              "C",
+              6,
+              0
+            ]
+          ]
+        }
+      ],
+      "expectedSql": "WITH daily AS (\n    SELECT sale_date, SUM(CAST(amount AS REAL)) AS daily_revenue\n    FROM daily_sales\n    GROUP BY sale_date\n)\nSELECT sale_date, daily_revenue,\n       SUM(daily_revenue) OVER (\n           ORDER BY sale_date\n           ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW\n       ) AS running_revenue\nFROM daily\nORDER BY sale_date;"
+    },
+    {
+      "name": "Single available date",
+      "description": "Additional output check for the stated daily-grain and inclusive cumulative rule.",
+      "tables": [
+        {
+          "name": "daily_sales",
+          "columns": [
+            "sale_date",
+            "city",
+            "region",
+            "customer_id",
+            "amount"
+          ],
+          "rows": [
+            [
+              "2024-02-29",
+              "Lake",
+              "L",
+              1,
+              17
+            ]
+          ]
+        }
+      ],
+      "expectedSql": "WITH daily AS (\n    SELECT sale_date, SUM(CAST(amount AS REAL)) AS daily_revenue\n    FROM daily_sales\n    GROUP BY sale_date\n)\nSELECT sale_date, daily_revenue,\n       SUM(daily_revenue) OVER (\n           ORDER BY sale_date\n           ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW\n       ) AS running_revenue\nFROM daily\nORDER BY sale_date;"
+    },
+    {
+      "name": "Empty sales",
+      "description": "Additional output check for the stated daily-grain and inclusive cumulative rule.",
+      "tables": [
+        {
+          "name": "daily_sales",
+          "columns": [
+            "sale_date",
+            "city",
+            "region",
+            "customer_id",
+            "amount"
+          ],
+          "rows": []
+        }
+      ],
+      "expectedSql": "WITH daily AS (\n    SELECT sale_date, SUM(CAST(amount AS REAL)) AS daily_revenue\n    FROM daily_sales\n    GROUP BY sale_date\n)\nSELECT sale_date, daily_revenue,\n       SUM(daily_revenue) OVER (\n           ORDER BY sale_date\n           ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW\n       ) AS running_revenue\nFROM daily\nORDER BY sale_date;"
+    },
+    {
+      "name": "One contribution per date regression",
+      "description": "Additional output check for the stated daily-grain and inclusive cumulative rule.",
+      "tables": [
+        {
+          "name": "daily_sales",
+          "columns": [
+            "sale_date",
+            "city",
+            "region",
+            "customer_id",
+            "amount"
+          ],
+          "rows": [
+            [
+              "2026-05-01",
+              "Mumbai",
+              "West",
+              1,
+              100
+            ],
+            [
+              "2026-05-02",
+              "Mumbai",
+              "West",
+              1,
+              150
+            ],
+            [
+              "2026-05-03",
+              "Delhi",
+              "North",
+              2,
+              200
+            ],
+            [
+              "2026-05-04",
+              "Bengaluru",
+              "South",
+              3,
+              130
+            ],
+            [
+              "2026-05-05",
+              "Delhi",
+              "North",
+              2,
+              170
+            ],
+            [
+              "2026-05-06",
+              "Pune",
+              "West",
+              4,
+              90
+            ],
+            [
+              "2026-05-07",
+              "Mumbai",
+              "West",
+              1,
+              300
+            ]
+          ]
+        }
+      ],
+      "expectedSql": "WITH daily AS (\n    SELECT sale_date, SUM(CAST(amount AS REAL)) AS daily_revenue\n    FROM daily_sales\n    GROUP BY sale_date\n)\nSELECT sale_date, daily_revenue,\n       SUM(daily_revenue) OVER (\n           ORDER BY sale_date\n           ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW\n       ) AS running_revenue\nFROM daily\nORDER BY sale_date;"
+    },
+    {
+      "name": "Across-month regression",
+      "description": "Additional output check for the stated daily-grain and inclusive cumulative rule.",
+      "tables": [
+        {
+          "name": "daily_sales",
+          "columns": [
+            "sale_date",
+            "city",
+            "region",
+            "customer_id",
+            "amount"
+          ],
+          "rows": [
+            [
+              "2026-04-29",
+              "Mumbai",
+              "West",
+              1,
+              50
+            ],
+            [
+              "2026-04-30",
+              "Delhi",
+              "North",
+              2,
+              75
+            ],
+            [
+              "2026-05-01",
+              "Mumbai",
+              "West",
+              1,
+              200
+            ],
+            [
+              "2026-05-02",
+              "Delhi",
+              "North",
+              2,
+              125
+            ],
+            [
+              "2026-05-03",
+              "Chennai",
+              "South",
+              3,
+              175
+            ],
+            [
+              "2026-05-04",
+              "Mumbai",
+              "West",
+              1,
+              25
+            ]
+          ]
+        }
+      ],
+      "expectedSql": "WITH daily AS (\n    SELECT sale_date, SUM(CAST(amount AS REAL)) AS daily_revenue\n    FROM daily_sales\n    GROUP BY sale_date\n)\nSELECT sale_date, daily_revenue,\n       SUM(daily_revenue) OVER (\n           ORDER BY sale_date\n           ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW\n       ) AS running_revenue\nFROM daily\nORDER BY sale_date;"
+    }
+  ],
+  "practiceGuidance": {
+    "contract": [
+      "Despite its existing name, daily_sales contains one contribution row, not necessarily one row per date. Every input row counts once. Identical provided rows may be different legitimate contributions; there is no replay identity or deduplication task.",
+      "Keep the existing table/columns: sale_date, city, region, customer_id, amount. Group the requested result by sale_date only, across all cities/regions/customers.",
+      "Dates are valid canonical Gregorian YYYY-MM-DD business-date strings; their lexical order is chronological here. No timestamps, timezone conversion or date parsing repair is required.",
+      "Amounts are non-null non-negative whole notional units from 0 to 10,000,000. NULLs, negative adjustments/refunds, decimal currencies and invalid text require a separate policy and are outside this exercise.",
+      "Daily revenue sums every amount on that date, including equal amounts and identical rows. Running revenue includes the current day and all earlier available days across month/year boundaries.",
+      "Return exactly sale_date, daily_revenue, running_revenue in that column order. Row display order is not graded, although chronological display is useful. Output must contain exactly one row for each distinct available date, including dates whose daily total is zero.",
+      "A date with no provided contribution has no output row. Empty input returns no rows; do not manufacture a zero placeholder. The current adapter may drop headers for an empty SQL result; an empty pass checks row absence, not column metadata.",
+      "Inputs are tiny (at most seven rows in these fixtures) and totals are exactly representable within this bounded integer domain. The current runtime uses SQL.js/SQLite, inferred REAL/TEXT and six-decimal comparison normalisation; no arbitrary financial precision, datatype, security or production scale guarantee follows."
+    ],
+    "assessment": [
+      "A visible-sample match establishes only that sample. An integrated-suite pass checks only those finite outputs, not production correctness, financial accounting, mastery, job readiness or proof of an unaided attempt.",
+      "Do not grade keywords, GROUP BY, a particular window frame spelling or use of a named function. Any equivalent query returning the correct daily-grain population and cumulative values is valid. Output checking cannot distinguish a copied correct general solution from independently reasoned work.",
+      "Hints and reference/alternative viewing are assisted/reviewed practice, separate from a validated SQL attempt. Merely revealing the answer does not create a passing checked result.",
+      "Additional checks initially withheld from the learner are pedagogic coverage, not adversarially secret examination data in a browser-delivered exercise.",
+      "A query that executes and returns different output is incorrect on that input. A learner SQL execution error needs query-specific feedback. An unavailable runtime, setup failure or timeout gives no correctness judgment; preserve the query and retry, never mark it correct or wrong solely for platform failure.",
+      "A correctness result is separate from account-save acknowledgement. Where saving is supported, a failed save does not invalidate the SQL; preserve the query/result and offer the existing retry path rather than claim saved progress.",
+      "The reflection/transfer below is ungraded unless separately reviewed assessment is identified. No fixture editor, automatic explanation grading or extra mastery/completion credit is promised."
+    ],
+    "nextTransfer": {
+      "title": "Predict a new same-date contribution",
+      "when": "After a passing tested result, try this once on paper without hints or the reference if you want unaided practice.",
+      "instructions": "On paper, add one new fictional daily_sales row: sale_date 2026-05-01, city Spruce, region East, customer_id 9, amount 5. Keep every existing visible row and the same contract.",
+      "deliverable": "Predict which daily total changes, which running totals change and whether a missing-date row appears. Explain why the earlier date is unaffected and the month boundary does not reset anything.",
+      "assessment": "This optional reflection is not graded and does not mark another exercise complete. Work it out on paper; the sample data in the editor will stay unchanged.",
+      "url": null
+    },
+    "alternativeSql": "WITH daily AS (\n    SELECT sale_date, SUM(CAST(amount AS REAL)) AS daily_revenue\n    FROM daily_sales\n    GROUP BY sale_date\n)\nSELECT d.sale_date, d.daily_revenue,\n       (SELECT SUM(p.daily_revenue)\n        FROM daily p\n        WHERE p.sale_date <= d.sale_date) AS running_revenue\nFROM daily d\nORDER BY d.sale_date;",
+    "feedback": {
+      "visible_pass": "Your output matches the visible daily-grain example only. This is not a mastery or production guarantee.",
+      "incorrect": "The query ran, but the daily rows or prefix totals differ. Check same-date aggregation, all-row contribution counting and the inclusive across-date cumulative rule.",
+      "query_error": "The SQL could not run. Use the query error to revise and retry; no passing result was produced.",
+      "unavailable": "No correctness judgment was produced. Preserve the query and retry when checking is available.",
+      "integrated_suite_pass": "Your output matched the integrated datasets. Assistance and account saving remain separate from these tested results."
+    }
+  }
+}
