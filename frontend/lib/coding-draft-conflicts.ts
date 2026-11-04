@@ -83,12 +83,14 @@ export class CodingDraftSession {
     }
   }
 
-  useSaved(slug: string): string | undefined {
-    const code = this.pending[slug]?.savedCode;
+  useSaved(slug: string, expectedSavedCode?: string): { code: string | undefined } | null {
+    const conflict = this.pending[slug];
+    if (!conflict || conflict.savedCode !== expectedSavedCode) return null;
+    const code = conflict.savedCode;
     delete this.edits[slug];
     delete this.pending[slug];
     this.persistRecovery();
-    return code;
+    return { code };
   }
 
   private persistRecovery(): void {
@@ -104,6 +106,16 @@ export class CodingDraftSession {
     }
     for (const slug of Object.keys(this.pending)) this.pending[slug] = { ...this.pending[slug], recoverySaved };
   }
+}
+
+/** Refresh may clear a pending choice when saved/editor versions converge. */
+export function chooseSavedCodingDraft(
+  slug: string,
+  previous: CodingDraftConflict | undefined,
+  refresh: () => CodingDraftSession
+): { code: string | undefined } | null {
+  if (!previous) return null;
+  return refresh().useSaved(slug, previous.savedCode);
 }
 
 export function sameCodingAnswers(left: Record<string, string>, right: Record<string, string>): boolean {

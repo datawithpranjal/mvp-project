@@ -21,7 +21,7 @@ import { codingProgressFromRemote } from "../../lib/learner-progress";
 import { sendUsageEvent } from "../../lib/usage";
 import { handleTextareaTabKeyDown } from "../../lib/textarea-tab";
 import { checkCore1SalaryBands } from "../../lib/core1-salary-check";
-import { CodingDraftSession, sameCodingAnswers, type CodingDraftConflict } from "../../lib/coding-draft-conflicts";
+import { CodingDraftSession, chooseSavedCodingDraft, sameCodingAnswers, type CodingDraftConflict } from "../../lib/coding-draft-conflicts";
 import { usePremiumEntitlement } from "../../lib/use-premium-entitlement";
 import {
   formatTrackLabel,
@@ -852,16 +852,16 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
 
   function useSavedDraft() {
     const previous = draftSessionRef.current?.conflicts[selectedLab.slug];
-    const session = refreshSavedDrafts();
-    if (session.conflicts[selectedLab.slug]?.savedCode !== previous?.savedCode) return;
-    const code = session.useSaved(selectedLab.slug);
+    const choice = chooseSavedCodingDraft(selectedLab.slug, previous, refreshSavedDrafts);
+    if (!choice) return;
+    const { code } = choice;
     setAnswers((current) => {
       const next = { ...current };
       if (code === undefined) delete next[selectedLab.slug];
       else next[selectedLab.slug] = code;
       return next;
     });
-    setDraftConflicts(session.conflicts);
+    setDraftConflicts(draftSessionRef.current?.conflicts ?? {});
     setResult(null);
     setResultMode(null);
     setSaveStatus("Saved draft loaded on this device");

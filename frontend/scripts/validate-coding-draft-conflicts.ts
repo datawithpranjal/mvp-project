@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { CodingDraftSession, sameCodingAnswers } from "../lib/coding-draft-conflicts";
+import { CodingDraftSession, chooseSavedCodingDraft, sameCodingAnswers } from "../lib/coding-draft-conflicts";
 
 class MemoryStorage {
   items = new Map<string, string>();
@@ -29,7 +29,7 @@ assert.deepEqual(reloaded.reconcile({ salary: theirs }), { salary: mine }, "relo
 reloaded.edit("salary", `${mine}\n-- continued after conflict`);
 const secondReload = new CodingDraftSession("guest", storage);
 assert.equal(secondReload.reconcile({ salary: theirs }).salary, `${mine}\n-- continued after conflict`);
-assert.equal(secondReload.useSaved("salary"), theirs);
+assert.deepEqual(secondReload.useSaved("salary", theirs), { code: theirs });
 assert.deepEqual(secondReload.conflicts, {});
 assert.deepEqual(new CodingDraftSession("guest", storage).reconcile({ salary: theirs }), { salary: theirs });
 
@@ -64,7 +64,37 @@ deletion.reconcile({ salary: baseline });
 deletion.edit("salary", mine);
 assert.equal(deletion.reconcile({}).salary, mine);
 assert.equal(deletion.conflicts.salary.savedCode, undefined);
-assert.equal(deletion.useSaved("salary"), undefined, "explicit saved choice can restore a missing draft's starter");
+assert.deepEqual(chooseSavedCodingDraft("salary", deletion.conflicts.salary, () => deletion), { code: undefined }, "an actual missing-saved conflict can intentionally restore the starter");
+assert.equal(deletion.useSaved("salary"), null, "no current conflict is distinct from an actual deletion choice");
+
+const convergedDeletion = new CodingDraftSession("guest", new MemoryStorage());
+convergedDeletion.reconcile({ salary: baseline });
+convergedDeletion.edit("salary", mine);
+convergedDeletion.reconcile({});
+let handlerAnswers = { salary: mine };
+let handlerStatus = "Draft choice needed";
+const choice = chooseSavedCodingDraft("salary", convergedDeletion.conflicts.salary, () => {
+  handlerAnswers = convergedDeletion.reconcile({ salary: mine }) as { salary: string };
+  return convergedDeletion;
+});
+if (choice) {
+  if (choice.code === undefined) delete (handlerAnswers as Partial<typeof handlerAnswers>).salary;
+  else handlerAnswers.salary = choice.code;
+  handlerStatus = "Saved draft loaded on this device";
+}
+assert.equal(choice, null, "the actual choice helper must stop when refresh clears the deletion conflict");
+assert.deepEqual(handlerAnswers, { salary: mine }, "preserve the reconciled editor instead of falling back to starter");
+assert.equal(handlerStatus, "Draft choice needed", "a cleared choice must not claim a load success");
+assert.equal(chooseSavedCodingDraft("salary", undefined, () => { throw new Error("must not refresh"); }), null);
+
+const changedChoice = new CodingDraftSession("guest", new MemoryStorage());
+changedChoice.reconcile({ salary: baseline });
+changedChoice.edit("salary", mine);
+changedChoice.reconcile({ salary: theirs });
+assert.equal(chooseSavedCodingDraft("salary", changedChoice.conflicts.salary, () => {
+  changedChoice.reconcile({ salary: "new external version" });
+  return changedChoice;
+}), null, "a newly changed saved version needs a fresh choice");
 
 const simultaneous = new CodingDraftSession("guest", storage);
 simultaneous.reconcile({ salary: baseline });
