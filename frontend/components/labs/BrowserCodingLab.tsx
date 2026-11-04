@@ -463,6 +463,10 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
     retryDraftRef.current = null;
   }
 
+  function currentEditorAnswer(slug: string) {
+    return answersRef.current[slug] ?? labs.find((lab) => lab.slug === slug)?.starterCode;
+  }
+
   function syncGuard(token: string, slug: string, code?: string, revision?: number) {
     const userId = getCurrentUser()?.id;
     const session = draftSessionRef.current;
@@ -470,12 +474,12 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
     return () => getAuthToken() === token && getCurrentUser()?.id === userId &&
       trackRef.current === operationTrack && selectedSlugRef.current === slug &&
       draftSessionRef.current === session && !session?.conflicts[slug] &&
-      (code === undefined || answersRef.current[slug] === code) &&
+      (code === undefined || currentEditorAnswer(slug) === code) &&
       (revision === undefined || draftRevisionRef.current[slug] === revision);
   }
 
   async function syncAccountDraft(token: string, slug: string, code: string, payload: LearnerDraftRequest, trigger: SyncTrigger, manualRetry = false) {
-    const visible = selectedSlugRef.current === slug && answersRef.current[slug] === code;
+    const visible = selectedSlugRef.current === slug && currentEditorAnswer(slug) === code;
     if (visible) draftRevisionRef.current[slug] = payload.client_revision;
     const current = syncGuard(token, slug, code, payload.client_revision);
     const feedback = visible ? syncFeedback.begin("draft-save", trigger, current, manualRetry) : null;
