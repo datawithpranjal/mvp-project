@@ -1048,6 +1048,8 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
         setWorkspaceMessage(
           selectedLab.practiceGuidance
             ? `${attemptSaveNotice}Your query matched the tested datasets. Continue when you are ready; this is practice, not proof of independent mastery.`
+            : isSqlSalaryEntry(selectedLab)
+              ? "Your query matched the two configured salary-ranking datasets. Use Next question when you are ready."
             : isPythonIntro
               ? "Your code matched this lab's configured example. Use Next question when you are ready."
             : nextLab
