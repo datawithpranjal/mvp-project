@@ -420,7 +420,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
   const [result, setResult] = useState<LabRunResult | null>(null);
   const [resultMode, setResultMode] = useState<ResultMode>(null);
   const [isRunning, setIsRunning] = useState(false);
-  const [pythonPhase, setPythonPhase] = useState<{ slug: string; code: string; phase: PythonCheckPhase } | null>(null);
+  const [pythonPhase, setPythonPhase] = useState<{ slug: string; phase: PythonCheckPhase } | null>(null);
   const [pythonError, setPythonError] = useState<{ result: LabRunResult; presentation: PythonIntroError } | null>(null);
   const [entryCampaign, setEntryCampaign] = useState("");
   const [entryContent, setEntryContent] = useState("");
@@ -837,7 +837,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
 
   const answer = answers[selectedLab.slug] ?? selectedLab.starterCode;
   const isPythonIntro = isPythonIntroLab(selectedLab);
-  const introRunningLabel = pythonPhase?.slug === selectedLab.slug && pythonPhase.code === answer && pythonPhase.phase === "preparing"
+  const introRunningLabel = pythonPhase?.slug === selectedLab.slug && pythonPhase.phase === "preparing"
     ? "Preparing Python..." : "Checking your code...";
   const draftConflict = draftConflicts[selectedLab.slug];
   const activeLabQueue = filteredLabs.length > 0 ? filteredLabs : labs;
@@ -969,7 +969,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
     let phase: PythonCheckPhase | undefined;
     const onPhase = isPythonIntro ? (next: PythonCheckPhase) => {
       phase = next;
-      setPythonPhase({ slug: selectedLab.slug, code: answer, phase: next });
+      setPythonPhase({ slug: selectedLab.slug, phase: next });
     } : undefined;
 
     try {
@@ -1081,7 +1081,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
     let phase: PythonCheckPhase | undefined;
     const onPhase = isPythonIntro ? (next: PythonCheckPhase) => {
       phase = next;
-      setPythonPhase({ slug: selectedLab.slug, code: answer, phase: next });
+      setPythonPhase({ slug: selectedLab.slug, phase: next });
     } : undefined;
 
     try {
