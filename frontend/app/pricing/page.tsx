@@ -74,9 +74,9 @@ export default function PricingPage() {
             <h1 className="mt-4 text-4xl font-semibold tracking-tight text-slate-50 sm:text-5xl">
               Unlock deeper interview practice.
             </h1>
-            <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300">
-              Start free, then upgrade when you want the full scenario library, advanced
-              debugging labs, project simulator depth, and stronger interview framing.
+            <p className="mt-4 max-w-3xl text-base leading-7 text-slate-300">
+              Start free, then upgrade for the full scenario library, advanced debugging
+              labs, model answers, and advanced system design practice.
             </p>
           </div>
           <div className="rounded-3xl border border-amber-300/20 bg-amber-300/10 p-5">
@@ -93,18 +93,22 @@ export default function PricingPage() {
         <PlanCard
           title="Free"
           price="Rs 0"
-          description={`Start with ${freeCount} free labs and learn the complete attempt-feedback flow.`}
+          description={`Start with ${freeCount} free coding labs and production scenarios.`}
           features={FREE_FEATURES}
           tone="free"
           action={
-            <TrackedLink
-              href={firstFreeScenarioHref}
-              event="homepage_start_clicked"
-              eventPayload={{ source: "pricing_free", destination: "first_free_scenario" }}
-              className="mt-6 inline-flex w-full items-center justify-center rounded-full border border-teal-300/30 bg-teal-300/10 px-5 py-3 text-sm font-semibold text-teal-50 transition hover:bg-teal-300/20"
-            >
-              Try the Full Practice Loop Free
-            </TrackedLink>
+            <>
+              <TrackedLink
+                href={firstFreeScenarioHref}
+                event="homepage_start_clicked"
+                eventPayload={{ source: "pricing_free", destination: "first_free_scenario" }}
+                aria-describedby="pricing-free-account"
+                className="mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-full border border-teal-300/30 bg-teal-300/10 px-5 py-3 text-base font-semibold text-[color:var(--text)] transition hover:bg-teal-300/20 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-4 focus-visible:outline-[color:var(--accent)]"
+              >
+                Try the free SQL scenario
+              </TrackedLink>
+              <p id="pricing-free-account" className="mt-3 text-sm leading-[21px] text-slate-300">No sign-in for the sample. A free account is required to submit for evaluation.</p>
+            </>
           }
         />
         <PlanCard
@@ -146,6 +150,8 @@ export default function PricingPage() {
           }
         />
       </section>
+
+      <p className="mt-4 text-sm leading-6 text-slate-400">Project Sandbox is coming soon and is not available with Premium today.</p>
 
       <div id="unlock-premium" className="mt-8 scroll-mt-28">
         <PremiumUpgradePanel
