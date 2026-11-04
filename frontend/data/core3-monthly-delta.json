@@ -1,0 +1,111 @@
+{
+  "businessContext": "A fictional finance report compares each available month's sales total with the last month for which the supplied data has sales. A first-month baseline would misstate a later decline as growth.",
+  "problemStatement": "Aggregate sales to one row per available calendar month, then calculate the absolute revenue difference from the immediately previous available month; the first month has NULL delta.",
+  "studentTask": "Using daily_sales, return month, revenue and revenue_delta. First combine every sale in each calendar month. For each available month after the first, subtract the immediately previous available month's revenue from its revenue. Return NULL for the first available month. This is an absolute amount change, not a percentage.",
+  "estimatedMinutes": 20,
+  "starterCode": "-- Aggregate sales by month, then compare each month with the previous available month.\n-- This executable draft still uses the first month as every later baseline.\nWITH monthly AS (\n  SELECT substr(sale_date, 1, 7) AS month,\n         SUM(CAST(amount AS REAL)) AS revenue\n  FROM daily_sales\n  GROUP BY substr(sale_date, 1, 7)\n)\nSELECT month, revenue,\n       revenue - CASE WHEN ROW_NUMBER() OVER (ORDER BY month) = 1 THEN NULL\n                      ELSE FIRST_VALUE(revenue) OVER (ORDER BY month) END AS revenue_delta\nFROM monthly\nORDER BY month;",
+  "tables": [
+    {
+      "name": "daily_sales",
+      "columns": [
+        "sale_date",
+        "city",
+        "region",
+        "customer_id",
+        "amount"
+      ],
+      "rows": [
+        [
+          "2026-03-02",
+          "Pine",
+          "North",
+          3,
+          70
+        ],
+        [
+          "2026-01-03",
+          "Elm",
+          "West",
+          1,
+          40
+        ],
+        [
+          "2026-02-04",
+          "Bay",
+          "East",
+          2,
+          100
+        ],
+        [
+          "2026-01-15",
+          "Bay",
+          "East",
+          2,
+          60
+        ],
+        [
+          "2026-03-18",
+          "Elm",
+          "West",
+          1,
+          50
+        ],
+        [
+          "2026-02-20",
+          "Elm",
+          "West",
+          1,
+          50
+        ]
+      ]
+    }
+  ],
+  "expectedSql": "WITH monthly AS (\n  SELECT substr(sale_date, 1, 7) AS month,\n         SUM(CAST(amount AS REAL)) AS revenue\n  FROM daily_sales\n  GROUP BY substr(sale_date, 1, 7)\n)\nSELECT month, revenue,\n       revenue - LAG(revenue) OVER (ORDER BY month) AS revenue_delta\nFROM monthly\nORDER BY month;",
+  "solutionCode": "WITH monthly AS (\n  SELECT substr(sale_date, 1, 7) AS month,\n         SUM(CAST(amount AS REAL)) AS revenue\n  FROM daily_sales\n  GROUP BY substr(sale_date, 1, 7)\n)\nSELECT month, revenue,\n       revenue - LAG(revenue) OVER (ORDER BY month) AS revenue_delta\nFROM monthly\nORDER BY month;",
+  "explanation": "The internal reference groups daily_sales by YYYY-MM, then uses LAG over ascending month order. The correlated alternative finds the latest available earlier month and subtracts its total. Both yield January NULL, February +50 and March -30 on the visible example. A first-month baseline gives March +20 and answers a different question. Using the first month as a fixed baseline can turn a real month-on-month decline into a reported increase. In production, reconcile monthly totals to source contributions and check the first/last boundary plus a later decline before publishing a report. This synthetic exercise does not validate a real finance ledger.",
+  "hints": [
+    "What is one output row? Add all amounts in January, February and March before comparing any two months.",
+    "Put monthly totals in chronological order. The first available month has no prior total, so its delta is NULL.",
+    "For March, which month is immediately previous among the supplied months? Subtract February's 150 from March's 120; January's 100 is not the comparison baseline.",
+    "Use LAG on the monthly result or an equivalent lookup of the greatest available month earlier than the current one. Do not require a specific function name to get the right result."
+  ],
+  "expectedOutcome": "Columns: month, revenue, revenue_delta.\nGrain: one row per available calendar month.\nRule: subtract the immediately previous available month after summing all contributions; the first delta is NULL. This is an absolute amount change, not a percentage.\nVisible monthly totals: January 100, February 150, March 120.\nVisible deltas: NULL, +50, -30.",
+  "commonMistakes": [
+    "Using January as a fixed baseline: March 120 minus January 100 gives +20, but the required March change is 120 minus February 150 = -30.",
+    "Comparing transaction rows before aggregating all sales to the monthly grain.",
+    "Adding absent calendar months or replacing the first NULL with zero despite the stated available-month contract."
+  ],
+  "practiceGuidance": {
+    "contract": [
+      "Existing daily_sales columns are sale_date, city, region, customer_id, amount. Every input contribution counts once; multiple dates and customers in the same month combine into one month. Do not use city/region/customer as output grain.",
+      "sale_date is a valid canonical Gregorian YYYY-MM-DD business-date string. Group by its YYYY-MM prefix; lexical month order is chronological in this bounded domain. No timezone/date-parsing repair is required.",
+      "Amounts are non-null, non-negative whole synthetic units from 0 to 10,000,000. Zero is valid. Negative refunds, currency precision, invalid dates/text and NULL amount policy are outside this exercise.",
+      "Return exactly month, revenue, revenue_delta in that column order, one row per distinct available month. Row display order is not graded, though ascending months explain the comparison. The first available month has NULL delta. Each later delta is current revenue minus immediately previous available revenue, including across a year boundary; a decline is negative.",
+      "An absent calendar month has no output row. Compare adjacent available months without adding a date spine. An available month with zero revenue remains a row. Empty input returns no rows; the current SQL.js adapter cannot certify empty-result headers because it drops them.",
+      "Fixtures are tiny and use exactly representable whole amounts. SQL.js/SQLite executes the SQL; current adapter compares numeric output to six decimals. This does not certify arbitrary financial precision, datatypes, production scale or other SQL dialects."
+    ],
+    "assessment": [
+      "Hints and viewed reference are assisted practice. A reveal alone is not a passing checked attempt. Browser-delivered extra cases are finite coverage, not secure exams. Equivalent output is accepted without LAG or keyword grading.",
+      "Run sample checks only the visible monthly example. Submit checks that example and the existing one additional dataset; these are finite output checks, not proof of general correctness, mastery, job readiness or an unaided attempt.",
+      "SQL correctness and saved account progress are separate acknowledgements; a failed save must not be called saved progress.",
+      "A query that executes and returns different output is incorrect on that input. A SQL execution error needs query correction. An unavailable checker gives no correctness judgment; preserve the query and retry.",
+      "Existing Core estimate, not observed completion time. This exercise does not validate a real finance ledger."
+    ],
+    "nextTransfer": {
+      "title": "Predict the next available month",
+      "when": "After a passing tested result, try this optional paper reflection without hints if you want unaided practice.",
+      "instructions": "On paper, suppose April is the next available month with revenue 160. Predict April's revenue_delta and identify which prior total you used. Then consider if April were absent and May were next.",
+      "deliverable": "State the predicted delta and the immediately previous available total used. Explain what changes when April is absent.",
+      "assessment": "Optional and ungraded. It does not mark another exercise complete. The editor's sample data stays unchanged, and no automatic explanation check is promised.",
+      "url": null
+    },
+    "alternativeSql": "WITH monthly AS (\n  SELECT substr(sale_date, 1, 7) AS month,\n         SUM(CAST(amount AS REAL)) AS revenue\n  FROM daily_sales\n  GROUP BY substr(sale_date, 1, 7)\n)\nSELECT m.month, m.revenue,\n       m.revenue - (\n         SELECT p.revenue FROM monthly AS p\n         WHERE p.month < m.month ORDER BY p.month DESC LIMIT 1\n       ) AS revenue_delta\nFROM monthly AS m\nORDER BY m.month;",
+    "feedback": {
+      "visible_pass": "Your output matches this visible monthly example. Other available-month patterns still need checking.",
+      "incorrect": "The query ran, but monthly totals or changes differ. Combine sales by month, then compare each month with the immediately previous available month.",
+      "query_error": "The SQL could not run. Revise your query and retry; no passing result was produced.",
+      "unavailable": "The checker could not return a correctness result. Keep your query and retry when checking is available.",
+      "integrated_suite_pass": "Your output matches the checked cases. This alone does not establish unaided skill or production reporting correctness."
+    }
+  }
+}
