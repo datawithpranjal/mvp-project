@@ -1,0 +1,17 @@
+{
+  "businessContext": "A reporting check needs the second-highest distinct salary across all employees, regardless of department. Write a query using employees. Do not return the second employee row or a separate result per department. Employees sharing the same salary occupy one salary band.",
+  "problemStatement": "Input: employees has one row per employee. emp_id identifies the employee; emp_name is their name; department is their team; manager_id identifies their manager and may be NULL; salary is the numeric pay amount to compare. No join is needed. Ignore NULL salary values when identifying salary bands; manager_id does not affect this calculation.",
+  "studentTask": "Return one overall row with second_highest_salary: the second-highest distinct non-NULL salary across all employees, or NULL if fewer than two such values exist.",
+  "expectedOutcome": "Output: exactly one column named second_highest_salary and exactly one overall row. Return the second-largest distinct non-NULL salary. If fewer than two distinct non-NULL salaries exist—including an empty table or all salaries NULL—return one row containing NULL. Do not return employee details. A one-row result needs no ordering; this exercise has no date rules.\n\nWorked example: the complete source salaries are 120000, 105000, 105000, 90000, 82000, 115000, 76000. Their two highest distinct values are 120000 and 115000, so output one row: second_highest_salary = 115000. Repeating the highest salary would not create another salary band. Open Data to see every source row; the starter query is a five-row preview.\n\nRun sample checks the visible example. Submit checks that example and one additional configured salary-ranking dataset, and requires an account. These are finite checks, not proof that every edge case has been tested.",
+  "hints": [
+    "Count distinct salary values, not employees.",
+    "Find the highest salary, then consider only salaries strictly below it.",
+    "Take MAX over that remaining set and alias it second_highest_salary. MAX returns NULL if no qualifying value exists."
+  ],
+  "explanation": "The inner MAX finds the largest non-NULL salary. Keeping salaries strictly below that value removes the entire highest salary band, including duplicates. The outer MAX returns the next distinct non-NULL salary as one overall second_highest_salary row. MAX ignores NULL pay and returns NULL when no qualifying value exists, including empty input or fewer than two salary bands. manager_id and department do not affect the calculation. A scalar subquery around DISTINCT with LIMIT 1 OFFSET 1 is a result-equivalent approach; a bare LIMIT/OFFSET query can instead return zero rows when no second band exists. The two configured datasets do not test every boundary or establish unaided skill.",
+  "commonMistakes": [
+    "Returning employee details or one result per department instead of one overall salary value.",
+    "Counting the second employee row rather than the second distinct non-NULL salary band. The current two configured datasets do not distinguish every such wrong strategy.",
+    "Returning zero rows when fewer than two distinct non-NULL salaries exist, instead of the required one NULL row."
+  ]
+}

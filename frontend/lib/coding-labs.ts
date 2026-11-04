@@ -16,6 +16,7 @@ import { GOLD_CORE_CODING_OVERRIDES } from "./gold-core";
 import core1SalaryBands from "../data/core1-salary-bands.json";
 import core2DailyRunningTotal from "../data/core2-daily-running-total.json";
 import core3MonthlyDelta from "../data/core3-monthly-delta.json";
+import sql1QuestionClarity from "../data/sql1-question-clarity.json";
 
 export type CodingLabTrack = "sql" | "python" | "pyspark";
 export type CodingLabDifficulty = "beginner" | "intermediate" | "advanced";
@@ -190,7 +191,9 @@ function normalizeLab(value: unknown): CodingLab | null {
 
   const goldOverride = GOLD_CORE_CODING_OVERRIDES[slug];
   if (!goldOverride) {
-    return normalized;
+    return slug === "sql-coding-01-second-highest-salary"
+      ? { ...normalized, ...sql1QuestionClarity }
+      : normalized;
   }
 
   return {
