@@ -1328,7 +1328,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
             <div className="flex flex-wrap items-center gap-2">
               <PracticeStatusBadge status={selectedStatus} />
               <span className="badge rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]">{selectedLab.difficulty}</span>
-              <span className="rounded-full border border-slate-700 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-300">{formatTrackLabel(track)}</span>
+              <span className="rounded-full border border-slate-700 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-300">{track === "sql" ? "SQLite" : formatTrackLabel(track)}</span>
               {!selectedLab.isFree ? <PremiumAccessBadge locked={isPremiumLocked} /> : null}
               {!isPremiumLocked ? selectedLab.topicTags.slice(0, 2).map((tag) => <span key={tag} className="hidden rounded-full border border-slate-700 px-3 py-1 text-xs font-semibold text-slate-400 sm:inline-flex">{tag}</span>) : null}
             </div>
