@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
+import re
 from typing import Any
 
 from app.core.config import DEFAULT_POSTGRES_URL, get_settings
@@ -154,7 +155,6 @@ class UsageStore:
         try:
             with psycopg.connect(self.postgres_url) as connection:
                 with connection.cursor() as cursor:
-                    self._ensure_table(cursor)
                     cursor.execute(
                         """
                         INSERT INTO public.user_usage_events (
@@ -957,10 +957,139 @@ class UsageStore:
             return 0
         return min(100, round((numerator / denominator) * 100, 1))
 
-    def _ensure_table(self, cursor: object) -> None:
+    def provision_postgres(self, *, check_only: bool = False) -> bool:
+        """Explicit pre-traffic operation; never called by requests or construction.
+
+        Return True only when a fresh schema was created. Existing schemas are
+        checked, never repaired: mismatches need a separately reviewed migration.
+        """
+        if not self.postgres_url or self.postgres_url.strip() in {"", DEFAULT_POSTGRES_URL}:
+            raise UsageStoreError("Usage provisioning requires configured PostgreSQL storage.")
+        try:
+            import psycopg
+
+            with psycopg.connect(self.postgres_url, connect_timeout=5) as connection:
+                with connection.cursor() as cursor:
+                    if check_only:
+                        cursor.execute("SET TRANSACTION READ ONLY")
+                    cursor.execute("SET LOCAL lock_timeout = '5s'")
+                    cursor.execute("SET LOCAL statement_timeout = '30s'")
+                    cursor.execute("SET LOCAL search_path = pg_catalog")
+                    # Transaction-scoped, cooperating provisioners only; no wait/retry.
+                    cursor.execute("SELECT pg_try_advisory_xact_lock(1431521095, 1)")
+                    if not cursor.fetchone()[0]:
+                        raise UsageStoreError("Usage provisioning is already running; try again before traffic.")
+                    cursor.execute("SELECT to_regclass('public.user_usage_events')")
+                    exists = cursor.fetchone()[0] is not None
+                    if exists:
+                        lock_mode = "ACCESS SHARE" if check_only else "ACCESS EXCLUSIVE"
+                        cursor.execute(f"LOCK TABLE public.user_usage_events IN {lock_mode} MODE")
+                    elif check_only:
+                        raise UsageStoreError("Usage schema is missing; explicit pre-traffic provisioning is required.")
+                    else:
+                        self._create_postgres_schema(cursor)
+                    self._validate_postgres_schema(cursor)
+                connection.commit()
+            return not exists
+        except UsageStoreError:
+            raise
+        except Exception as exc:
+            # Do not expose DSNs, server exception text or SQL in the operator CLI.
+            raise UsageStoreError("Usage provisioning failed; verify schema before retrying.") from exc
+
+    @staticmethod
+    def _validate_postgres_schema(cursor: Any) -> None:
         cursor.execute(
             """
-            CREATE TABLE IF NOT EXISTS public.user_usage_events (
+            SELECT relkind, relrowsecurity
+            FROM pg_class WHERE oid = 'public.user_usage_events'::regclass
+            """
+        )
+        if cursor.fetchone() != ("r", True):
+            raise UsageStoreError("Usage schema mismatch: expected an ordinary table with RLS enabled.")
+        cursor.execute(
+            """
+            SELECT a.attname, format_type(a.atttypid, a.atttypmod), a.attnotnull,
+                   pg_get_expr(d.adbin, d.adrelid), a.attidentity, a.attgenerated,
+                   a.attcollation = t.typcollation
+            FROM pg_attribute a
+            JOIN pg_type t ON t.oid = a.atttypid
+            LEFT JOIN pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+            WHERE a.attrelid = 'public.user_usage_events'::regclass
+              AND a.attnum > 0 AND NOT a.attisdropped
+            ORDER BY a.attnum
+            """
+        )
+        columns = cursor.fetchall()
+        expected_columns = [
+            ("id", "bigint", True, None),
+            ("user_id", "text", True, None),
+            ("email", "text", True, None),
+            ("full_name", "text", True, None),
+            ("event_name", "text", True, None),
+            ("session_id", "text", False, None),
+            ("page_url", "text", False, None),
+            ("active_seconds", "integer", True, "0"),
+            ("metadata", "jsonb", True, "'{}'::jsonb"),
+            ("created_at", "timestamp with time zone", True, "now()"),
+        ]
+        if len(columns) != len(expected_columns):
+            raise UsageStoreError("Usage schema mismatch: unexpected columns.")
+        for actual, expected in zip(columns, expected_columns):
+            name, data_type, not_null, default, identity, generated, default_collation = actual
+            expected_name, expected_type, expected_not_null, expected_default = expected
+            default_matches = (
+                bool(re.fullmatch(r"nextval\('[^']+'::regclass\)", default or ""))
+                if name == "id" else default == expected_default
+            )
+            if (
+                (name, data_type, not_null) != (expected_name, expected_type, expected_not_null)
+                or not default_matches or identity or generated or not default_collation
+            ):
+                raise UsageStoreError("Usage schema mismatch: column definition differs.")
+        cursor.execute("SELECT pg_get_serial_sequence('public.user_usage_events', 'id')")
+        sequence = cursor.fetchone()[0]
+        if not sequence or columns[0][3] != f"nextval('{sequence}'::regclass)":
+            raise UsageStoreError("Usage schema mismatch: id sequence ownership/default differs.")
+        cursor.execute(
+            """
+            SELECT conname, contype, pg_get_constraintdef(oid), convalidated
+            FROM pg_constraint WHERE conrelid = 'public.user_usage_events'::regclass
+            """
+        )
+        constraints = {
+            name: (kind, re.sub(r"[\s()]", "", definition).lower(), valid)
+            for name, kind, definition, valid in cursor.fetchall()
+        }
+        if constraints != {
+            "user_usage_events_pkey": ("p", "primarykeyid", True),
+            "user_usage_active_seconds_range": ("c", "checkactive_seconds>=0andactive_seconds<=300", True),
+        }:
+            raise UsageStoreError("Usage schema mismatch: constraints differ.")
+        cursor.execute(
+            """
+            SELECT c.relname, pg_get_indexdef(i.indexrelid), i.indisvalid, i.indisready
+            FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid
+            WHERE i.indrelid = 'public.user_usage_events'::regclass
+            """
+        )
+        indexes = {name: (" ".join(definition.split()), valid, ready)
+                   for name, definition, valid, ready in cursor.fetchall()}
+        expected_indexes = {
+            "user_usage_events_pkey": "CREATE UNIQUE INDEX user_usage_events_pkey ON public.user_usage_events USING btree (id)",
+            "idx_user_usage_events_user_created": "CREATE INDEX idx_user_usage_events_user_created ON public.user_usage_events USING btree (user_id, created_at DESC)",
+            "idx_user_usage_events_event_created": "CREATE INDEX idx_user_usage_events_event_created ON public.user_usage_events USING btree (event_name, created_at DESC)",
+            "idx_user_usage_events_page_created": "CREATE INDEX idx_user_usage_events_page_created ON public.user_usage_events USING btree (page_url, created_at DESC)",
+        }
+        if any(indexes.get(name) != (definition, True, True)
+               for name, definition in expected_indexes.items()):
+            raise UsageStoreError("Usage schema mismatch: required index definition differs.")
+
+    @staticmethod
+    def _create_postgres_schema(cursor: Any) -> None:
+        cursor.execute(
+            """
+            CREATE TABLE public.user_usage_events (
                 id BIGSERIAL PRIMARY KEY,
                 user_id TEXT NOT NULL,
                 email TEXT NOT NULL,
@@ -978,19 +1107,19 @@ class UsageStore:
         )
         cursor.execute(
             """
-            CREATE INDEX IF NOT EXISTS idx_user_usage_events_user_created
+            CREATE INDEX idx_user_usage_events_user_created
             ON public.user_usage_events (user_id, created_at DESC)
             """
         )
         cursor.execute(
             """
-            CREATE INDEX IF NOT EXISTS idx_user_usage_events_event_created
+            CREATE INDEX idx_user_usage_events_event_created
             ON public.user_usage_events (event_name, created_at DESC)
             """
         )
         cursor.execute(
             """
-            CREATE INDEX IF NOT EXISTS idx_user_usage_events_page_created
+            CREATE INDEX idx_user_usage_events_page_created
             ON public.user_usage_events (page_url, created_at DESC)
             """
         )
