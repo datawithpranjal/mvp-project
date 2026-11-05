@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
-import { BetaNotice } from "../components/beta-notice";
 import { SiteFooter } from "../components/site-footer";
 import { SiteHeader } from "../components/site-header";
 import { ThemeBootstrap } from "../components/theme-bootstrap";
@@ -26,7 +25,6 @@ export default function RootLayout({
         <ThemeBootstrap />
         <UsageTracker />
         <SiteHeader />
-        <BetaNotice />
         {children}
         <SiteFooter />
       </body>
