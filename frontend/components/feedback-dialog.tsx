@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 import { submitProductFeedback } from "../lib/api";
 import { getCurrentUser } from "../lib/auth";
@@ -127,7 +128,7 @@ export function FeedbackDialog({
         {triggerLabel}
       </button>
 
-      {isOpen ? (
+      {isOpen ? createPortal(
         <div
           className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/80 px-4 py-6 backdrop-blur-sm sm:py-10"
           onClick={() => setIsOpen(false)}
@@ -278,7 +279,8 @@ export function FeedbackDialog({
               </button>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       ) : null}
     </>
   );
