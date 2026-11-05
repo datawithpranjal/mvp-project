@@ -54,9 +54,21 @@ async function main() {
   const hardcoded = "SELECT 115000 AS second_highest_salary";
   assert.equal((await adapter.validateSqlOutput(lab.tables, hardcoded, lab.expectedSql)).passed, true);
   assert.equal((await context.runSqlLab(lab, hardcoded)).passed, false);
-  // Accepted CEO correction: both old datasets have unique maxima. Disclose, do not fix silently.
+  assert.equal((await context.runSqlLab(lab, "SELECT 180000 AS second_highest_salary")).passed, false);
+  // The additional dataset has a duplicated maximum, so employee-row ranking must fail.
   const employeeRow = "WITH ranked AS (SELECT salary, ROW_NUMBER() OVER (ORDER BY salary DESC) AS rn FROM employees) SELECT salary AS second_highest_salary FROM ranked WHERE rn = 2";
-  assert.equal((await context.runSqlLab(lab, employeeRow)).passed, true, "Known finite-coverage limitation retained");
+  const employeeOffset = "SELECT salary AS second_highest_salary FROM employees ORDER BY salary DESC LIMIT 1 OFFSET 1";
+  for (const query of [employeeRow, employeeOffset]) {
+    const result = await context.runSqlLab(lab, query);
+    assert.equal(result.passed, false);
+    assert.deepEqual(JSON.parse(JSON.stringify(result.sqlResults.map((x: any) => x.passed))), [true, false]);
+  }
+  for (const query of [
+    lab.expectedSql.replace(/second_highest_salary/g, "wrong_column"),
+    "SELECT 115000 AS second_highest_salary, 1 AS extra_column",
+    "SELECT 115000 AS second_highest_salary UNION ALL SELECT 115000",
+    "SELECT salary AS second_highest_salary FROM employees WHERE 1 = 0"
+  ]) assert.equal((await context.runSqlLab(lab, query)).passed, false, "Required column and row shape");
 
   // These five synthetic boundaries are internal tests, not shipped exercise cases.
   const boundaries = [
@@ -81,7 +93,7 @@ async function main() {
   }
   assert.deepEqual((await adapter.runReadOnlySql(lab.tables, "SELECT salary FROM employees ORDER BY salary DESC LIMIT 1")).rows, [[120000]]);
   assert.deepEqual((await adapter.runReadOnlySql(lab.tables, "SELECT strftime('%Y-%m', '2026-03-02') AS month")).rows, [["2026-03"]]);
-  console.log(JSON.stringify({ exact_default_free_SQL1: true, seven_internal_boundary_cases: true, positive_adapter_comparisons: comparisons, unchanged_configured_cases: 2, reference_scalar_equivalent_pass: true, hardcoded_visible_fails_complete: true, employee_row_known_false_pass_preserved: true, TOP_query_error_LIMIT_strftime_proven: true, scope: "Actual adapter and private complete-check runner with local matching WASM; internal boundaries do not expand shipped cases; UI/auth/Preview separate" }));
+  console.log(JSON.stringify({ exact_default_free_SQL1: true, seven_internal_boundary_cases: true, positive_adapter_comparisons: comparisons, configured_cases: 2, reference_scalar_equivalent_pass: true, both_hardcoded_constants_fail_complete: true, employee_row_and_offset_fail_additional: true, required_column_row_shape_checked: true, TOP_query_error_LIMIT_strftime_proven: true, scope: "Actual adapter and private complete-check runner with local matching WASM; internal boundaries do not expand shipped cases; UI/auth/Preview separate" }));
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; });
