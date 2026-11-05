@@ -499,12 +499,19 @@ function sqlHints(kind: string): string[] {
   return hints[kind] ?? hints.customer_revenue;
 }
 
-function sqlEdgeCases(kind: string, expectedSql?: string): SqlTestCase[] {
+function sqlEdgeCases(kind: string, expectedSql: string | undefined, labId: string): SqlTestCase[] {
   if (!expectedSql) return [];
 
   const cases: Record<string, SqlTestCase[]> = {
     second_highest_salary: [
-      sqlCase("Duplicate top salaries", "Ensures duplicate highest salaries do not hide the second distinct salary.", employeeEdgeTables(), expectedSql)
+      sqlCase("Duplicate top salaries", "Ensures duplicate highest salaries do not hide the second distinct salary.", labId === "sql-coding-001" ? [{
+        ...employeesTable(),
+        rows: [
+          [21, "Asha", "Data", null, 200000],
+          [22, "Ben", "Analytics", null, 200000],
+          [23, "Chen", "Platform", null, 180000]
+        ]
+      }] : employeeEdgeTables(), expectedSql)
     ],
     nth_highest_salary: [
       sqlCase("Duplicate salary ranks", "Ensures duplicate salaries share a rank and the third distinct salary is returned.", employeeEdgeTables(), expectedSql)
@@ -582,7 +589,7 @@ function enrichSqlLab(lab: CodingLab, sourceTitle: string): CodingLab {
     studentTask:
       `${lab.studentTask} After you submit, your SQL is validated against the visible sample plus an additional edge-case dataset.`,
     hints: sqlHints(kind),
-    sqlTestCases: sqlEdgeCases(kind, lab.expectedSql)
+    sqlTestCases: sqlEdgeCases(kind, lab.expectedSql, lab.id)
   };
 }
 
