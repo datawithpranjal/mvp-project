@@ -575,10 +575,30 @@ function sqlEdgeCases(kind: string, expectedSql: string | undefined, labId: stri
   return cases[kind] ?? cases.customer_revenue;
 }
 
+// Canonical contract for the existing SQL2 item; identity and datasets remain unchanged.
+const SQL2_CONTRACT = {
+  "title": "SQL 2: Third Highest Distinct Salary",
+  "businessContext": "A reporting check needs the third-highest distinct salary across all employees, regardless of department. Write a query using employees. Do not return the third employee row or a separate result per department. Employees sharing the same salary occupy one salary band.",
+  "problemStatement": "Input: employees has one row per employee. emp_id identifies the employee; emp_name is their name; department is their team; manager_id identifies their manager and may be NULL; salary is the numeric pay amount to compare. No join is needed. Ignore NULL salary values when identifying salary bands; manager_id does not affect this calculation.",
+  "studentTask": "Return one overall row with third_highest_salary: the third-highest distinct non-NULL salary across all employees, or NULL if fewer than three such values exist.",
+  "expectedOutcome": "Output: exactly one column named third_highest_salary and exactly one overall row. Return the third-largest distinct non-NULL salary. If fewer than three distinct non-NULL salaries exist—including an empty table or all salaries NULL—return one row containing NULL. Do not return employee details. A one-row result needs no ordering; this exercise has no date rules.\n\nWorked example: the complete source salaries are 120000, 105000, 105000, 90000, 82000, 115000, 76000. Their three highest distinct values are 120000, 115000 and 105000, so output one row: third_highest_salary = 105000. Repeating a salary does not create another band. Open Data to see every source row; the starter query is a five-row preview.\n\nRun sample checks the visible example without an account. Submit requires an account and checks that example and one additional configured salary-ranking dataset. These finite checks do not prove every edge case or unaided skill. Save a device copy of your draft; device saving does not guarantee cloud or cross-device recovery.",
+  "hints": [
+    "Ignore NULL salaries and count distinct salary bands, not employees.",
+    "Order the distinct bands from highest to lowest and choose the third band.",
+    "Use an outer scalar query or aggregate so a missing third band still returns one row containing NULL; name the column third_highest_salary."
+  ],
+  "explanation": "The inner query ignores NULL salaries, collapses duplicate pay values into distinct bands, orders them from highest to lowest, skips two bands and returns the next one. The outer scalar query always produces one overall third_highest_salary row, containing NULL when the inner query has no third value. For the visible data, 120000, 115000 and 105000 are the top three distinct bands, so the result is 105000. department and manager_id do not affect this calculation. An aggregate-wrapped DENSE_RANK query over non-NULL salaries can produce the same output; any result-equivalent read-only query is allowed. A bare rank filter can return zero rows when the third band is absent. The visible example and one additional configured dataset are finite checks, not proof of all boundaries or unaided skill.",
+  "expectedSql": "SELECT (\n  SELECT DISTINCT salary\n  FROM employees\n  WHERE salary IS NOT NULL\n  ORDER BY salary DESC\n  LIMIT 1 OFFSET 2\n) AS third_highest_salary;",
+  "solutionCode": "SELECT (\n  SELECT DISTINCT salary\n  FROM employees\n  WHERE salary IS NOT NULL\n  ORDER BY salary DESC\n  LIMIT 1 OFFSET 2\n) AS third_highest_salary;"
+};
+
 function enrichSqlLab(lab: CodingLab, sourceTitle: string): CodingLab {
   if (lab.track !== "sql") return lab;
 
   const kind = sqlLabKind(sourceTitle);
+  if (lab.id === "sql-coding-002") {
+    return { ...lab, ...SQL2_CONTRACT, sqlTestCases: sqlEdgeCases(kind, SQL2_CONTRACT.expectedSql, lab.id) };
+  }
   return {
     ...lab,
     businessContext:

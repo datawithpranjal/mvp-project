@@ -196,7 +196,7 @@ async function runSqlLab(lab: CodingLab, answer: string): Promise<LabRunResult> 
   return {
     passed,
     message: isSqlSalaryEntry(lab)
-      ? sqlSalaryFullMessage(passed, passedCount, sqlResults.length)
+      ? sqlSalaryFullMessage(passed, passedCount, sqlResults.length, lab)
       : passed
       ? `Correct. Your query passed all ${sqlResults.length} validation cases, including edge cases.`
       : `Not yet. ${passedCount}/${sqlResults.length} validation cases passed. Compare columns, grain, filters, joins, NULL handling, and tie behavior.`,

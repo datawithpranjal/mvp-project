@@ -22,7 +22,7 @@ async function main() {
   assert.equal(lab.id, "sql-coding-001");
   assert.equal(lab.slug, "sql-coding-01-second-highest-salary");
   assert(lab.isFree && !lab.practiceGuidance);
-  assert.deepEqual(ALL_CODING_LABS.filter(clarity.isSqlSalaryEntry).map((x: any) => x.id), [lab.id]);
+  assert.deepEqual(ALL_CODING_LABS.filter(clarity.isSqlSalaryEntry).map((x: any) => x.id), [lab.id, "sql-coding-002"]);
   const original = JSON.parse(fs.readFileSync("data/coding-labs.generated.json", "utf8")).find((x: any) => x.id === lab.id);
   for (const key of ["tables", "expectedSql", "solutionCode", "sqlTestCases", "starterCode", "id", "slug", "title", "isFree"]) assert.deepEqual(lab[key], original[key], key);
   assert.equal(lab.tables[0].rows.length, 7);
