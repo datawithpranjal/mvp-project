@@ -10,6 +10,7 @@ const PRACTICE_TABS = [
   { label: "PySpark", href: "/labs/pyspark" },
   { label: "Airflow", href: "/labs/airflow" },
   { label: "AWS", href: "/labs/aws" },
+  { label: "Data Modelling", href: "/labs/data-modelling" },
   { label: "System Design", href: "/system-design" }
 ];
 

@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "report_columns": [
+    "territory",
+    "total_amount",
+    "line_count"
+  ],
+  "reference": {
+    "historical": "SELECT COALESCE(h.territory,'Unknown') AS territory, SUM(o.amount) AS total_amount, COUNT(*) AS line_count FROM orders o LEFT JOIN territory_history h ON o.customer_id=h.customer_id AND o.sale_ts>=h.valid_from AND (h.valid_to IS NULL OR o.sale_ts<h.valid_to) GROUP BY COALESCE(h.territory,'Unknown')",
+    "as_of": "SELECT COALESCE(h.territory,'Unknown') AS territory, SUM(o.amount) AS total_amount, COUNT(*) AS line_count FROM orders o LEFT JOIN territory_history h ON o.customer_id=h.customer_id AND '2026-02-15 00:00:00'>=h.valid_from AND (h.valid_to IS NULL OR '2026-02-15 00:00:00'<h.valid_to) GROUP BY COALESCE(h.territory,'Unknown')"
+  },
+  "independent_alternative": {
+    "historical": "WITH resolved AS (SELECT o.amount, COALESCE((SELECT h.territory FROM territory_history h WHERE h.customer_id=o.customer_id AND h.valid_from<=o.sale_ts AND (h.valid_to IS NULL OR h.valid_to>o.sale_ts)),'Unknown') AS territory FROM orders o) SELECT territory, SUM(amount) AS total_amount, COUNT(*) AS line_count FROM resolved GROUP BY territory",
+    "as_of": "WITH resolved AS (SELECT o.amount, COALESCE((SELECT h.territory FROM territory_history h WHERE h.customer_id=o.customer_id AND h.valid_from<='2026-02-15 00:00:00' AND (h.valid_to IS NULL OR h.valid_to>'2026-02-15 00:00:00')),'Unknown') AS territory FROM orders o) SELECT territory, SUM(amount) AS total_amount, COUNT(*) AS line_count FROM resolved GROUP BY territory"
+  },
+  "deliberately_wrong": {
+    "historical_inclusive_end": "SELECT COALESCE(h.territory,'Unknown') AS territory, SUM(o.amount) AS total_amount, COUNT(*) AS line_count FROM orders o LEFT JOIN territory_history h ON o.customer_id=h.customer_id AND o.sale_ts>=h.valid_from AND (h.valid_to IS NULL OR o.sale_ts<=h.valid_to) GROUP BY COALESCE(h.territory,'Unknown')",
+    "historical_current_only": "SELECT COALESCE(h.territory,'Unknown') AS territory, SUM(o.amount) AS total_amount, COUNT(*) AS line_count FROM orders o LEFT JOIN territory_history h ON o.customer_id=h.customer_id AND '2026-02-15 00:00:00'>=h.valid_from AND (h.valid_to IS NULL OR '2026-02-15 00:00:00'<h.valid_to) GROUP BY COALESCE(h.territory,'Unknown')",
+    "historical_inner_drop": "SELECT COALESCE(h.territory,'Unknown') AS territory, SUM(o.amount) AS total_amount, COUNT(*) AS line_count FROM orders o JOIN territory_history h ON o.customer_id=h.customer_id AND o.sale_ts>=h.valid_from AND (h.valid_to IS NULL OR o.sale_ts<h.valid_to) GROUP BY COALESCE(h.territory,'Unknown')",
+    "historical_constant": "SELECT 'North' AS territory,160 AS total_amount,2 AS line_count UNION ALL SELECT 'South',250,2 UNION ALL SELECT 'Unknown',30,1 UNION ALL SELECT 'West',80,1",
+    "as_of_constant": "SELECT 'South' AS territory, 410 AS total_amount, 4 AS line_count UNION ALL SELECT 'Unknown',30,1 UNION ALL SELECT 'West',80,1"
+  },
+  "overlap_diagnostic": "SELECT a.customer_id, a.territory AS left_territory, b.territory AS right_territory, a.valid_from AS left_from, a.valid_to AS left_to, b.valid_from AS right_from, b.valid_to AS right_to FROM territory_history a JOIN territory_history b ON a.rowid<b.rowid AND a.customer_id=b.customer_id AND (a.valid_to IS NULL OR b.valid_from<a.valid_to) AND (b.valid_to IS NULL OR a.valid_from<b.valid_to) ORDER BY a.customer_id,a.valid_from,b.valid_from"
+}

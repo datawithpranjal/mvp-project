@@ -11,6 +11,16 @@ export interface LabTrack {
 
 export const LAB_TRACKS: LabTrack[] = [
   {
+    slug: "data-modelling",
+    title: "Data Modelling Lab",
+    status: "active",
+    description: "One Free SQL exercise: compare sale-time and as-of territory reports across six disclosed snapshots, including a backdated correction and invalid overlapping history.",
+    skills: ["Fact grain", "Effective time", "SCD2", "Reconciliation"],
+    href: "/labs/data-modelling",
+    groups: ["Two temporal reports", "Six disclosed examples"],
+    badges: ["Free browser practice"]
+  },
+  {
     slug: "sql",
     title: "SQL Lab",
     status: "active",

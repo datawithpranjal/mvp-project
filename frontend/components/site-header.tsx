@@ -120,6 +120,7 @@ export function SiteHeader() {
                 <PracticeLink href="/labs/pyspark" title="PySpark Lab" detail="Spark code review and production fixes" />
                 <PracticeLink href="/labs/airflow" title="Airflow Lab" detail="DAG incidents, retries, sensors, and backfills" />
                 <PracticeLink href="/labs/aws" title="AWS Lab" detail="Service choices, architecture, security, and cost" />
+                <PracticeLink href="/labs/data-modelling" title="Data Modelling Lab" detail="Free temporal reports and backdated correction practice" />
                 <PracticeLink href="/system-design" title="System Design Studio" detail="Architecture trade-offs and interview framing" />
               </div>
             </div>

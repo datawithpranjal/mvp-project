@@ -1,0 +1,649 @@
+{
+  "schema_version": 1,
+  "source_commit": "afb2969d2b8e04ddebb9eb4c8ac001d00c7edd7c",
+  "sql_dialect": "SQLite 3.49.1 through SQL.js 1.14.1 browser adapter",
+  "table_schema": {
+    "orders": [
+      {
+        "name": "order_id",
+        "type": "TEXT"
+      },
+      {
+        "name": "line_id",
+        "type": "INTEGER"
+      },
+      {
+        "name": "customer_id",
+        "type": "TEXT"
+      },
+      {
+        "name": "sale_ts",
+        "type": "TEXT ISO UTC"
+      },
+      {
+        "name": "amount",
+        "type": "INTEGER units"
+      }
+    ],
+    "territory_history": [
+      {
+        "name": "customer_id",
+        "type": "TEXT"
+      },
+      {
+        "name": "territory",
+        "type": "TEXT"
+      },
+      {
+        "name": "valid_from",
+        "type": "TEXT ISO UTC"
+      },
+      {
+        "name": "valid_to",
+        "type": "TEXT ISO UTC or NULL"
+      }
+    ]
+  },
+  "primary_key_orders": [
+    "order_id",
+    "line_id"
+  ],
+  "report_as_of": "2026-02-15 00:00:00",
+  "cases": [
+    {
+      "name": "baseline",
+      "purpose": "Visible six-line fact with exact boundary, two lines in O2, and missing C3 dimension.",
+      "orders": [
+        [
+          "O0",
+          1,
+          "C1",
+          "2026-01-09 10:00:00",
+          60
+        ],
+        [
+          "O1",
+          1,
+          "C1",
+          "2026-01-09 23:59:59",
+          100
+        ],
+        [
+          "O2",
+          1,
+          "C1",
+          "2026-01-10 00:00:00",
+          200
+        ],
+        [
+          "O2",
+          2,
+          "C1",
+          "2026-01-10 00:00:00",
+          50
+        ],
+        [
+          "O3",
+          1,
+          "C2",
+          "2026-01-08 00:00:00",
+          80
+        ],
+        [
+          "O4",
+          1,
+          "C3",
+          "2026-01-11 00:00:00",
+          30
+        ]
+      ],
+      "territory_history": [
+        [
+          "C1",
+          "North",
+          "2026-01-01 00:00:00",
+          "2026-01-10 00:00:00"
+        ],
+        [
+          "C1",
+          "South",
+          "2026-01-10 00:00:00",
+          null
+        ],
+        [
+          "C2",
+          "West",
+          "2026-01-01 00:00:00",
+          null
+        ]
+      ],
+      "as_of_ts": "2026-02-15 00:00:00",
+      "report_status": "valid",
+      "expected": {
+        "status": "valid",
+        "columns": [
+          "territory",
+          "total_amount",
+          "line_count"
+        ],
+        "historical_rows": [
+          [
+            "North",
+            160,
+            2
+          ],
+          [
+            "South",
+            250,
+            2
+          ],
+          [
+            "Unknown",
+            30,
+            1
+          ],
+          [
+            "West",
+            80,
+            1
+          ]
+        ],
+        "as_of_rows": [
+          [
+            "South",
+            410,
+            4
+          ],
+          [
+            "Unknown",
+            30,
+            1
+          ],
+          [
+            "West",
+            80,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "name": "backdated_correction",
+      "purpose": "Supplied corrected history, effective 2026-01-09 12:00:00; only C1 facts in changed interval should change historical allocation.",
+      "orders": [
+        [
+          "O0",
+          1,
+          "C1",
+          "2026-01-09 10:00:00",
+          60
+        ],
+        [
+          "O1",
+          1,
+          "C1",
+          "2026-01-09 23:59:59",
+          100
+        ],
+        [
+          "O2",
+          1,
+          "C1",
+          "2026-01-10 00:00:00",
+          200
+        ],
+        [
+          "O2",
+          2,
+          "C1",
+          "2026-01-10 00:00:00",
+          50
+        ],
+        [
+          "O3",
+          1,
+          "C2",
+          "2026-01-08 00:00:00",
+          80
+        ],
+        [
+          "O4",
+          1,
+          "C3",
+          "2026-01-11 00:00:00",
+          30
+        ]
+      ],
+      "territory_history": [
+        [
+          "C1",
+          "North",
+          "2026-01-01 00:00:00",
+          "2026-01-09 12:00:00"
+        ],
+        [
+          "C1",
+          "South",
+          "2026-01-09 12:00:00",
+          null
+        ],
+        [
+          "C2",
+          "West",
+          "2026-01-01 00:00:00",
+          null
+        ]
+      ],
+      "as_of_ts": "2026-02-15 00:00:00",
+      "report_status": "valid",
+      "expected": {
+        "status": "valid",
+        "columns": [
+          "territory",
+          "total_amount",
+          "line_count"
+        ],
+        "historical_rows": [
+          [
+            "North",
+            60,
+            1
+          ],
+          [
+            "South",
+            350,
+            3
+          ],
+          [
+            "Unknown",
+            30,
+            1
+          ],
+          [
+            "West",
+            80,
+            1
+          ]
+        ],
+        "as_of_rows": [
+          [
+            "South",
+            410,
+            4
+          ],
+          [
+            "Unknown",
+            30,
+            1
+          ],
+          [
+            "West",
+            80,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "name": "changed_amount",
+      "purpose": "Disclosed changed input to reject copied baseline totals.",
+      "orders": [
+        [
+          "O0",
+          1,
+          "C1",
+          "2026-01-09 10:00:00",
+          60
+        ],
+        [
+          "O1",
+          1,
+          "C1",
+          "2026-01-09 23:59:59",
+          100
+        ],
+        [
+          "O2",
+          1,
+          "C1",
+          "2026-01-10 00:00:00",
+          230
+        ],
+        [
+          "O2",
+          2,
+          "C1",
+          "2026-01-10 00:00:00",
+          50
+        ],
+        [
+          "O3",
+          1,
+          "C2",
+          "2026-01-08 00:00:00",
+          80
+        ],
+        [
+          "O4",
+          1,
+          "C3",
+          "2026-01-11 00:00:00",
+          30
+        ]
+      ],
+      "territory_history": [
+        [
+          "C1",
+          "North",
+          "2026-01-01 00:00:00",
+          "2026-01-10 00:00:00"
+        ],
+        [
+          "C1",
+          "South",
+          "2026-01-10 00:00:00",
+          null
+        ],
+        [
+          "C2",
+          "West",
+          "2026-01-01 00:00:00",
+          null
+        ]
+      ],
+      "as_of_ts": "2026-02-15 00:00:00",
+      "report_status": "valid",
+      "expected": {
+        "status": "valid",
+        "columns": [
+          "territory",
+          "total_amount",
+          "line_count"
+        ],
+        "historical_rows": [
+          [
+            "North",
+            160,
+            2
+          ],
+          [
+            "South",
+            280,
+            2
+          ],
+          [
+            "Unknown",
+            30,
+            1
+          ],
+          [
+            "West",
+            80,
+            1
+          ]
+        ],
+        "as_of_rows": [
+          [
+            "South",
+            440,
+            4
+          ],
+          [
+            "Unknown",
+            30,
+            1
+          ],
+          [
+            "West",
+            80,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "name": "new_current_only_member",
+      "purpose": "C3 becomes known only after its sale, so historical Unknown and as-of Central differ.",
+      "orders": [
+        [
+          "O0",
+          1,
+          "C1",
+          "2026-01-09 10:00:00",
+          60
+        ],
+        [
+          "O1",
+          1,
+          "C1",
+          "2026-01-09 23:59:59",
+          100
+        ],
+        [
+          "O2",
+          1,
+          "C1",
+          "2026-01-10 00:00:00",
+          200
+        ],
+        [
+          "O2",
+          2,
+          "C1",
+          "2026-01-10 00:00:00",
+          50
+        ],
+        [
+          "O3",
+          1,
+          "C2",
+          "2026-01-08 00:00:00",
+          80
+        ],
+        [
+          "O4",
+          1,
+          "C3",
+          "2026-01-11 00:00:00",
+          30
+        ]
+      ],
+      "territory_history": [
+        [
+          "C1",
+          "North",
+          "2026-01-01 00:00:00",
+          "2026-01-10 00:00:00"
+        ],
+        [
+          "C1",
+          "South",
+          "2026-01-10 00:00:00",
+          null
+        ],
+        [
+          "C2",
+          "West",
+          "2026-01-01 00:00:00",
+          null
+        ],
+        [
+          "C3",
+          "Central",
+          "2026-01-12 00:00:00",
+          null
+        ]
+      ],
+      "as_of_ts": "2026-02-15 00:00:00",
+      "report_status": "valid",
+      "expected": {
+        "status": "valid",
+        "columns": [
+          "territory",
+          "total_amount",
+          "line_count"
+        ],
+        "historical_rows": [
+          [
+            "North",
+            160,
+            2
+          ],
+          [
+            "South",
+            250,
+            2
+          ],
+          [
+            "Unknown",
+            30,
+            1
+          ],
+          [
+            "West",
+            80,
+            1
+          ]
+        ],
+        "as_of_rows": [
+          [
+            "Central",
+            30,
+            1
+          ],
+          [
+            "South",
+            410,
+            4
+          ],
+          [
+            "West",
+            80,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "name": "overlap_conflict",
+      "purpose": "One overlapping C1 interval must block both reports before any total is accepted.",
+      "orders": [
+        [
+          "O0",
+          1,
+          "C1",
+          "2026-01-09 10:00:00",
+          60
+        ],
+        [
+          "O1",
+          1,
+          "C1",
+          "2026-01-09 23:59:59",
+          100
+        ],
+        [
+          "O2",
+          1,
+          "C1",
+          "2026-01-10 00:00:00",
+          200
+        ],
+        [
+          "O2",
+          2,
+          "C1",
+          "2026-01-10 00:00:00",
+          50
+        ],
+        [
+          "O3",
+          1,
+          "C2",
+          "2026-01-08 00:00:00",
+          80
+        ],
+        [
+          "O4",
+          1,
+          "C3",
+          "2026-01-11 00:00:00",
+          30
+        ]
+      ],
+      "territory_history": [
+        [
+          "C1",
+          "North",
+          "2026-01-01 00:00:00",
+          "2026-01-10 00:00:00"
+        ],
+        [
+          "C1",
+          "South",
+          "2026-01-10 00:00:00",
+          null
+        ],
+        [
+          "C2",
+          "West",
+          "2026-01-01 00:00:00",
+          null
+        ],
+        [
+          "C1",
+          "East",
+          "2026-01-09 12:00:00",
+          "2026-01-09 13:00:00"
+        ]
+      ],
+      "as_of_ts": "2026-02-15 00:00:00",
+      "report_status": "blocked_overlap",
+      "expected": {
+        "status": "BLOCKED_OVERLAP",
+        "conflicting_customer": "C1",
+        "conflicting_territories": [
+          "North",
+          "East"
+        ]
+      }
+    },
+    {
+      "name": "empty_orders",
+      "purpose": "Zero facts should yield zero report rows; adapter loses empty result headers.",
+      "orders": [],
+      "territory_history": [
+        [
+          "C1",
+          "North",
+          "2026-01-01 00:00:00",
+          "2026-01-10 00:00:00"
+        ],
+        [
+          "C1",
+          "South",
+          "2026-01-10 00:00:00",
+          null
+        ],
+        [
+          "C2",
+          "West",
+          "2026-01-01 00:00:00",
+          null
+        ]
+      ],
+      "as_of_ts": "2026-02-15 00:00:00",
+      "report_status": "valid",
+      "expected": {
+        "status": "valid",
+        "columns": [
+          "territory",
+          "total_amount",
+          "line_count"
+        ],
+        "historical_rows": [],
+        "as_of_rows": []
+      }
+    }
+  ]
+}

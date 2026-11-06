@@ -1,0 +1,296 @@
+{
+  "schema_version": 1,
+  "id": "dm-historical-territory-001",
+  "version": "1.0.1-draft",
+  "status": "authored_unaccepted",
+  "title": "Why did last month’s territory revenue change?",
+  "tier": "Free public teaching exercise",
+  "visibility": "All fixture input rows, schemas and business rules are visible before attempting or running the selected example. The required output columns, grain and comparison rules are always available; expected-versus-actual values may appear after Run. Worked SQL and explanation appear only after explicit Reveal. Examples are public teaching material, not private assessment.",
+  "route_proposal": "/labs/data-modelling?lab=dm-historical-territory-001",
+  "source_pin": {
+    "repo": "datawithpranjal/mvp-project",
+    "commit": "afb2969d2b8e04ddebb9eb4c8ac001d00c7edd7c",
+    "engine": "browser SQL.js 1.14.1 / SQLite 3.49.1",
+    "source_case": "historical-sales-territory-model is concept provenance only; its Premium prose, fixture, answer, identity, access and progress are not reused or changed."
+  },
+  "outcome": "Given fictional order lines and effective-dated territory history, produce sale-time and supplied-as-of territory reports that each conserve all order lines and integer amounts; explain a backdated correction and identify invalid overlapping history.",
+  "prerequisites": [
+    "SELECT, JOIN and GROUP BY",
+    "fact grain versus order header",
+    "UTC timestamp comparison"
+  ],
+  "difficulty": "intermediate",
+  "estimated_minutes": 25,
+  "business_context": "Fictional retailer January sales total remains 520 units; the allocation by territory differs between sale-time finance and 15 February as-of planning reports. A supplied backdated effective-time correction changes historical allocation without changing total sales.",
+  "assumptions": {
+    "dialect": "SQLite 3.49.1 via SQL.js 1.14.1 browser read-only SELECT/WITH; timestamp TEXT compares lexically only because all values use identical zero-padded UTC YYYY-MM-DD HH:MM:SS format.",
+    "fact_grain": "One (order_id,line_id), not one order.",
+    "amount": "Fictional integer units; positive, comparable, no refunds/tax/FX or status filters.",
+    "interval": "valid_from inclusive, valid_to exclusive, NULL end open; effective time is business attribution, not loaded/recorded time.",
+    "as_of": "2026-02-15 00:00:00 UTC is the supplied effective-time query instant for every fact, not proof of what was previously published.",
+    "unknown": "Zero matching history intervals maps to the literal Unknown; never drop the fact.",
+    "conflict": "Any overlapping intervals for one customer invalidate the input; block both reports and show the customer and interval pair before comparing outputs.",
+    "permitted_state": "This public teaching packet has no new account/entitlement/progress policy. Drafts and correction state are local-device only until Engineering/Product verify an existing suitable persistence path."
+  },
+  "stages": [
+    {
+      "id": "historical",
+      "label": "At sale time",
+      "time_basis": "orders.sale_ts",
+      "required_columns": [
+        "territory",
+        "total_amount",
+        "line_count"
+      ],
+      "grain": "one row per resolved territory",
+      "starter_sql": "SELECT order_id, line_id, customer_id, sale_ts, amount FROM orders LIMIT 10;",
+      "reference_query_key": "reference.historical",
+      "alternative_query_key": "independent_alternative.historical"
+    },
+    {
+      "id": "as_of",
+      "label": "As of 15 February 2026 00:00:00 UTC",
+      "time_basis": "2026-02-15 00:00:00",
+      "required_columns": [
+        "territory",
+        "total_amount",
+        "line_count"
+      ],
+      "grain": "one row per resolved territory",
+      "starter_sql": "SELECT order_id, line_id, customer_id, sale_ts, amount FROM orders LIMIT 10;",
+      "reference_query_key": "reference.as_of",
+      "alternative_query_key": "independent_alternative.as_of"
+    }
+  ],
+  "baseline_fixture": "fixtures.json#baseline",
+  "correction_fixture": "fixtures.json#backdated_correction",
+  "changed_input_fixtures": [
+    "changed_amount",
+    "new_current_only_member",
+    "overlap_conflict",
+    "empty_orders"
+  ],
+  "expected": {
+    "baseline_historical": [
+      [
+        "North",
+        160,
+        2
+      ],
+      [
+        "South",
+        250,
+        2
+      ],
+      [
+        "Unknown",
+        30,
+        1
+      ],
+      [
+        "West",
+        80,
+        1
+      ]
+    ],
+    "baseline_as_of": [
+      [
+        "South",
+        410,
+        4
+      ],
+      [
+        "Unknown",
+        30,
+        1
+      ],
+      [
+        "West",
+        80,
+        1
+      ]
+    ],
+    "correction_historical": [
+      [
+        "North",
+        60,
+        1
+      ],
+      [
+        "South",
+        350,
+        3
+      ],
+      [
+        "Unknown",
+        30,
+        1
+      ],
+      [
+        "West",
+        80,
+        1
+      ]
+    ],
+    "correction_as_of": [
+      [
+        "South",
+        410,
+        4
+      ],
+      [
+        "Unknown",
+        30,
+        1
+      ],
+      [
+        "West",
+        80,
+        1
+      ]
+    ],
+    "correction_only_changed_fact": [
+      "O1",
+      1,
+      "C1",
+      100
+    ],
+    "conservation_by_fixture": {
+      "baseline": {
+        "status": "valid",
+        "line_count": 6,
+        "total_amount": 520
+      },
+      "backdated_correction": {
+        "status": "valid",
+        "line_count": 6,
+        "total_amount": 520
+      },
+      "changed_amount": {
+        "status": "valid",
+        "line_count": 6,
+        "total_amount": 550
+      },
+      "new_current_only_member": {
+        "status": "valid",
+        "line_count": 6,
+        "total_amount": 520
+      },
+      "empty_orders": {
+        "status": "valid_zero_rows",
+        "line_count": 0,
+        "total_amount": 0
+      },
+      "overlap_conflict": {
+        "status": "blocked_overlap",
+        "line_count": null,
+        "total_amount": null
+      }
+    }
+  },
+  "hints": [
+    {
+      "stage": 1,
+      "text": "Identify one fact row and the timestamp used by each report; count lines before grouping."
+    },
+    {
+      "stage": 2,
+      "text": "Count history matches per fact at the chosen timestamp: zero is Unknown, one is valid, more than one is conflict. Test O2 at the exclusive end."
+    },
+    {
+      "stage": 3,
+      "text": "Use a left join with the interval rule in ON, group by COALESCE territory, and reconcile line and amount totals."
+    }
+  ],
+  "reveal": {
+    "label": "Reviewed example",
+    "not_passed_attempt": true,
+    "worked_sql_keys": [
+      "reference.historical",
+      "reference.as_of"
+    ],
+    "public_learner_prose": "learner.md#reveal-worked-practice-answer"
+  },
+  "validation_contract": {
+    "preflight": "Before any report evaluation, check overlapping per-customer intervals independent of whether current facts land in the overlap. Report conflicted key/interval; do not choose a winner.",
+    "compare": "For nonempty valid cases, require exact requested headers in order and finite integer amount/count cells, with unordered territory row tuples and preserved multiplicity. The current shared comparator lowercases headers and rounds numeric values to six decimals, so future feature-local validation must inspect raw actual output and not trust its passed boolean. No keyword or solution syntax mandate. Every fact contributes once to count and amount.",
+    "states": [
+      "query syntax/runtime error",
+      "data-quality conflict",
+      "result mismatch with expected versus actual and conservation",
+      "matching disclosed practice example",
+      "reviewed example",
+      "engine unavailable/retry"
+    ],
+    "finite_disclosed_cases": true,
+    "no_shortcut_proof": true,
+    "empty_result_adapter_limit": "The current browser-sql adapter reports columns=[] for zero-row SQL.js exec, so empty fixture verifies zero rows only; do not claim alias metadata passed.",
+    "wrong_answer_queries": [
+      "historical_inclusive_end",
+      "historical_current_only",
+      "historical_inner_drop",
+      "historical_constant",
+      "as_of_constant"
+    ],
+    "wrong_answer_interpretation": "Each wrong strategy is rejected on at least one disclosed fixture by actual adapter; a baseline constant passes baseline, so changed-input evidence is essential.",
+    "empty_example": "No rows expected for this empty input. This check verifies zero rows only; column names are checked on nonempty examples. Empty-example completion cannot pass the full exercise; both reports must be completed on nonempty examples."
+  },
+  "correction_and_recovery": {
+    "supplied_change": "C1 North valid_to and South valid_from both move from 2026-01-10 00:00:00 to 2026-01-09 12:00:00 UTC; original snapshot retained.",
+    "simulation_only": true,
+    "affected_interval": "C1, [2026-01-09 12:00:00, 2026-01-10 00:00:00); O1 is the only supplied affected line.",
+    "retry": "Preserve both query drafts and selected snapshot after syntax/data/result/engine failures; allow repeat run. Stage switch preserves both drafts. Restart restores original snapshot after a discard warning.",
+    "stale_result": "Invalidate prior match when either query or input snapshot changes; identify which version was checked.",
+    "worker_budget": "Engineering20 proposes a feature-local worker with a calibrated query budget, explicit Cancel/terminate/recreate, stale-reply rejection and retry preserving both drafts and the chosen snapshot. Author packet does not claim this runtime exists."
+  },
+  "tradeoffs": [
+    "Materialized fact-to-dimension-version key simplifies reads but a late effective-time correction needs bounded audited fact repair.",
+    "Query-time temporal join can reflect corrected history but needs overlap/cardinality checks and measured cost.",
+    "Neither report reconstructs the originally published version of history without an additional source/report-version record."
+  ],
+  "operational_checks": [
+    "Reconcile fact line count and integer amount before/after correction.",
+    "Alert on zero and multiple history matches; queue Unknown for later source correction without dropping facts.",
+    "Record correction source/version and exact affected customer/interval; do not claim actual warehouse backfill."
+  ],
+  "integration_acceptance": {
+    "content": "All input rows/schema/rules visible before attempt; required columns/grain/rules always visible, expected-versus-actual may follow Run; only worked SQL/explanation requires Reveal. Product exact learner acceptance pending.",
+    "engineering": "Confirm original Free route/module/public-only asset boundary, worker/WASM/CSP load, cancellation and finite integer/header checks, overlap preflight, local-only persistence/revision conflicts and unchanged Premium/SQL regressions; do not modify shared runner or Premium case without separate gate.",
+    "ui": "Task/Data/Help and two editors preserve drafts; 360px and desktop light/dark, keyboard focus, table scroll, Cancel/retry/reload/correction, never-edited starter and empty editor. A stopped or stale run must not show a pass.",
+    "release": "Separate CEO guarded release order and public receipt; no current deployment."
+  },
+  "measurement_limits": [
+    "Revealing answer is reviewed practice, not pass.",
+    "Matching finite public examples does not establish unseen transfer or independent mastery.",
+    "No integrated route, authenticated user, cloud save, paid-use receipt, deployment or learner outcome has been observed."
+  ],
+  "primary_sources": [
+    {
+      "title": "SQLite SELECT documentation",
+      "url": "https://sqlite.org/lang_select.html",
+      "reviewed_date": "2026-11-06",
+      "scope": "dialect reference only"
+    },
+    {
+      "title": "Microsoft Fabric slowly changing dimension type 2",
+      "url": "https://learn.microsoft.com/en-us/fabric/data-factory/slowly-changing-dimension-type-two",
+      "reviewed_date": "2026-11-06",
+      "scope": "versioned dimension concept, not exercise business policy"
+    },
+    {
+      "title": "dbt incremental or snapshots guidance",
+      "url": "https://docs.getdbt.com/best-practices/how-we-handle-cdc/2-choosing-incremental-or-snapshots",
+      "reviewed_date": "2026-11-06",
+      "scope": "observed snapshot/history limit"
+    }
+  ],
+  "files": {
+    "learner_copy": "learner.md",
+    "fixtures": "fixtures.json",
+    "queries": "queries.json",
+    "actual_adapter_verification": "verification.json",
+    "author_qa_script": "verify.ts",
+    "manifest": "manifest.json"
+  },
+  "next_owner": "Meera / Product exact content and learner review; no final Product acceptance/Engineering handoff until immediate integration slot. Arjun then selects Engineering order."
+}

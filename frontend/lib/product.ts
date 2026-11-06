@@ -74,9 +74,9 @@ export const CORE_LABS = [
   {
     title: "Data Modelling Lab",
     description:
-      "Practice facts, dimensions, grains, SCDs, marts, and warehouse design decisions using realistic business requirements.",
+      "Build two territory reports from effective-dated history, reconcile a backdated correction, and reject overlapping inputs in one Free browser exercise.",
     href: "/labs/data-modelling",
-    status: "coming-soon"
+    status: "available"
   },
   {
     title: "System Design Studio",

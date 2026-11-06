@@ -29,6 +29,7 @@ type SortOption =
   | "free";
 
 type PracticeItem =
+  | { kind: "modelling" }
   | { kind: "coding"; lab: CodingLab }
   | { kind: "operations"; lab: OperationsLab }
   | { kind: "scenario"; scenario: Scenario };
@@ -70,6 +71,7 @@ export function PracticeHub() {
 
   const allItems = useMemo<PracticeItem[]>(
     () => [
+      { kind: "modelling" as const },
       ...codingLabs.map((lab) => ({ kind: "coding" as const, lab })),
       ...OPERATIONS_LABS.map((lab) => ({ kind: "operations" as const, lab })),
       ...scenarios.map((scenario) => ({ kind: "scenario" as const, scenario }))
@@ -144,14 +146,14 @@ export function PracticeHub() {
               Choose the next skill, not the next random card.
             </h1>
             <p className="mt-4 max-w-4xl text-sm leading-7 text-slate-300">
-              Search SQL, Python, PySpark, production scenarios, and system design practice.
+              Search SQL, Python, PySpark, data modelling, production scenarios, and system design practice.
               Start with a guided section, then narrow the library only when you need it.
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
             <Stat label="Practice items" value={allItems.length} />
             <Stat label="Free starters" value={allItems.filter((item) => getPracticeMetadata(item).isFree).length} />
-            <Stat label="Modes" value="7" />
+            <Stat label="Modes" value="8" />
           </div>
         </div>
       </section>
@@ -460,11 +462,19 @@ function Stat({ label, value }: { label: string; value: string | number }) {
 }
 
 function practiceKey(item: PracticeItem): string {
+  if (item.kind === "modelling") return "dm-historical-territory-001";
   if (item.kind === "scenario") return `scenario-${item.scenario.slug}`;
   return `${item.kind}-${item.lab.slug}`;
 }
 
 function getPracticeMetadata(item: PracticeItem): PracticeMetadata {
+  if (item.kind === "modelling") return {
+    title: "Why did last month’s territory revenue change?",
+    outcome: "Produce sale-time and as-of territory reports, reconcile a backdated correction, and reject overlapping history across six disclosed examples.",
+    domain: "Data Modelling", type: "Temporal SQL practice", difficulty: "Intermediate", estimatedMinutes: 25,
+    isFree: true, skills: ["Fact grain", "SCD2", "Effective time", "Reconciliation"],
+    href: "/labs/data-modelling?lab=dm-historical-territory-001"
+  };
   if (item.kind === "coding") return codingMetadata(item.lab);
   if (item.kind === "operations") return operationsMetadata(item.lab);
   return scenarioMetadata(item.scenario);
