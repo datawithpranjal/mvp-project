@@ -1,0 +1,112 @@
+{
+  "id": "project-order-replay-001",
+  "version": "1.0.0-draft",
+  "area": "Project Sandbox",
+  "path": "/projects/ecommerce-pipeline",
+  "status": "original Free public-teaching author packet; not Product-accepted, integrated, released or measured",
+  "outcome": "Replay identical business events without changing revenue, apply newer full-state corrections to original order dates, and preserve the last good report after failed input or execution.",
+  "prerequisites": [
+    "SELECT/CTE/JOIN/GROUP BY",
+    "ROW_NUMBER or anti-join",
+    "event grain versus order grain",
+    "integer minor-unit arithmetic"
+  ],
+  "difficulty": "intermediate guided local simulation",
+  "engine": "author QA Python sqlite3 3.48.0; intended browser SQLite/SQL.js requires separate Engineering proof",
+  "data_policy": [
+    "All names/IDs/dates/amounts fictional and intentionally Free/public",
+    "One fictional currency; integer cents only; no taxes, FX, partial refunds, line items, deletes or actual payment events",
+    "One event_id identifies one immutable business payload; any delivery_id identifies a physical receipt and is unique",
+    "Full replacement order state per strictly increasing source_version; gaps allowed; source version is the authority, not event/receipt time",
+    "order_date immutable per order; cancellation restates original order date and contributes zero on latest state",
+    "One distinct event per (order_id,source_version); conflicting payload/version/date rejects entire input before SQL"
+  ],
+  "headers": {
+    "accepted_events": [
+      "event_id",
+      "order_id",
+      "source_version",
+      "order_date",
+      "event_time",
+      "status",
+      "amount_cents"
+    ],
+    "current_orders": [
+      "order_id",
+      "source_version",
+      "order_date",
+      "status",
+      "amount_cents"
+    ],
+    "daily_revenue": [
+      "order_date",
+      "revenue_cents",
+      "eligible_order_count"
+    ]
+  },
+  "types": {
+    "accepted_events": [
+      "TEXT",
+      "TEXT",
+      "INTEGER",
+      "TEXT",
+      "TEXT",
+      "TEXT",
+      "INTEGER"
+    ],
+    "current_orders": [
+      "TEXT",
+      "INTEGER",
+      "TEXT",
+      "TEXT",
+      "INTEGER"
+    ],
+    "daily_revenue": [
+      "TEXT",
+      "INTEGER",
+      "INTEGER"
+    ]
+  },
+  "comparison": "For nonempty outputs require exact header names/order, Python str/int types, integer cents and unordered row multiset including multiplicity. Empty results establish zero rows only in this author runner; integration must not claim metadata validated on empties.",
+  "preflight": "Validate every raw row, unique delivery_id, nonblank IDs, positive integer version, real ISO date, UTC Z timestamp, status paid/cancelled, nonnegative integer cents, same event_id same immutable business payload, one distinct event per order/version, immutable order_date per order. Reject all violations with key/field/reason before grading. No SQL repair of bad source.",
+  "stage_flow": [
+    "raw deliveries are visible before Run",
+    "stage1 accepted_events feeds the learner stage2 current_orders",
+    "stage2 learner output feeds stage3 daily_revenue",
+    "each stage has independent draft; upstream input/query change invalidates downstream preview/check, retains editor text",
+    "preflight source errors are separate from learner SQL error",
+    "complete valid same-input/same-query-revision chain may explicitly simulate publish",
+    "failed stage, worker cancellation/timeout, stale reply or conflict must retain last good report/run ID and keep unpublished intermediates marked preview"
+  ],
+  "progressive_help": [
+    "Hint1: Which identity changed on replay: receipt, business event, or order?",
+    "Hint2: Compare business payload columns to transport columns; then choose order state by source_version.",
+    "Hint3: Deduplicate per event_id, choose max source_version per order with a window or anti-join, and conditionally sum only paid current orders while retaining every represented date."
+  ],
+  "reveal": "Deliberate worked SQL reveal is marked reviewed/assisted, never independent pass. A wrong attempt shows differing rows/counts, not a mastery score.",
+  "recovery": "A conflict shows exact keys/reasons; corrected_retry removes D13 from conflict_event_payload. Failed query correction retains drafts. Restart confirms before discarding and restores baseline. Device-only drafts/run snapshots are not cloud/account progress.",
+  "production_consequence": "At-least-once receipts plus a deterministic SELECT do not prove exactly-once writes. Immutable events support replay/audit at storage cost; latest-state tables speed reads but lose event history. Full recomputation suits small teaching data, while large real pipelines require bounded keyed updates, transactional publication, monitoring and rollback. Unknown source-version authority is escalation, not a guessed timestamp winner.",
+  "runtime_not_proven": [
+    "feature-local worker/time limit/cancel",
+    "safe read-only statement boundary and finite row/size limits",
+    "typed materialization of each learner stage",
+    "draft/run revision guards and last-good atomic simulated publication",
+    "actual desktop/360px/theme/keyboard/reload/storage and public route",
+    "cloud pipeline, backend transaction, account persistence and learner effect"
+  ],
+  "sources": [
+    {
+      "title": "SQLite SELECT",
+      "url": "https://sqlite.org/lang_select.html"
+    },
+    {
+      "title": "SQLite Window Functions",
+      "url": "https://sqlite.org/windowfunctions.html"
+    },
+    {
+      "title": "SQLite Expressions / CASE",
+      "url": "https://sqlite.org/lang_expr.html"
+    }
+  ],
+  "review_date_ist": "2026-11-07"
+}

@@ -86,9 +86,9 @@ export const CORE_LABS = [
   },
   {
     title: "Project Sandbox",
-    description: "Practice end-to-end pipeline decisions and production consequences in a guided sandbox.",
+    description: "One Free guided SQLite project: build linked stages, test replay and late cancellations, and protect a simulated last good report.",
     href: "/projects/ecommerce-pipeline",
-    status: "coming-soon"
+    status: "available"
   },
   {
     title: "Mock Interview Room",

@@ -29,6 +29,7 @@ type SortOption =
   | "free";
 
 type PracticeItem =
+  | { kind: "project" }
   | { kind: "modelling" }
   | { kind: "coding"; lab: CodingLab }
   | { kind: "operations"; lab: OperationsLab }
@@ -71,6 +72,7 @@ export function PracticeHub() {
 
   const allItems = useMemo<PracticeItem[]>(
     () => [
+      { kind: "project" as const },
       { kind: "modelling" as const },
       ...codingLabs.map((lab) => ({ kind: "coding" as const, lab })),
       ...OPERATIONS_LABS.map((lab) => ({ kind: "operations" as const, lab })),
@@ -379,7 +381,7 @@ function PracticeResultCard({
             : "bg-amber-300 text-slate-950 hover:bg-amber-200"
         }`}
       >
-        {locked ? "Unlock Premium" : progress?.attemptCount ? "Continue Lab" : "Start Lab"}
+        {item.kind === "project" ? "Open free project" : locked ? "Unlock Premium" : progress?.attemptCount ? "Continue Lab" : "Start Lab"}
       </Link>
     </article>
   );
@@ -462,12 +464,20 @@ function Stat({ label, value }: { label: string; value: string | number }) {
 }
 
 function practiceKey(item: PracticeItem): string {
+  if (item.kind === "project") return "project-order-replay-001";
   if (item.kind === "modelling") return "dm-historical-territory-001";
   if (item.kind === "scenario") return `scenario-${item.scenario.slug}`;
   return `${item.kind}-${item.lab.slug}`;
 }
 
 function getPracticeMetadata(item: PracticeItem): PracticeMetadata {
+  if (item.kind === "project") return {
+    title: "Replay the order feed without changing revenue",
+    outcome: "Build three linked SQL stages, test replay and late cancellations, and practise protecting the last good report in a browser simulation.",
+    domain: "Project Sandbox", type: "Free · Guided project · SQLite", difficulty: "Intermediate", estimatedMinutes: 40,
+    isFree: true, skills: ["SQL", "Event identity", "Replay", "Latest state", "Recovery"],
+    href: "/projects/ecommerce-pipeline"
+  };
   if (item.kind === "modelling") return {
     title: "Why did last month’s territory revenue change?",
     outcome: "Produce sale-time and as-of territory reports, reconcile a backdated correction, and reject overlapping history across six disclosed examples.",

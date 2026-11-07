@@ -1,0 +1,59 @@
+{
+  "reference": {
+    "accepted_events": "SELECT event_id,order_id,source_version,order_date,event_time,status,amount_cents\nFROM raw_deliveries\nGROUP BY event_id,order_id,source_version,order_date,event_time,status,amount_cents",
+    "current_orders": "WITH ranked AS (\n SELECT event_id,order_id,source_version,order_date,status,amount_cents,\n ROW_NUMBER() OVER (PARTITION BY order_id ORDER BY source_version DESC) AS rn\n FROM accepted_events)\nSELECT order_id,source_version,order_date,status,amount_cents FROM ranked WHERE rn=1",
+    "daily_revenue": "SELECT order_date,\n SUM(CASE WHEN status='paid' THEN amount_cents ELSE 0 END) AS revenue_cents,\n SUM(CASE WHEN status='paid' THEN 1 ELSE 0 END) AS eligible_order_count\nFROM current_orders GROUP BY order_date"
+  },
+  "alternative": {
+    "accepted_events": "WITH ranked AS (\n SELECT event_id,order_id,source_version,order_date,event_time,status,amount_cents,\n ROW_NUMBER() OVER (PARTITION BY event_id ORDER BY delivery_id) AS rn\n FROM raw_deliveries)\nSELECT event_id,order_id,source_version,order_date,event_time,status,amount_cents\nFROM ranked WHERE rn=1",
+    "current_orders": "SELECT e.order_id,e.source_version,e.order_date,e.status,e.amount_cents\nFROM accepted_events e\nWHERE NOT EXISTS (SELECT 1 FROM accepted_events newer\n WHERE newer.order_id=e.order_id AND newer.source_version>e.source_version)",
+    "daily_revenue": "WITH dates AS (SELECT DISTINCT order_date FROM current_orders),\npaid AS (SELECT order_date,SUM(amount_cents) AS cents,COUNT(*) AS n\n FROM current_orders WHERE status='paid' GROUP BY order_date)\nSELECT dates.order_date,COALESCE(paid.cents,0) AS revenue_cents,\nCOALESCE(paid.n,0) AS eligible_order_count\nFROM dates LEFT JOIN paid ON paid.order_date=dates.order_date"
+  },
+  "wrong": {
+    "dedup_transport": {
+      "stage": "accepted_events",
+      "sql": "SELECT event_id,order_id,source_version,order_date,event_time,status,amount_cents\nFROM raw_deliveries GROUP BY delivery_id",
+      "case": "replay"
+    },
+    "dedup_amount": {
+      "stage": "accepted_events",
+      "sql": "SELECT event_id,order_id,source_version,order_date,event_time,status,amount_cents\nFROM raw_deliveries GROUP BY amount_cents",
+      "case": "equal_amount_multi_version"
+    },
+    "latest_received": {
+      "stage": "current_orders",
+      "sql": "WITH x AS (SELECT *,ROW_NUMBER() OVER (PARTITION BY order_id ORDER BY received_at DESC) AS rn FROM raw_deliveries)\nSELECT order_id,source_version,order_date,status,amount_cents FROM x WHERE rn=1",
+      "case": "obsolete_last"
+    },
+    "earliest_version": {
+      "stage": "current_orders",
+      "sql": "WITH x AS (SELECT *,ROW_NUMBER() OVER (PARTITION BY order_id ORDER BY source_version ASC) AS rn FROM accepted_events)\nSELECT order_id,source_version,order_date,status,amount_cents FROM x WHERE rn=1",
+      "case": "late_cancellation"
+    },
+    "sum_all_versions": {
+      "stage": "daily_revenue",
+      "sql": "SELECT order_date,SUM(amount_cents) AS revenue_cents,COUNT(*) AS eligible_order_count\nFROM accepted_events GROUP BY order_date",
+      "case": "equal_amount_multi_version"
+    },
+    "count_cancelled": {
+      "stage": "daily_revenue",
+      "sql": "SELECT order_date,SUM(CASE WHEN status='paid' THEN amount_cents ELSE 0 END) AS revenue_cents,\nCOUNT(*) AS eligible_order_count FROM current_orders GROUP BY order_date",
+      "case": "all_cancelled_date"
+    },
+    "drop_zero_date": {
+      "stage": "daily_revenue",
+      "sql": "SELECT order_date,SUM(amount_cents) AS revenue_cents,COUNT(*) AS eligible_order_count\nFROM current_orders WHERE status='paid' GROUP BY order_date",
+      "case": "all_cancelled_date"
+    },
+    "attribute_receipt_date": {
+      "stage": "daily_revenue",
+      "sql": "SELECT SUBSTR(received_at,1,10) AS order_date,SUM(amount_cents) AS revenue_cents,COUNT(*) AS eligible_order_count\nFROM raw_deliveries WHERE status='paid' GROUP BY SUBSTR(received_at,1,10)",
+      "case": "late_cancellation"
+    }
+  },
+  "starter": {
+    "accepted_events": "SELECT event_id,order_id,source_version,order_date,event_time,status,amount_cents\nFROM raw_deliveries\n-- Return each business event once; transport receipts can repeat.\nWHERE 1=0",
+    "current_orders": "SELECT order_id,source_version,order_date,status,amount_cents\nFROM accepted_events\n-- Which source version wins for each order?\nWHERE 1=0",
+    "daily_revenue": "SELECT order_date,0 AS revenue_cents,0 AS eligible_order_count\nFROM current_orders\n-- One row per order date, including dates with no paid latest state.\nWHERE 1=0"
+  }
+}

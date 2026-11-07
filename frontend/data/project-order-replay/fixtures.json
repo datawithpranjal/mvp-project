@@ -1,0 +1,1236 @@
+{
+  "id": "project-order-replay-001",
+  "version": "1.0.0-draft",
+  "columns": [
+    [
+      "delivery_id",
+      "TEXT"
+    ],
+    [
+      "event_id",
+      "TEXT"
+    ],
+    [
+      "order_id",
+      "TEXT"
+    ],
+    [
+      "source_version",
+      "INTEGER"
+    ],
+    [
+      "order_date",
+      "TEXT"
+    ],
+    [
+      "event_time",
+      "TEXT"
+    ],
+    [
+      "received_at",
+      "TEXT"
+    ],
+    [
+      "status",
+      "TEXT"
+    ],
+    [
+      "amount_cents",
+      "INTEGER"
+    ]
+  ],
+  "snapshots": {
+    "baseline": [
+      {
+        "delivery_id": "D01",
+        "event_id": "E01",
+        "order_id": "O1",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T09:00:00Z",
+        "received_at": "2026-01-01T09:00:05Z",
+        "status": "paid",
+        "amount_cents": 10000
+      },
+      {
+        "delivery_id": "D02",
+        "event_id": "E02",
+        "order_id": "O2",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T10:00:00Z",
+        "received_at": "2026-01-01T10:00:05Z",
+        "status": "paid",
+        "amount_cents": 20000
+      }
+    ],
+    "replay": [
+      {
+        "delivery_id": "D01",
+        "event_id": "E01",
+        "order_id": "O1",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T09:00:00Z",
+        "received_at": "2026-01-01T09:00:05Z",
+        "status": "paid",
+        "amount_cents": 10000
+      },
+      {
+        "delivery_id": "D02",
+        "event_id": "E02",
+        "order_id": "O2",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T10:00:00Z",
+        "received_at": "2026-01-01T10:00:05Z",
+        "status": "paid",
+        "amount_cents": 20000
+      },
+      {
+        "delivery_id": "D03",
+        "event_id": "E01",
+        "order_id": "O1",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T09:00:00Z",
+        "received_at": "2026-01-02T09:00:00Z",
+        "status": "paid",
+        "amount_cents": 10000
+      },
+      {
+        "delivery_id": "D04",
+        "event_id": "E02",
+        "order_id": "O2",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T10:00:00Z",
+        "received_at": "2026-01-02T09:01:00Z",
+        "status": "paid",
+        "amount_cents": 20000
+      }
+    ],
+    "late_cancellation": [
+      {
+        "delivery_id": "D01",
+        "event_id": "E01",
+        "order_id": "O1",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T09:00:00Z",
+        "received_at": "2026-01-01T09:00:05Z",
+        "status": "paid",
+        "amount_cents": 10000
+      },
+      {
+        "delivery_id": "D02",
+        "event_id": "E02",
+        "order_id": "O2",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T10:00:00Z",
+        "received_at": "2026-01-01T10:00:05Z",
+        "status": "paid",
+        "amount_cents": 20000
+      },
+      {
+        "delivery_id": "D03",
+        "event_id": "E01",
+        "order_id": "O1",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T09:00:00Z",
+        "received_at": "2026-01-02T09:00:00Z",
+        "status": "paid",
+        "amount_cents": 10000
+      },
+      {
+        "delivery_id": "D04",
+        "event_id": "E02",
+        "order_id": "O2",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T10:00:00Z",
+        "received_at": "2026-01-02T09:01:00Z",
+        "status": "paid",
+        "amount_cents": 20000
+      },
+      {
+        "delivery_id": "D05",
+        "event_id": "E03",
+        "order_id": "O2",
+        "source_version": 2,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-02T16:00:00Z",
+        "received_at": "2026-01-03T10:00:00Z",
+        "status": "cancelled",
+        "amount_cents": 20000
+      },
+      {
+        "delivery_id": "D06",
+        "event_id": "E04",
+        "order_id": "O3",
+        "source_version": 1,
+        "order_date": "2026-01-02",
+        "event_time": "2026-01-02T11:00:00Z",
+        "received_at": "2026-01-03T10:01:00Z",
+        "status": "paid",
+        "amount_cents": 5000
+      }
+    ],
+    "obsolete_last": [
+      {
+        "delivery_id": "D01",
+        "event_id": "E01",
+        "order_id": "O1",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T09:00:00Z",
+        "received_at": "2026-01-01T09:00:05Z",
+        "status": "paid",
+        "amount_cents": 10000
+      },
+      {
+        "delivery_id": "D02",
+        "event_id": "E02",
+        "order_id": "O2",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T10:00:00Z",
+        "received_at": "2026-01-01T10:00:05Z",
+        "status": "paid",
+        "amount_cents": 20000
+      },
+      {
+        "delivery_id": "D03",
+        "event_id": "E01",
+        "order_id": "O1",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T09:00:00Z",
+        "received_at": "2026-01-02T09:00:00Z",
+        "status": "paid",
+        "amount_cents": 10000
+      },
+      {
+        "delivery_id": "D04",
+        "event_id": "E02",
+        "order_id": "O2",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T10:00:00Z",
+        "received_at": "2026-01-02T09:01:00Z",
+        "status": "paid",
+        "amount_cents": 20000
+      },
+      {
+        "delivery_id": "D05",
+        "event_id": "E03",
+        "order_id": "O2",
+        "source_version": 2,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-02T16:00:00Z",
+        "received_at": "2026-01-03T10:00:00Z",
+        "status": "cancelled",
+        "amount_cents": 20000
+      },
+      {
+        "delivery_id": "D06",
+        "event_id": "E04",
+        "order_id": "O3",
+        "source_version": 1,
+        "order_date": "2026-01-02",
+        "event_time": "2026-01-02T11:00:00Z",
+        "received_at": "2026-01-03T10:01:00Z",
+        "status": "paid",
+        "amount_cents": 5000
+      },
+      {
+        "delivery_id": "D07",
+        "event_id": "E02",
+        "order_id": "O2",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T10:00:00Z",
+        "received_at": "2026-01-04T11:00:00Z",
+        "status": "paid",
+        "amount_cents": 20000
+      }
+    ],
+    "equal_amount_multi_version": [
+      {
+        "delivery_id": "D01",
+        "event_id": "E01",
+        "order_id": "O1",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T09:00:00Z",
+        "received_at": "2026-01-01T09:00:05Z",
+        "status": "paid",
+        "amount_cents": 10000
+      },
+      {
+        "delivery_id": "D02",
+        "event_id": "E02",
+        "order_id": "O2",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T10:00:00Z",
+        "received_at": "2026-01-01T10:00:05Z",
+        "status": "paid",
+        "amount_cents": 20000
+      },
+      {
+        "delivery_id": "D03",
+        "event_id": "E01",
+        "order_id": "O1",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T09:00:00Z",
+        "received_at": "2026-01-02T09:00:00Z",
+        "status": "paid",
+        "amount_cents": 10000
+      },
+      {
+        "delivery_id": "D04",
+        "event_id": "E02",
+        "order_id": "O2",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T10:00:00Z",
+        "received_at": "2026-01-02T09:01:00Z",
+        "status": "paid",
+        "amount_cents": 20000
+      },
+      {
+        "delivery_id": "D05",
+        "event_id": "E03",
+        "order_id": "O2",
+        "source_version": 2,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-02T16:00:00Z",
+        "received_at": "2026-01-03T10:00:00Z",
+        "status": "cancelled",
+        "amount_cents": 20000
+      },
+      {
+        "delivery_id": "D06",
+        "event_id": "E04",
+        "order_id": "O3",
+        "source_version": 1,
+        "order_date": "2026-01-02",
+        "event_time": "2026-01-02T11:00:00Z",
+        "received_at": "2026-01-03T10:01:00Z",
+        "status": "paid",
+        "amount_cents": 5000
+      },
+      {
+        "delivery_id": "D07",
+        "event_id": "E02",
+        "order_id": "O2",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T10:00:00Z",
+        "received_at": "2026-01-04T11:00:00Z",
+        "status": "paid",
+        "amount_cents": 20000
+      },
+      {
+        "delivery_id": "D08",
+        "event_id": "E05",
+        "order_id": "O4",
+        "source_version": 1,
+        "order_date": "2026-01-02",
+        "event_time": "2026-01-02T11:30:00Z",
+        "received_at": "2026-01-04T12:00:00Z",
+        "status": "paid",
+        "amount_cents": 5000
+      },
+      {
+        "delivery_id": "D09",
+        "event_id": "E06",
+        "order_id": "O4",
+        "source_version": 2,
+        "order_date": "2026-01-02",
+        "event_time": "2026-01-03T11:30:00Z",
+        "received_at": "2026-01-04T12:01:00Z",
+        "status": "paid",
+        "amount_cents": 7000
+      },
+      {
+        "delivery_id": "D10",
+        "event_id": "E07",
+        "order_id": "O5",
+        "source_version": 1,
+        "order_date": "2026-01-02",
+        "event_time": "2026-01-02T12:00:00Z",
+        "received_at": "2026-01-04T12:02:00Z",
+        "status": "paid",
+        "amount_cents": 7000
+      }
+    ],
+    "all_cancelled_date": [
+      {
+        "delivery_id": "D01",
+        "event_id": "E01",
+        "order_id": "O1",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T09:00:00Z",
+        "received_at": "2026-01-01T09:00:05Z",
+        "status": "paid",
+        "amount_cents": 10000
+      },
+      {
+        "delivery_id": "D02",
+        "event_id": "E02",
+        "order_id": "O2",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T10:00:00Z",
+        "received_at": "2026-01-01T10:00:05Z",
+        "status": "paid",
+        "amount_cents": 20000
+      },
+      {
+        "delivery_id": "D03",
+        "event_id": "E01",
+        "order_id": "O1",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T09:00:00Z",
+        "received_at": "2026-01-02T09:00:00Z",
+        "status": "paid",
+        "amount_cents": 10000
+      },
+      {
+        "delivery_id": "D04",
+        "event_id": "E02",
+        "order_id": "O2",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T10:00:00Z",
+        "received_at": "2026-01-02T09:01:00Z",
+        "status": "paid",
+        "amount_cents": 20000
+      },
+      {
+        "delivery_id": "D05",
+        "event_id": "E03",
+        "order_id": "O2",
+        "source_version": 2,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-02T16:00:00Z",
+        "received_at": "2026-01-03T10:00:00Z",
+        "status": "cancelled",
+        "amount_cents": 20000
+      },
+      {
+        "delivery_id": "D06",
+        "event_id": "E04",
+        "order_id": "O3",
+        "source_version": 1,
+        "order_date": "2026-01-02",
+        "event_time": "2026-01-02T11:00:00Z",
+        "received_at": "2026-01-03T10:01:00Z",
+        "status": "paid",
+        "amount_cents": 5000
+      },
+      {
+        "delivery_id": "D07",
+        "event_id": "E02",
+        "order_id": "O2",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T10:00:00Z",
+        "received_at": "2026-01-04T11:00:00Z",
+        "status": "paid",
+        "amount_cents": 20000
+      },
+      {
+        "delivery_id": "D08",
+        "event_id": "E05",
+        "order_id": "O4",
+        "source_version": 1,
+        "order_date": "2026-01-02",
+        "event_time": "2026-01-02T11:30:00Z",
+        "received_at": "2026-01-04T12:00:00Z",
+        "status": "paid",
+        "amount_cents": 5000
+      },
+      {
+        "delivery_id": "D09",
+        "event_id": "E06",
+        "order_id": "O4",
+        "source_version": 2,
+        "order_date": "2026-01-02",
+        "event_time": "2026-01-03T11:30:00Z",
+        "received_at": "2026-01-04T12:01:00Z",
+        "status": "paid",
+        "amount_cents": 7000
+      },
+      {
+        "delivery_id": "D10",
+        "event_id": "E07",
+        "order_id": "O5",
+        "source_version": 1,
+        "order_date": "2026-01-02",
+        "event_time": "2026-01-02T12:00:00Z",
+        "received_at": "2026-01-04T12:02:00Z",
+        "status": "paid",
+        "amount_cents": 7000
+      },
+      {
+        "delivery_id": "D11",
+        "event_id": "E08",
+        "order_id": "O6",
+        "source_version": 1,
+        "order_date": "2026-01-03",
+        "event_time": "2026-01-03T09:00:00Z",
+        "received_at": "2026-01-04T12:03:00Z",
+        "status": "paid",
+        "amount_cents": 8000
+      },
+      {
+        "delivery_id": "D12",
+        "event_id": "E09",
+        "order_id": "O6",
+        "source_version": 2,
+        "order_date": "2026-01-03",
+        "event_time": "2026-01-04T09:00:00Z",
+        "received_at": "2026-01-04T12:04:00Z",
+        "status": "cancelled",
+        "amount_cents": 8000
+      }
+    ],
+    "empty": [],
+    "conflict_event_payload": [
+      {
+        "delivery_id": "D01",
+        "event_id": "E01",
+        "order_id": "O1",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T09:00:00Z",
+        "received_at": "2026-01-01T09:00:05Z",
+        "status": "paid",
+        "amount_cents": 10000
+      },
+      {
+        "delivery_id": "D02",
+        "event_id": "E02",
+        "order_id": "O2",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T10:00:00Z",
+        "received_at": "2026-01-01T10:00:05Z",
+        "status": "paid",
+        "amount_cents": 20000
+      },
+      {
+        "delivery_id": "D03",
+        "event_id": "E01",
+        "order_id": "O1",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T09:00:00Z",
+        "received_at": "2026-01-02T09:00:00Z",
+        "status": "paid",
+        "amount_cents": 10000
+      },
+      {
+        "delivery_id": "D04",
+        "event_id": "E02",
+        "order_id": "O2",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T10:00:00Z",
+        "received_at": "2026-01-02T09:01:00Z",
+        "status": "paid",
+        "amount_cents": 20000
+      },
+      {
+        "delivery_id": "D05",
+        "event_id": "E03",
+        "order_id": "O2",
+        "source_version": 2,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-02T16:00:00Z",
+        "received_at": "2026-01-03T10:00:00Z",
+        "status": "cancelled",
+        "amount_cents": 20000
+      },
+      {
+        "delivery_id": "D06",
+        "event_id": "E04",
+        "order_id": "O3",
+        "source_version": 1,
+        "order_date": "2026-01-02",
+        "event_time": "2026-01-02T11:00:00Z",
+        "received_at": "2026-01-03T10:01:00Z",
+        "status": "paid",
+        "amount_cents": 5000
+      },
+      {
+        "delivery_id": "D07",
+        "event_id": "E02",
+        "order_id": "O2",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T10:00:00Z",
+        "received_at": "2026-01-04T11:00:00Z",
+        "status": "paid",
+        "amount_cents": 20000
+      },
+      {
+        "delivery_id": "D08",
+        "event_id": "E05",
+        "order_id": "O4",
+        "source_version": 1,
+        "order_date": "2026-01-02",
+        "event_time": "2026-01-02T11:30:00Z",
+        "received_at": "2026-01-04T12:00:00Z",
+        "status": "paid",
+        "amount_cents": 5000
+      },
+      {
+        "delivery_id": "D09",
+        "event_id": "E06",
+        "order_id": "O4",
+        "source_version": 2,
+        "order_date": "2026-01-02",
+        "event_time": "2026-01-03T11:30:00Z",
+        "received_at": "2026-01-04T12:01:00Z",
+        "status": "paid",
+        "amount_cents": 7000
+      },
+      {
+        "delivery_id": "D10",
+        "event_id": "E07",
+        "order_id": "O5",
+        "source_version": 1,
+        "order_date": "2026-01-02",
+        "event_time": "2026-01-02T12:00:00Z",
+        "received_at": "2026-01-04T12:02:00Z",
+        "status": "paid",
+        "amount_cents": 7000
+      },
+      {
+        "delivery_id": "D11",
+        "event_id": "E08",
+        "order_id": "O6",
+        "source_version": 1,
+        "order_date": "2026-01-03",
+        "event_time": "2026-01-03T09:00:00Z",
+        "received_at": "2026-01-04T12:03:00Z",
+        "status": "paid",
+        "amount_cents": 8000
+      },
+      {
+        "delivery_id": "D12",
+        "event_id": "E09",
+        "order_id": "O6",
+        "source_version": 2,
+        "order_date": "2026-01-03",
+        "event_time": "2026-01-04T09:00:00Z",
+        "received_at": "2026-01-04T12:04:00Z",
+        "status": "cancelled",
+        "amount_cents": 8000
+      },
+      {
+        "delivery_id": "D13",
+        "event_id": "E01",
+        "order_id": "O1",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T09:00:00Z",
+        "received_at": "2026-01-05T09:00:00Z",
+        "status": "paid",
+        "amount_cents": 9999
+      }
+    ],
+    "conflict_order_version": [
+      {
+        "delivery_id": "D01",
+        "event_id": "E01",
+        "order_id": "O1",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T09:00:00Z",
+        "received_at": "2026-01-01T09:00:05Z",
+        "status": "paid",
+        "amount_cents": 10000
+      },
+      {
+        "delivery_id": "D02",
+        "event_id": "E02",
+        "order_id": "O2",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T10:00:00Z",
+        "received_at": "2026-01-01T10:00:05Z",
+        "status": "paid",
+        "amount_cents": 20000
+      },
+      {
+        "delivery_id": "D03",
+        "event_id": "E01",
+        "order_id": "O1",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T09:00:00Z",
+        "received_at": "2026-01-02T09:00:00Z",
+        "status": "paid",
+        "amount_cents": 10000
+      },
+      {
+        "delivery_id": "D04",
+        "event_id": "E02",
+        "order_id": "O2",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T10:00:00Z",
+        "received_at": "2026-01-02T09:01:00Z",
+        "status": "paid",
+        "amount_cents": 20000
+      },
+      {
+        "delivery_id": "D05",
+        "event_id": "E03",
+        "order_id": "O2",
+        "source_version": 2,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-02T16:00:00Z",
+        "received_at": "2026-01-03T10:00:00Z",
+        "status": "cancelled",
+        "amount_cents": 20000
+      },
+      {
+        "delivery_id": "D06",
+        "event_id": "E04",
+        "order_id": "O3",
+        "source_version": 1,
+        "order_date": "2026-01-02",
+        "event_time": "2026-01-02T11:00:00Z",
+        "received_at": "2026-01-03T10:01:00Z",
+        "status": "paid",
+        "amount_cents": 5000
+      },
+      {
+        "delivery_id": "D07",
+        "event_id": "E02",
+        "order_id": "O2",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T10:00:00Z",
+        "received_at": "2026-01-04T11:00:00Z",
+        "status": "paid",
+        "amount_cents": 20000
+      },
+      {
+        "delivery_id": "D08",
+        "event_id": "E05",
+        "order_id": "O4",
+        "source_version": 1,
+        "order_date": "2026-01-02",
+        "event_time": "2026-01-02T11:30:00Z",
+        "received_at": "2026-01-04T12:00:00Z",
+        "status": "paid",
+        "amount_cents": 5000
+      },
+      {
+        "delivery_id": "D09",
+        "event_id": "E06",
+        "order_id": "O4",
+        "source_version": 2,
+        "order_date": "2026-01-02",
+        "event_time": "2026-01-03T11:30:00Z",
+        "received_at": "2026-01-04T12:01:00Z",
+        "status": "paid",
+        "amount_cents": 7000
+      },
+      {
+        "delivery_id": "D10",
+        "event_id": "E07",
+        "order_id": "O5",
+        "source_version": 1,
+        "order_date": "2026-01-02",
+        "event_time": "2026-01-02T12:00:00Z",
+        "received_at": "2026-01-04T12:02:00Z",
+        "status": "paid",
+        "amount_cents": 7000
+      },
+      {
+        "delivery_id": "D11",
+        "event_id": "E08",
+        "order_id": "O6",
+        "source_version": 1,
+        "order_date": "2026-01-03",
+        "event_time": "2026-01-03T09:00:00Z",
+        "received_at": "2026-01-04T12:03:00Z",
+        "status": "paid",
+        "amount_cents": 8000
+      },
+      {
+        "delivery_id": "D12",
+        "event_id": "E09",
+        "order_id": "O6",
+        "source_version": 2,
+        "order_date": "2026-01-03",
+        "event_time": "2026-01-04T09:00:00Z",
+        "received_at": "2026-01-04T12:04:00Z",
+        "status": "cancelled",
+        "amount_cents": 8000
+      },
+      {
+        "delivery_id": "D14",
+        "event_id": "E10",
+        "order_id": "O2",
+        "source_version": 2,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-02T17:00:00Z",
+        "received_at": "2026-01-05T09:01:00Z",
+        "status": "paid",
+        "amount_cents": 20000
+      }
+    ],
+    "conflict_order_date": [
+      {
+        "delivery_id": "D01",
+        "event_id": "E01",
+        "order_id": "O1",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T09:00:00Z",
+        "received_at": "2026-01-01T09:00:05Z",
+        "status": "paid",
+        "amount_cents": 10000
+      },
+      {
+        "delivery_id": "D02",
+        "event_id": "E02",
+        "order_id": "O2",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T10:00:00Z",
+        "received_at": "2026-01-01T10:00:05Z",
+        "status": "paid",
+        "amount_cents": 20000
+      },
+      {
+        "delivery_id": "D03",
+        "event_id": "E01",
+        "order_id": "O1",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T09:00:00Z",
+        "received_at": "2026-01-02T09:00:00Z",
+        "status": "paid",
+        "amount_cents": 10000
+      },
+      {
+        "delivery_id": "D04",
+        "event_id": "E02",
+        "order_id": "O2",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T10:00:00Z",
+        "received_at": "2026-01-02T09:01:00Z",
+        "status": "paid",
+        "amount_cents": 20000
+      },
+      {
+        "delivery_id": "D05",
+        "event_id": "E03",
+        "order_id": "O2",
+        "source_version": 2,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-02T16:00:00Z",
+        "received_at": "2026-01-03T10:00:00Z",
+        "status": "cancelled",
+        "amount_cents": 20000
+      },
+      {
+        "delivery_id": "D06",
+        "event_id": "E04",
+        "order_id": "O3",
+        "source_version": 1,
+        "order_date": "2026-01-02",
+        "event_time": "2026-01-02T11:00:00Z",
+        "received_at": "2026-01-03T10:01:00Z",
+        "status": "paid",
+        "amount_cents": 5000
+      },
+      {
+        "delivery_id": "D07",
+        "event_id": "E02",
+        "order_id": "O2",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T10:00:00Z",
+        "received_at": "2026-01-04T11:00:00Z",
+        "status": "paid",
+        "amount_cents": 20000
+      },
+      {
+        "delivery_id": "D08",
+        "event_id": "E05",
+        "order_id": "O4",
+        "source_version": 1,
+        "order_date": "2026-01-02",
+        "event_time": "2026-01-02T11:30:00Z",
+        "received_at": "2026-01-04T12:00:00Z",
+        "status": "paid",
+        "amount_cents": 5000
+      },
+      {
+        "delivery_id": "D09",
+        "event_id": "E06",
+        "order_id": "O4",
+        "source_version": 2,
+        "order_date": "2026-01-02",
+        "event_time": "2026-01-03T11:30:00Z",
+        "received_at": "2026-01-04T12:01:00Z",
+        "status": "paid",
+        "amount_cents": 7000
+      },
+      {
+        "delivery_id": "D10",
+        "event_id": "E07",
+        "order_id": "O5",
+        "source_version": 1,
+        "order_date": "2026-01-02",
+        "event_time": "2026-01-02T12:00:00Z",
+        "received_at": "2026-01-04T12:02:00Z",
+        "status": "paid",
+        "amount_cents": 7000
+      },
+      {
+        "delivery_id": "D11",
+        "event_id": "E08",
+        "order_id": "O6",
+        "source_version": 1,
+        "order_date": "2026-01-03",
+        "event_time": "2026-01-03T09:00:00Z",
+        "received_at": "2026-01-04T12:03:00Z",
+        "status": "paid",
+        "amount_cents": 8000
+      },
+      {
+        "delivery_id": "D12",
+        "event_id": "E09",
+        "order_id": "O6",
+        "source_version": 2,
+        "order_date": "2026-01-03",
+        "event_time": "2026-01-04T09:00:00Z",
+        "received_at": "2026-01-04T12:04:00Z",
+        "status": "cancelled",
+        "amount_cents": 8000
+      },
+      {
+        "delivery_id": "D15",
+        "event_id": "E11",
+        "order_id": "O2",
+        "source_version": 3,
+        "order_date": "2026-01-05",
+        "event_time": "2026-01-05T08:00:00Z",
+        "received_at": "2026-01-05T09:02:00Z",
+        "status": "paid",
+        "amount_cents": 20000
+      }
+    ],
+    "malformed_fields": [
+      {
+        "delivery_id": "D01",
+        "event_id": "E01",
+        "order_id": "O1",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T09:00:00Z",
+        "received_at": "2026-01-01T09:00:05Z",
+        "status": "paid",
+        "amount_cents": 10000
+      },
+      {
+        "delivery_id": "D02",
+        "event_id": "E02",
+        "order_id": "O2",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T10:00:00Z",
+        "received_at": "2026-01-01T10:00:05Z",
+        "status": "paid",
+        "amount_cents": 20000
+      },
+      {
+        "delivery_id": "D03",
+        "event_id": "E01",
+        "order_id": "O1",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T09:00:00Z",
+        "received_at": "2026-01-02T09:00:00Z",
+        "status": "paid",
+        "amount_cents": 10000
+      },
+      {
+        "delivery_id": "D04",
+        "event_id": "E02",
+        "order_id": "O2",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T10:00:00Z",
+        "received_at": "2026-01-02T09:01:00Z",
+        "status": "paid",
+        "amount_cents": 20000
+      },
+      {
+        "delivery_id": "D05",
+        "event_id": "E03",
+        "order_id": "O2",
+        "source_version": 2,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-02T16:00:00Z",
+        "received_at": "2026-01-03T10:00:00Z",
+        "status": "cancelled",
+        "amount_cents": 20000
+      },
+      {
+        "delivery_id": "D06",
+        "event_id": "E04",
+        "order_id": "O3",
+        "source_version": 1,
+        "order_date": "2026-01-02",
+        "event_time": "2026-01-02T11:00:00Z",
+        "received_at": "2026-01-03T10:01:00Z",
+        "status": "paid",
+        "amount_cents": 5000
+      },
+      {
+        "delivery_id": "D07",
+        "event_id": "E02",
+        "order_id": "O2",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T10:00:00Z",
+        "received_at": "2026-01-04T11:00:00Z",
+        "status": "paid",
+        "amount_cents": 20000
+      },
+      {
+        "delivery_id": "D08",
+        "event_id": "E05",
+        "order_id": "O4",
+        "source_version": 1,
+        "order_date": "2026-01-02",
+        "event_time": "2026-01-02T11:30:00Z",
+        "received_at": "2026-01-04T12:00:00Z",
+        "status": "paid",
+        "amount_cents": 5000
+      },
+      {
+        "delivery_id": "D09",
+        "event_id": "E06",
+        "order_id": "O4",
+        "source_version": 2,
+        "order_date": "2026-01-02",
+        "event_time": "2026-01-03T11:30:00Z",
+        "received_at": "2026-01-04T12:01:00Z",
+        "status": "paid",
+        "amount_cents": 7000
+      },
+      {
+        "delivery_id": "D10",
+        "event_id": "E07",
+        "order_id": "O5",
+        "source_version": 1,
+        "order_date": "2026-01-02",
+        "event_time": "2026-01-02T12:00:00Z",
+        "received_at": "2026-01-04T12:02:00Z",
+        "status": "paid",
+        "amount_cents": 7000
+      },
+      {
+        "delivery_id": "D11",
+        "event_id": "E08",
+        "order_id": "O6",
+        "source_version": 1,
+        "order_date": "2026-01-03",
+        "event_time": "2026-01-03T09:00:00Z",
+        "received_at": "2026-01-04T12:03:00Z",
+        "status": "paid",
+        "amount_cents": 8000
+      },
+      {
+        "delivery_id": "D12",
+        "event_id": "E09",
+        "order_id": "O6",
+        "source_version": 2,
+        "order_date": "2026-01-03",
+        "event_time": "2026-01-04T09:00:00Z",
+        "received_at": "2026-01-04T12:04:00Z",
+        "status": "cancelled",
+        "amount_cents": 8000
+      },
+      {
+        "delivery_id": "D16",
+        "event_id": "E12",
+        "order_id": "",
+        "source_version": 0,
+        "order_date": "2026-02-30",
+        "event_time": "not-a-time",
+        "received_at": "2026-01-05T09:03:00Z",
+        "status": "refund",
+        "amount_cents": -1
+      }
+    ],
+    "corrected_retry": [
+      {
+        "delivery_id": "D01",
+        "event_id": "E01",
+        "order_id": "O1",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T09:00:00Z",
+        "received_at": "2026-01-01T09:00:05Z",
+        "status": "paid",
+        "amount_cents": 10000
+      },
+      {
+        "delivery_id": "D02",
+        "event_id": "E02",
+        "order_id": "O2",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T10:00:00Z",
+        "received_at": "2026-01-01T10:00:05Z",
+        "status": "paid",
+        "amount_cents": 20000
+      },
+      {
+        "delivery_id": "D03",
+        "event_id": "E01",
+        "order_id": "O1",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T09:00:00Z",
+        "received_at": "2026-01-02T09:00:00Z",
+        "status": "paid",
+        "amount_cents": 10000
+      },
+      {
+        "delivery_id": "D04",
+        "event_id": "E02",
+        "order_id": "O2",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T10:00:00Z",
+        "received_at": "2026-01-02T09:01:00Z",
+        "status": "paid",
+        "amount_cents": 20000
+      },
+      {
+        "delivery_id": "D05",
+        "event_id": "E03",
+        "order_id": "O2",
+        "source_version": 2,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-02T16:00:00Z",
+        "received_at": "2026-01-03T10:00:00Z",
+        "status": "cancelled",
+        "amount_cents": 20000
+      },
+      {
+        "delivery_id": "D06",
+        "event_id": "E04",
+        "order_id": "O3",
+        "source_version": 1,
+        "order_date": "2026-01-02",
+        "event_time": "2026-01-02T11:00:00Z",
+        "received_at": "2026-01-03T10:01:00Z",
+        "status": "paid",
+        "amount_cents": 5000
+      },
+      {
+        "delivery_id": "D07",
+        "event_id": "E02",
+        "order_id": "O2",
+        "source_version": 1,
+        "order_date": "2026-01-01",
+        "event_time": "2026-01-01T10:00:00Z",
+        "received_at": "2026-01-04T11:00:00Z",
+        "status": "paid",
+        "amount_cents": 20000
+      },
+      {
+        "delivery_id": "D08",
+        "event_id": "E05",
+        "order_id": "O4",
+        "source_version": 1,
+        "order_date": "2026-01-02",
+        "event_time": "2026-01-02T11:30:00Z",
+        "received_at": "2026-01-04T12:00:00Z",
+        "status": "paid",
+        "amount_cents": 5000
+      },
+      {
+        "delivery_id": "D09",
+        "event_id": "E06",
+        "order_id": "O4",
+        "source_version": 2,
+        "order_date": "2026-01-02",
+        "event_time": "2026-01-03T11:30:00Z",
+        "received_at": "2026-01-04T12:01:00Z",
+        "status": "paid",
+        "amount_cents": 7000
+      },
+      {
+        "delivery_id": "D10",
+        "event_id": "E07",
+        "order_id": "O5",
+        "source_version": 1,
+        "order_date": "2026-01-02",
+        "event_time": "2026-01-02T12:00:00Z",
+        "received_at": "2026-01-04T12:02:00Z",
+        "status": "paid",
+        "amount_cents": 7000
+      },
+      {
+        "delivery_id": "D11",
+        "event_id": "E08",
+        "order_id": "O6",
+        "source_version": 1,
+        "order_date": "2026-01-03",
+        "event_time": "2026-01-03T09:00:00Z",
+        "received_at": "2026-01-04T12:03:00Z",
+        "status": "paid",
+        "amount_cents": 8000
+      },
+      {
+        "delivery_id": "D12",
+        "event_id": "E09",
+        "order_id": "O6",
+        "source_version": 2,
+        "order_date": "2026-01-03",
+        "event_time": "2026-01-04T09:00:00Z",
+        "received_at": "2026-01-04T12:04:00Z",
+        "status": "cancelled",
+        "amount_cents": 8000
+      }
+    ]
+  },
+  "snapshot_notes": {
+    "baseline": "Two paid orders on Jan 1.",
+    "replay": "D03/D04 repeat E01/E02 payloads with new transport IDs and receipt times.",
+    "late_cancellation": "E03 cancels O2 on original Jan 1 order date; E04 adds O3 on Jan 2; both arrive Jan 3.",
+    "obsolete_last": "D07 redelivers O2 paid version 1 after cancellation version 2.",
+    "equal_amount_multi_version": "O4 changes from 5000 to 7000; O5 also has 7000 but is a different order.",
+    "all_cancelled_date": "O6 has paid version 1 then cancelled version 2; Jan 3 must remain as 0/0.",
+    "empty": "No deliveries; rows-only empty output cannot validate headers.",
+    "conflict_event_payload": "D13 repeats E01 with a changed business amount; reject before SQL.",
+    "conflict_order_version": "E10 is a second distinct event for O2/version 2; reject even if payload fields match.",
+    "conflict_order_date": "E11 changes O2 immutable order_date; reject before SQL.",
+    "malformed_fields": "D16 has blank order, nonpositive version, invalid date/time/status and negative cents; reject before SQL.",
+    "corrected_retry": "Remove invalid D13 from conflict_event_payload, preserving prior good rows and replay."
+  }
+}
