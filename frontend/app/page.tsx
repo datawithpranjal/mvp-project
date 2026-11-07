@@ -6,8 +6,7 @@ import { OPERATIONS_LABS } from "../data/platform-operations-labs";
 import { getCodingLabs } from "../lib/coding-labs";
 import {
   AUDIENCE_SEGMENTS,
-  BRAND,
-  PRODUCT_PREVIEW_STEPS
+  BRAND
 } from "../lib/product";
 import { getRecommendedScenarioSlug, getScenarios } from "../lib/scenarios";
 import { SYSTEM_DESIGN_CASES } from "../lib/system-design";
@@ -55,23 +54,25 @@ export default function HomePage() {
         <div className="absolute inset-y-0 right-0 hidden w-1/2 bg-[radial-gradient(circle_at_center,rgba(94,234,212,0.18),transparent_55%)] lg:block" />
         <div className="relative grid min-w-0 gap-7 lg:grid-cols-[minmax(0,1fr)_minmax(340px,400px)] lg:items-center">
           <div className="min-w-0">
-            <h1 className="max-w-3xl text-4xl font-semibold leading-[1.05] tracking-tight text-slate-50 sm:text-5xl lg:text-[3.25rem]">
-              Practice Data Engineering like real work.
+            <h1 className="max-w-3xl text-[30px] font-semibold leading-[1.1] tracking-tight text-slate-50 sm:text-5xl lg:text-[3.25rem]">
+              Fix a wrong revenue report. Understand why it broke.
             </h1>
-            <section aria-label="Recommended start" className="mt-4 rounded-3xl border border-slate-800 bg-slate-950/80 p-4 sm:p-5">
-              <p className="text-sm font-semibold leading-5 text-teal-200">Start here · Free SQL practice</p>
-              <h2 className="mt-2 text-xl font-semibold leading-[26px] text-slate-50 sm:text-[22px] sm:leading-7">Fix an inflated customer revenue report.</h2>
-              <p className="mt-2 text-base leading-6 text-slate-300">Inspect the data, correct the query, and run the visible sample.</p>
+            <p className="mt-3 max-w-3xl text-sm leading-[21px] text-slate-300 sm:text-base sm:leading-7">SQL practice for data engineers: inspect the data, correct the query, and check the visible sample.</p>
+            <section aria-label="Recommended start" className="mt-3 rounded-3xl border border-slate-800 bg-slate-950/80 p-3 sm:p-5">
+              <p className="text-xs font-semibold leading-[18px] text-teal-200 sm:text-sm">Start here · Free SQL practice</p>
+              <h2 className="mt-1 text-lg font-semibold leading-6 text-slate-50 sm:text-[22px] sm:leading-7">Fix an inflated customer revenue report.</h2>
               <TrackedLink
                 href={firstFreeScenarioHref}
                 event="homepage_start_clicked"
                 eventPayload={{ destination: "first_free_scenario" }}
                 aria-describedby="free-sql-account"
-                className="mt-3 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-teal-300 px-4 py-3 text-base font-semibold leading-6 text-slate-950 transition hover:bg-teal-200 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-4 focus-visible:outline-[color:var(--accent)] sm:w-auto sm:px-5"
+                className="mt-2 inline-flex min-h-11 w-full items-center justify-center rounded-full bg-teal-300 px-4 py-2.5 text-sm font-semibold leading-6 text-slate-950 transition hover:bg-teal-200 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-4 focus-visible:outline-[color:var(--accent)] sm:w-auto sm:px-5"
               >
                 Try the free SQL scenario
               </TrackedLink>
-              <p id="free-sql-account" className="mt-2 max-w-md text-sm leading-[21px] text-slate-300">No sign-in for the sample. A free account is required to submit for evaluation.</p>
+              <p id="free-sql-account" className="mt-2 max-w-md text-[13px] leading-[18px] sm:text-sm sm:leading-[21px] text-slate-300">No sign-in for the sample. A free account is required to submit for evaluation.</p>
+              <TrackedLink href="/pricing#unlock-premium" event="premium_unlock_clicked" eventPayload={{ source: "homepage_hero" }} className="mt-3 inline-flex text-sm font-semibold leading-5 text-amber-200 underline underline-offset-4 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-4 focus-visible:outline-[color:var(--accent)]">Choose Premium — ₹199/month or ₹999/year</TrackedLink>
+              <p className="mt-1 text-[13px] leading-[18px] text-slate-300 sm:text-sm">Monthly: one month from activation. Yearly: 12 months from activation.</p>
             </section>
             <TrackedLink
               href="/labs"
@@ -81,10 +82,6 @@ export default function HomePage() {
             >
               Explore all practice
             </TrackedLink>
-            <p className="mt-3 max-w-3xl text-base leading-7 text-slate-300">
-              Practice real data engineering scenarios, get feedback, and strengthen how
-              you explain SQL, PySpark, Airflow, AWS, and production-debugging decisions.
-            </p>
             <p className="mt-3 text-sm leading-6 text-slate-400">
               {BRAND.trustLine}
             </p>
@@ -146,31 +143,7 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div className="panel rounded-[2rem] p-6">
-          <h2 className="text-2xl font-semibold text-slate-50">Free vs Premium</h2>
-          <div className="mt-5 grid gap-4 sm:grid-cols-2">
-            <div className="rounded-3xl border border-teal-300/20 bg-teal-300/10 p-5">
-              <p className="text-sm font-semibold text-teal-100">Free</p>
-              <p className="mt-3 text-sm leading-6 text-slate-300">
-                Start with selected SQL and production scenarios, hints, validation, and
-                progress tracking.
-              </p>
-            </div>
-            <div className="rounded-3xl border border-amber-300/25 bg-amber-300/10 p-5">
-              <p className="text-sm font-semibold text-amber-100">Premium</p>
-              <p className="mt-3 text-sm leading-6 text-slate-300">
-                Unlock the full library, deeper debugging labs, model answers, follow-ups,
-                and advanced system design practice.
-              </p>
-            </div>
-          </div>
-          <Link
-            href="/pricing"
-            className="mt-5 inline-flex rounded-full border border-slate-700 px-5 py-3 text-sm font-semibold text-slate-200 transition hover:border-amber-300/40"
-          >
-            See pricing
-          </Link>
-        </div>
+
       </section>
 
     </main>
@@ -179,36 +152,22 @@ export default function HomePage() {
 
 function ProductPreview() {
   return (
-    <div className="w-full min-w-0 rounded-[1.75rem] border border-slate-800 bg-slate-950/60 p-4 shadow-2xl shadow-slate-950/40">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-teal-200">
-          Product preview
-        </p>
-        <span className="rounded-full border border-amber-300/25 bg-amber-300/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-100">
-          Practice loop
-        </span>
+    <section aria-labelledby="free-walkthrough-title" className="w-full min-w-0 rounded-[1.75rem] border border-slate-800 bg-slate-950/60 p-4 shadow-2xl shadow-slate-950/40">
+      <h2 id="free-walkthrough-title" className="text-lg font-semibold text-slate-50">Inside the free exercise</h2>
+      <p className="mt-3 text-sm leading-6 text-slate-300">Inspect orders and customers → correct customer-level totals → run the visible sample.</p>
+      <p className="mt-2 text-sm font-semibold leading-6 text-teal-200">One row per customer. Completed-order revenue only.</p>
+      <div className="mt-4 space-y-4">
+        <div className="rounded-2xl border border-teal-300/20 bg-teal-300/5 p-3">
+          <h3 className="text-sm font-semibold text-teal-200">Free</h3>
+          <p className="mt-2 text-sm leading-6 text-slate-300">Try customer-revenue SQL with the supplied data, hints and visible-sample check.</p>
+        </div>
+        <div className="rounded-2xl border border-amber-300/25 bg-amber-300/5 p-3">
+          <p className="text-sm font-semibold text-amber-200">Premium</p>
+          <h3 className="mt-2 text-base font-semibold leading-6 text-slate-100"><Link href="/scenarios/revenue-drop-new-successful-status" className="underline underline-offset-4 focus-visible:outline">Revenue Dropped 30% After New SUCCESSFUL Status</Link></h3>
+          <p className="mt-2 text-sm leading-6 text-slate-300">Work through a different revenue problem using payment records and supplied status definitions. Use hints, a model explanation and follow-up questions to compare approaches.</p>
+        </div>
       </div>
-      <div className="mt-4 space-y-2">
-        {PRODUCT_PREVIEW_STEPS.map((step, index) => (
-          <div
-            key={step.label}
-            className="min-w-0 rounded-2xl border border-slate-800 bg-slate-950/50 p-3"
-          >
-            <div className="flex items-center gap-3">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-teal-300 text-xs font-bold text-slate-950">
-                {index + 1}
-              </span>
-              <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                  {step.label}
-                </p>
-                <p className="mt-1 text-sm font-semibold text-slate-100">{step.title}</p>
-                <p className="mt-1 text-xs leading-4 text-slate-400">{step.detail}</p>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
+      <p className="mt-4 text-sm leading-6 text-slate-400">Guided practice, not an independent skill assessment. SQL checks cover the supplied example; explanation feedback is advisory.</p>
+    </section>
   );
 }

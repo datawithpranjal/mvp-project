@@ -1370,6 +1370,7 @@ Impact: ${scenario.incident.impact}`
                     </div>
                   ) : (
                     <textarea
+                      id={scenario.id === "bpl-sql-001" && scenario.slug === "wrong-group-by-grain-customer-revenue" ? "scenario-answer" : undefined}
                       value={answer}
                       onChange={(event) => { setAnswer(event.target.value); setSqlExecution(null); setPysparkExecution(null); setEvaluation(null); setDraftMessage(null); }}
                       onKeyDown={(event) => handleTextareaTabKeyDown(event, (nextValue) => { setAnswer(nextValue); setSqlExecution(null); setPysparkExecution(null); setEvaluation(null); setDraftMessage(null); })}
@@ -1475,6 +1476,24 @@ Impact: ${scenario.incident.impact}`
           </section>
 
           {sqlExecution ? <ScenarioSqlResultPanel result={sqlExecution} /> : null}
+          {scenario.id === "bpl-sql-001" && scenario.slug === "wrong-group-by-grain-customer-revenue" && sqlExecution ? (
+            <section aria-label="Optional guided revenue practice" className="rounded-3xl border border-slate-700 p-5">
+              {!sqlExecution.passed ? (
+                <div className="mb-5 rounded-2xl border border-teal-300/25 bg-teal-300/5 p-4">
+                  <p className="text-sm font-semibold leading-6 text-slate-100">Keep working on this free example: correct your query and rerun the visible sample. Premium is optional.</p>
+                  <div className="mt-3 flex flex-wrap gap-3">
+                    <button type="button" onClick={() => { setWorkspaceStep("fix"); requestAnimationFrame(() => document.getElementById("scenario-answer")?.focus()); }} className="rounded-full bg-teal-300 px-4 py-2.5 text-sm font-semibold text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[color:var(--accent)]">Return to your query</button>
+                    <button type="button" onClick={runSampleCheck} disabled={isChecking} className="rounded-full border border-teal-300/35 px-4 py-2.5 text-sm font-semibold text-teal-100 disabled:opacity-50">Retry visible sample</button>
+                  </div>
+                </div>
+              ) : null}
+              <h3 className="text-lg font-semibold text-slate-50">Explore another guided revenue problem</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-300">Premium includes Revenue Dropped 30% After New SUCCESSFUL Status: practise revenue reconciliation with supplied status definitions, hints, a model explanation and follow-up questions.</p>
+              <p className="mt-2 text-sm leading-6 text-slate-400">This is guided practice. The SQL check covers the supplied example; explanation feedback is advisory.</p>
+              <Link href="/pricing#unlock-premium" className="mt-4 inline-flex text-sm font-semibold leading-6 text-amber-200 underline underline-offset-4 focus-visible:outline">Choose Premium — ₹199/month or ₹999/year</Link>
+              <Link href="/scenarios/revenue-drop-new-successful-status" className="mt-3 block text-sm leading-6 text-teal-200 underline underline-offset-4">Already Premium? Open this guided practice</Link>
+            </section>
+          ) : null}
           {canRunPyspark && scenarioCompleted ? (
             <p className="mt-4 text-sm text-slate-400">Earlier completion is retained. A saved Done state alone does not establish a hidden-test pass; check the validation result below.</p>
           ) : null}

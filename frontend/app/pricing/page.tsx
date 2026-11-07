@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { PremiumUpgradePanel } from "../../components/premium-upgrade-panel";
 import { TrackedLink } from "../../components/tracked-link";
 import { getCodingLabs } from "../../lib/coding-labs";
@@ -64,27 +66,26 @@ export default function PricingPage() {
   ];
 
   return (
-    <main className="mx-auto min-h-screen max-w-6xl px-6 py-10 sm:px-10">
-      <section className="panel overflow-hidden rounded-[2rem] p-8">
+    <main className="mx-auto min-h-screen max-w-6xl px-4 py-4 sm:px-10 sm:py-10">
+      <section className="panel overflow-hidden rounded-[2rem] p-4 sm:p-8">
         <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-end">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-200">
               Premium
             </p>
-            <h1 className="mt-4 text-4xl font-semibold tracking-tight text-slate-50 sm:text-5xl">
-              Unlock deeper interview practice.
+            <h1 className="mt-3 text-[30px] font-semibold leading-[1.1] tracking-tight text-slate-50 sm:text-5xl">
+              Continue with guided data-engineering practice.
             </h1>
-            <p className="mt-4 max-w-3xl text-base leading-7 text-slate-300">
-              Start free, then upgrade for the full scenario library, advanced debugging
-              labs, model answers, and advanced system design practice.
-            </p>
+            <p className="mt-3 max-w-3xl text-sm leading-[21px] text-slate-300 sm:text-base sm:leading-7">Start with the free customer-revenue example, or choose Premium for additional guided problems, model explanations and follow-up questions.</p>
+            <p className="mt-3 text-sm leading-[21px] text-slate-300">One Premium example: <Link href="/scenarios/revenue-drop-new-successful-status" className="font-semibold underline underline-offset-4">Revenue Dropped 30% After New SUCCESSFUL Status</Link> — reconcile revenue using payment records and supplied status definitions.</p>
+            <p className="mt-3 text-sm font-semibold leading-[21px] text-slate-100">₹199 for one month or ₹999 for 12 months from activation.</p>
+            <p className="mt-2 text-sm leading-[21px] text-slate-300">Sign in or create an account, choose your plan, then pay through Razorpay. Premium access requires payment verification.</p>
+            <p className="mt-2 text-[13px] leading-[18px] text-slate-400">Guided practice does not certify independent skill or interview readiness.</p>
+            <p className="mt-2 text-[13px] leading-[18px] text-slate-300">Payment or activation help: <a href="mailto:datawithpranjal@gmail.com" className="underline">datawithpranjal@gmail.com</a>.</p>
           </div>
-          <div className="rounded-3xl border border-amber-300/20 bg-amber-300/10 p-5">
-            <p className="text-sm font-semibold text-amber-100">Secure Razorpay activation</p>
-            <p className="mt-2 text-sm leading-6 text-slate-300">
-              Pay through Razorpay using UPI, cards, wallets, or net banking. Premium
-              access unlocks after verified payment confirmation.
-            </p>
+          <div className="rounded-3xl border border-amber-300/20 bg-amber-300/10 p-4">
+            <p className="text-sm font-semibold text-amber-100">Already a Premium member?</p>
+            <Link href="/dashboard" className="mt-2 inline-flex text-sm font-semibold text-teal-200 underline underline-offset-4">Open your practice dashboard</Link>
           </div>
         </div>
       </section>
@@ -154,9 +155,14 @@ export default function PricingPage() {
       <p className="mt-4 text-sm leading-6 text-slate-400">Project Sandbox is coming soon and is not available with Premium today.</p>
 
       <div id="unlock-premium" className="mt-8 scroll-mt-28">
+        <section aria-label="Premium activation steps" className="mb-5 rounded-3xl border border-slate-700 p-5">
+          <h2 className="text-xl font-semibold text-slate-50">Choose your Premium plan</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-300">₹199 for one month or ₹999 for 12 months from activation. Sign in or create an account, choose your plan, then pay through Razorpay. Premium access requires payment verification.</p>
+          <Link href="/dashboard" className="mt-3 inline-flex text-sm text-teal-200 underline">Already a member? Open your practice dashboard</Link>
+        </section>
         <PremiumUpgradePanel
-          title="The Data Foundry Premium"
-          description="Annual access is Rs 999/year, marked down from Rs 2499. Monthly access is Rs 199/month, marked down from Rs 499. Pay securely through Razorpay and unlock premium after verification."
+          title="Choose your Premium plan"
+          description="₹199 for one month or ₹999 for 12 months from activation. Sign in or create an account, choose your plan, then pay through Razorpay. Premium access requires payment verification."
         />
       </div>
 
