@@ -29,6 +29,7 @@ type SortOption =
   | "free";
 
 type PracticeItem =
+  | { kind: "azure" }
   | { kind: "project" }
   | { kind: "modelling" }
   | { kind: "coding"; lab: CodingLab }
@@ -72,6 +73,7 @@ export function PracticeHub() {
 
   const allItems = useMemo<PracticeItem[]>(
     () => [
+      { kind: "azure" as const },
       { kind: "project" as const },
       { kind: "modelling" as const },
       ...codingLabs.map((lab) => ({ kind: "coding" as const, lab })),
@@ -381,7 +383,7 @@ function PracticeResultCard({
             : "bg-amber-300 text-slate-950 hover:bg-amber-200"
         }`}
       >
-        {item.kind === "project" ? "Open free project" : locked ? "Unlock Premium" : progress?.attemptCount ? "Continue Lab" : "Start Lab"}
+        {item.kind === "azure" ? "Practise ADF recovery" : item.kind === "project" ? "Open free project" : locked ? "Unlock Premium" : progress?.attemptCount ? "Continue Lab" : "Start Lab"}
       </Link>
     </article>
   );
@@ -464,6 +466,7 @@ function Stat({ label, value }: { label: string; value: string | number }) {
 }
 
 function practiceKey(item: PracticeItem): string {
+  if (item.kind === "azure") return "azure-adf-watermark-recovery-001";
   if (item.kind === "project") return "project-order-replay-001";
   if (item.kind === "modelling") return "dm-historical-territory-001";
   if (item.kind === "scenario") return `scenario-${item.scenario.slug}`;
@@ -471,6 +474,12 @@ function practiceKey(item: PracticeItem): string {
 }
 
 function getPracticeMetadata(item: PracticeItem): PracticeMetadata {
+  if (item.kind === "azure") return {
+    title: "ADF Copy failed—why did the watermark advance?",
+    outcome: "One free Azure Data Factory configuration and recovery simulation; no Azure account required.",
+    domain: "Azure", type: "Free · Local simulation", difficulty: "Intermediate", estimatedMinutes: 35,
+    isFree: true, skills: ["ADF dependencies", "Lookup outputs", "Upsert", "Watermark recovery"], href: "/labs/azure"
+  };
   if (item.kind === "project") return {
     title: "Replay the order feed without changing revenue",
     outcome: "Build three linked SQL stages, test replay and late cancellations, and practise protecting the last good report in a browser simulation.",

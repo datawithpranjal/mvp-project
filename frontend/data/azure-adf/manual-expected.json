@@ -1,0 +1,1084 @@
+{
+  "target_states": {
+    "initial": [
+      [
+        1,
+        100,
+        1000
+      ],
+      [
+        5,
+        100,
+        500
+      ]
+    ],
+    "partial": [
+      [
+        1,
+        100,
+        1000
+      ],
+      [
+        2,
+        101,
+        2000
+      ],
+      [
+        5,
+        100,
+        500
+      ]
+    ],
+    "complete104": [
+      [
+        1,
+        102,
+        1500
+      ],
+      [
+        2,
+        101,
+        2000
+      ],
+      [
+        3,
+        104,
+        3000
+      ],
+      [
+        4,
+        104,
+        4000
+      ],
+      [
+        5,
+        100,
+        500
+      ]
+    ],
+    "complete105": [
+      [
+        1,
+        102,
+        1500
+      ],
+      [
+        2,
+        101,
+        2000
+      ],
+      [
+        3,
+        104,
+        3000
+      ],
+      [
+        4,
+        104,
+        4000
+      ],
+      [
+        5,
+        100,
+        500
+      ],
+      [
+        6,
+        105,
+        6000
+      ]
+    ],
+    "completed_bad": [
+      [
+        1,
+        100,
+        1000
+      ],
+      [
+        2,
+        101,
+        2000
+      ],
+      [
+        5,
+        100,
+        500
+      ],
+      [
+        6,
+        105,
+        6000
+      ]
+    ],
+    "upper_exclusive": [
+      [
+        1,
+        102,
+        1500
+      ],
+      [
+        2,
+        101,
+        2000
+      ],
+      [
+        5,
+        100,
+        500
+      ]
+    ]
+  },
+  "cases": {
+    "clean": [
+      {
+        "selected_order_ids": [
+          2,
+          1,
+          3,
+          4
+        ],
+        "selected_rows": [
+          [
+            2,
+            101,
+            2000
+          ],
+          [
+            1,
+            102,
+            1500
+          ],
+          [
+            3,
+            104,
+            3000
+          ],
+          [
+            4,
+            104,
+            4000
+          ]
+        ],
+        "committed_order_ids": [
+          2,
+          1,
+          3,
+          4
+        ],
+        "committed_rows": [
+          [
+            2,
+            101,
+            2000
+          ],
+          [
+            1,
+            102,
+            1500
+          ],
+          [
+            3,
+            104,
+            3000
+          ],
+          [
+            4,
+            104,
+            4000
+          ]
+        ],
+        "copy_status": "Succeeded",
+        "advance_status": "Succeeded",
+        "checkpoint": 104,
+        "target_state": "complete104",
+        "diagnostic": null
+      }
+    ],
+    "checkpoint_failure_then_replay": [
+      {
+        "selected_order_ids": [
+          2,
+          1,
+          3,
+          4
+        ],
+        "selected_rows": [
+          [
+            2,
+            101,
+            2000
+          ],
+          [
+            1,
+            102,
+            1500
+          ],
+          [
+            3,
+            104,
+            3000
+          ],
+          [
+            4,
+            104,
+            4000
+          ]
+        ],
+        "committed_order_ids": [
+          2,
+          1,
+          3,
+          4
+        ],
+        "committed_rows": [
+          [
+            2,
+            101,
+            2000
+          ],
+          [
+            1,
+            102,
+            1500
+          ],
+          [
+            3,
+            104,
+            3000
+          ],
+          [
+            4,
+            104,
+            4000
+          ]
+        ],
+        "copy_status": "Succeeded",
+        "advance_status": "Failed",
+        "checkpoint": 100,
+        "target_state": "complete104",
+        "diagnostic": "checkpoint failed before mutation"
+      },
+      {
+        "selected_order_ids": [
+          2,
+          1,
+          3,
+          4
+        ],
+        "selected_rows": [
+          [
+            2,
+            101,
+            2000
+          ],
+          [
+            1,
+            102,
+            1500
+          ],
+          [
+            3,
+            104,
+            3000
+          ],
+          [
+            4,
+            104,
+            4000
+          ]
+        ],
+        "committed_order_ids": [
+          2,
+          1,
+          3,
+          4
+        ],
+        "committed_rows": [
+          [
+            2,
+            101,
+            2000
+          ],
+          [
+            1,
+            102,
+            1500
+          ],
+          [
+            3,
+            104,
+            3000
+          ],
+          [
+            4,
+            104,
+            4000
+          ]
+        ],
+        "copy_status": "Succeeded",
+        "advance_status": "Succeeded",
+        "checkpoint": 104,
+        "target_state": "complete104",
+        "diagnostic": null
+      }
+    ],
+    "partial_then_retry": [
+      {
+        "selected_order_ids": [
+          2,
+          1,
+          3,
+          4
+        ],
+        "selected_rows": [
+          [
+            2,
+            101,
+            2000
+          ],
+          [
+            1,
+            102,
+            1500
+          ],
+          [
+            3,
+            104,
+            3000
+          ],
+          [
+            4,
+            104,
+            4000
+          ]
+        ],
+        "committed_order_ids": [
+          2
+        ],
+        "committed_rows": [
+          [
+            2,
+            101,
+            2000
+          ]
+        ],
+        "copy_status": "Failed",
+        "advance_status": "Skipped",
+        "checkpoint": 100,
+        "target_state": "partial",
+        "diagnostic": "injected Copy failure after first committed row"
+      },
+      {
+        "selected_order_ids": [
+          2,
+          1,
+          3,
+          4
+        ],
+        "selected_rows": [
+          [
+            2,
+            101,
+            2000
+          ],
+          [
+            1,
+            102,
+            1500
+          ],
+          [
+            3,
+            104,
+            3000
+          ],
+          [
+            4,
+            104,
+            4000
+          ]
+        ],
+        "committed_order_ids": [
+          2,
+          1,
+          3,
+          4
+        ],
+        "committed_rows": [
+          [
+            2,
+            101,
+            2000
+          ],
+          [
+            1,
+            102,
+            1500
+          ],
+          [
+            3,
+            104,
+            3000
+          ],
+          [
+            4,
+            104,
+            4000
+          ]
+        ],
+        "copy_status": "Succeeded",
+        "advance_status": "Succeeded",
+        "checkpoint": 104,
+        "target_state": "complete104",
+        "diagnostic": null
+      }
+    ],
+    "failure_before_first_write": [
+      {
+        "selected_order_ids": [
+          2,
+          1,
+          3,
+          4
+        ],
+        "selected_rows": [
+          [
+            2,
+            101,
+            2000
+          ],
+          [
+            1,
+            102,
+            1500
+          ],
+          [
+            3,
+            104,
+            3000
+          ],
+          [
+            4,
+            104,
+            4000
+          ]
+        ],
+        "committed_order_ids": [],
+        "committed_rows": [],
+        "copy_status": "Failed",
+        "advance_status": "Skipped",
+        "checkpoint": 100,
+        "target_state": "initial",
+        "diagnostic": "injected Copy failure before first write"
+      }
+    ],
+    "completed_after_partial_then_next": [
+      {
+        "selected_order_ids": [
+          2,
+          1,
+          3,
+          4
+        ],
+        "selected_rows": [
+          [
+            2,
+            101,
+            2000
+          ],
+          [
+            1,
+            102,
+            1500
+          ],
+          [
+            3,
+            104,
+            3000
+          ],
+          [
+            4,
+            104,
+            4000
+          ]
+        ],
+        "committed_order_ids": [
+          2
+        ],
+        "committed_rows": [
+          [
+            2,
+            101,
+            2000
+          ]
+        ],
+        "copy_status": "Failed",
+        "advance_status": "Succeeded",
+        "checkpoint": 104,
+        "target_state": "partial",
+        "diagnostic": "injected Copy failure after first committed row"
+      },
+      {
+        "selected_order_ids": [
+          6
+        ],
+        "selected_rows": [
+          [
+            6,
+            105,
+            6000
+          ]
+        ],
+        "committed_order_ids": [
+          6
+        ],
+        "committed_rows": [
+          [
+            6,
+            105,
+            6000
+          ]
+        ],
+        "copy_status": "Succeeded",
+        "advance_status": "Succeeded",
+        "checkpoint": 105,
+        "target_state": "completed_bad",
+        "diagnostic": null
+      }
+    ],
+    "upper_exclusive": [
+      {
+        "selected_order_ids": [
+          2,
+          1
+        ],
+        "selected_rows": [
+          [
+            2,
+            101,
+            2000
+          ],
+          [
+            1,
+            102,
+            1500
+          ]
+        ],
+        "committed_order_ids": [
+          2,
+          1
+        ],
+        "committed_rows": [
+          [
+            2,
+            101,
+            2000
+          ],
+          [
+            1,
+            102,
+            1500
+          ]
+        ],
+        "copy_status": "Succeeded",
+        "advance_status": "Succeeded",
+        "checkpoint": 104,
+        "target_state": "upper_exclusive",
+        "diagnostic": null
+      }
+    ],
+    "lower_inclusive": [
+      {
+        "selected_order_ids": [
+          5,
+          2,
+          1,
+          3,
+          4
+        ],
+        "selected_rows": [
+          [
+            5,
+            100,
+            500
+          ],
+          [
+            2,
+            101,
+            2000
+          ],
+          [
+            1,
+            102,
+            1500
+          ],
+          [
+            3,
+            104,
+            3000
+          ],
+          [
+            4,
+            104,
+            4000
+          ]
+        ],
+        "committed_order_ids": [
+          5,
+          2,
+          1,
+          3,
+          4
+        ],
+        "committed_rows": [
+          [
+            5,
+            100,
+            500
+          ],
+          [
+            2,
+            101,
+            2000
+          ],
+          [
+            1,
+            102,
+            1500
+          ],
+          [
+            3,
+            104,
+            3000
+          ],
+          [
+            4,
+            104,
+            4000
+          ]
+        ],
+        "copy_status": "Succeeded",
+        "advance_status": "Succeeded",
+        "checkpoint": 104,
+        "target_state": "complete104",
+        "diagnostic": null
+      }
+    ],
+    "unbounded_upper": [
+      {
+        "selected_order_ids": [
+          2,
+          1,
+          3,
+          4,
+          6
+        ],
+        "selected_rows": [
+          [
+            2,
+            101,
+            2000
+          ],
+          [
+            1,
+            102,
+            1500
+          ],
+          [
+            3,
+            104,
+            3000
+          ],
+          [
+            4,
+            104,
+            4000
+          ],
+          [
+            6,
+            105,
+            6000
+          ]
+        ],
+        "committed_order_ids": [
+          2,
+          1,
+          3,
+          4,
+          6
+        ],
+        "committed_rows": [
+          [
+            2,
+            101,
+            2000
+          ],
+          [
+            1,
+            102,
+            1500
+          ],
+          [
+            3,
+            104,
+            3000
+          ],
+          [
+            4,
+            104,
+            4000
+          ],
+          [
+            6,
+            105,
+            6000
+          ]
+        ],
+        "copy_status": "Succeeded",
+        "advance_status": "Succeeded",
+        "checkpoint": 104,
+        "target_state": "complete105",
+        "diagnostic": null
+      }
+    ],
+    "insert_pk": [
+      {
+        "selected_order_ids": [
+          2,
+          1,
+          3,
+          4
+        ],
+        "selected_rows": [
+          [
+            2,
+            101,
+            2000
+          ],
+          [
+            1,
+            102,
+            1500
+          ],
+          [
+            3,
+            104,
+            3000
+          ],
+          [
+            4,
+            104,
+            4000
+          ]
+        ],
+        "committed_order_ids": [
+          2
+        ],
+        "committed_rows": [
+          [
+            2,
+            101,
+            2000
+          ]
+        ],
+        "copy_status": "Failed",
+        "advance_status": "Skipped",
+        "checkpoint": 100,
+        "target_state": "partial",
+        "diagnostic": "duplicate target primary key order_id=1"
+      }
+    ],
+    "starter_combined": [
+      {
+        "selected_order_ids": [
+          5,
+          2,
+          1,
+          3,
+          4
+        ],
+        "selected_rows": [
+          [
+            5,
+            100,
+            500
+          ],
+          [
+            2,
+            101,
+            2000
+          ],
+          [
+            1,
+            102,
+            1500
+          ],
+          [
+            3,
+            104,
+            3000
+          ],
+          [
+            4,
+            104,
+            4000
+          ]
+        ],
+        "committed_order_ids": [],
+        "committed_rows": [],
+        "copy_status": "Failed",
+        "advance_status": "Succeeded",
+        "checkpoint": 104,
+        "target_state": "initial",
+        "diagnostic": "duplicate target primary key order_id=5"
+      }
+    ],
+    "no_change": [
+      {
+        "selected_order_ids": [],
+        "selected_rows": [],
+        "committed_order_ids": [],
+        "committed_rows": [],
+        "copy_status": "Succeeded",
+        "advance_status": "Succeeded",
+        "checkpoint": 104,
+        "target_state": "complete104",
+        "diagnostic": null
+      }
+    ],
+    "empty_new_watermark": [
+      {
+        "selected_order_ids": [],
+        "selected_rows": [],
+        "committed_order_ids": [],
+        "committed_rows": [],
+        "copy_status": "Skipped",
+        "advance_status": "Skipped",
+        "checkpoint": 100,
+        "target_state": "initial",
+        "diagnostic": "new Lookup watermark is null; no-work branch"
+      }
+    ],
+    "lookup_shape_mismatch": [
+      {
+        "selected_order_ids": [],
+        "selected_rows": [],
+        "committed_order_ids": [],
+        "committed_rows": [],
+        "copy_status": "NotStarted",
+        "advance_status": "NotStarted",
+        "checkpoint": 100,
+        "target_state": "initial",
+        "diagnostic": "LookupNew output shape does not match firstRow expression"
+      }
+    ],
+    "wrong_upsert_key": [
+      {
+        "selected_order_ids": [],
+        "selected_rows": [],
+        "committed_order_ids": [],
+        "committed_rows": [],
+        "copy_status": "NotStarted",
+        "advance_status": "NotStarted",
+        "checkpoint": 100,
+        "target_state": "initial",
+        "diagnostic": "unsupported/ambiguous simulator upsert key amount_cents; order_id PK remains authoritative"
+      }
+    ],
+    "duplicate_source_order_id": [
+      {
+        "selected_order_ids": [],
+        "selected_rows": [],
+        "committed_order_ids": [],
+        "committed_rows": [],
+        "copy_status": "NotStarted",
+        "advance_status": "NotStarted",
+        "checkpoint": 100,
+        "target_state": "initial",
+        "diagnostic": "duplicate source order_id=2"
+      }
+    ],
+    "invalid_integer": [
+      {
+        "selected_order_ids": [],
+        "selected_rows": [],
+        "committed_order_ids": [],
+        "committed_rows": [],
+        "copy_status": "NotStarted",
+        "advance_status": "NotStarted",
+        "checkpoint": 100,
+        "target_state": "initial",
+        "diagnostic": "invalid amount_cents for order_id=8"
+      }
+    ],
+    "upper_less_than_lower": [
+      {
+        "selected_order_ids": [],
+        "selected_rows": [],
+        "committed_order_ids": [],
+        "committed_rows": [],
+        "copy_status": "NotStarted",
+        "advance_status": "NotStarted",
+        "checkpoint": 100,
+        "target_state": "initial",
+        "diagnostic": "captured upper 99 is below lower 100"
+      }
+    ],
+    "old_numeric_one_ref": [
+      {
+        "selected_order_ids": [],
+        "selected_rows": [],
+        "committed_order_ids": [],
+        "committed_rows": [],
+        "copy_status": "NotStarted",
+        "advance_status": "NotStarted",
+        "checkpoint": 100,
+        "target_state": "initial",
+        "diagnostic": "LookupOld.typeProperties.firstRowOnly must be Boolean (true/false); got int"
+      }
+    ],
+    "new_numeric_one_ref": [
+      {
+        "selected_order_ids": [],
+        "selected_rows": [],
+        "committed_order_ids": [],
+        "committed_rows": [],
+        "copy_status": "NotStarted",
+        "advance_status": "NotStarted",
+        "checkpoint": 100,
+        "target_state": "initial",
+        "diagnostic": "LookupNew.typeProperties.firstRowOnly must be Boolean (true/false); got int"
+      }
+    ],
+    "old_numeric_zero_array": [
+      {
+        "selected_order_ids": [],
+        "selected_rows": [],
+        "committed_order_ids": [],
+        "committed_rows": [],
+        "copy_status": "NotStarted",
+        "advance_status": "NotStarted",
+        "checkpoint": 100,
+        "target_state": "initial",
+        "diagnostic": "LookupOld.typeProperties.firstRowOnly must be Boolean (true/false); got int"
+      }
+    ],
+    "new_numeric_zero_array": [
+      {
+        "selected_order_ids": [],
+        "selected_rows": [],
+        "committed_order_ids": [],
+        "committed_rows": [],
+        "copy_status": "NotStarted",
+        "advance_status": "NotStarted",
+        "checkpoint": 100,
+        "target_state": "initial",
+        "diagnostic": "LookupNew.typeProperties.firstRowOnly must be Boolean (true/false); got int"
+      }
+    ],
+    "old_string_true_ref": [
+      {
+        "selected_order_ids": [],
+        "selected_rows": [],
+        "committed_order_ids": [],
+        "committed_rows": [],
+        "copy_status": "NotStarted",
+        "advance_status": "NotStarted",
+        "checkpoint": 100,
+        "target_state": "initial",
+        "diagnostic": "LookupOld.typeProperties.firstRowOnly must be Boolean (true/false); got str"
+      }
+    ],
+    "new_null_ref": [
+      {
+        "selected_order_ids": [],
+        "selected_rows": [],
+        "committed_order_ids": [],
+        "committed_rows": [],
+        "copy_status": "NotStarted",
+        "advance_status": "NotStarted",
+        "checkpoint": 100,
+        "target_state": "initial",
+        "diagnostic": "LookupNew.typeProperties.firstRowOnly must be Boolean (true/false); got NoneType"
+      }
+    ],
+    "old_float_one_ref": [
+      {
+        "selected_order_ids": [],
+        "selected_rows": [],
+        "committed_order_ids": [],
+        "committed_rows": [],
+        "copy_status": "NotStarted",
+        "advance_status": "NotStarted",
+        "checkpoint": 100,
+        "target_state": "initial",
+        "diagnostic": "LookupOld.typeProperties.firstRowOnly must be Boolean (true/false); got float"
+      }
+    ],
+    "new_string_false_array": [
+      {
+        "selected_order_ids": [],
+        "selected_rows": [],
+        "committed_order_ids": [],
+        "committed_rows": [],
+        "copy_status": "NotStarted",
+        "advance_status": "NotStarted",
+        "checkpoint": 100,
+        "target_state": "initial",
+        "diagnostic": "LookupNew.typeProperties.firstRowOnly must be Boolean (true/false); got str"
+      }
+    ],
+    "old_list_ref": [
+      {
+        "selected_order_ids": [],
+        "selected_rows": [],
+        "committed_order_ids": [],
+        "committed_rows": [],
+        "copy_status": "NotStarted",
+        "advance_status": "NotStarted",
+        "checkpoint": 100,
+        "target_state": "initial",
+        "diagnostic": "LookupOld.typeProperties.firstRowOnly must be Boolean (true/false); got list"
+      }
+    ],
+    "new_object_array": [
+      {
+        "selected_order_ids": [],
+        "selected_rows": [],
+        "committed_order_ids": [],
+        "committed_rows": [],
+        "copy_status": "NotStarted",
+        "advance_status": "NotStarted",
+        "checkpoint": 100,
+        "target_state": "initial",
+        "diagnostic": "LookupNew.typeProperties.firstRowOnly must be Boolean (true/false); got dict"
+      }
+    ]
+  },
+  "checkpoint_after_each_step": "Target state is committed by Copy before procedure; checkpoint changes only on successful Advance. For any step, after Copy target=target_state and checkpoint=prior step checkpoint; after Advance target unchanged and checkpoint=listed checkpoint.",
+  "manual_derived_totals": {
+    "initial": [
+      2,
+      1500
+    ],
+    "partial": [
+      3,
+      3500
+    ],
+    "complete104": [
+      5,
+      11000
+    ],
+    "complete105": [
+      6,
+      17000
+    ],
+    "completed_bad": [
+      4,
+      9500
+    ],
+    "upper_exclusive": [
+      3,
+      4000
+    ]
+  }
+}

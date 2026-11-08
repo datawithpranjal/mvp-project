@@ -1,0 +1,802 @@
+{
+  "old_numeric_one_ref": {
+    "name": "orders-watermark-teaching-subset",
+    "simulatorPredicate": {
+      "lowerOperator": ">",
+      "upperOperator": "<=",
+      "includeUpper": true,
+      "lowerExpression": "@activity('LookupOld').output.firstRow.WatermarkValue",
+      "upperExpression": "@activity('LookupNew').output.firstRow.NewWatermarkValue"
+    },
+    "activities": [
+      {
+        "name": "LookupOld",
+        "type": "Lookup",
+        "typeProperties": {
+          "firstRowOnly": 1
+        }
+      },
+      {
+        "name": "LookupNew",
+        "type": "Lookup",
+        "typeProperties": {
+          "firstRowOnly": true
+        }
+      },
+      {
+        "name": "CopyOrders",
+        "type": "Copy",
+        "dependsOn": [
+          {
+            "activity": "LookupOld",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          },
+          {
+            "activity": "LookupNew",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ],
+        "typeProperties": {
+          "source": {
+            "type": "AzureSqlSource"
+          },
+          "sink": {
+            "type": "AzureSqlSink",
+            "writeBehavior": "upsert",
+            "upsertSettings": {
+              "keys": [
+                "order_id"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "name": "AdvanceWatermark",
+        "type": "SqlServerStoredProcedure",
+        "dependsOn": [
+          {
+            "activity": "CopyOrders",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ],
+        "typeProperties": {
+          "storedProcedureName": "dbo.AdvanceOrdersWatermark",
+          "storedProcedureParameters": {
+            "NewWatermarkValue": {
+              "value": "@activity('LookupNew').output.firstRow.NewWatermarkValue",
+              "type": "Int"
+            }
+          }
+        }
+      }
+    ],
+    "variant": "old_numeric_one_ref"
+  },
+  "new_numeric_one_ref": {
+    "name": "orders-watermark-teaching-subset",
+    "simulatorPredicate": {
+      "lowerOperator": ">",
+      "upperOperator": "<=",
+      "includeUpper": true,
+      "lowerExpression": "@activity('LookupOld').output.firstRow.WatermarkValue",
+      "upperExpression": "@activity('LookupNew').output.firstRow.NewWatermarkValue"
+    },
+    "activities": [
+      {
+        "name": "LookupOld",
+        "type": "Lookup",
+        "typeProperties": {
+          "firstRowOnly": true
+        }
+      },
+      {
+        "name": "LookupNew",
+        "type": "Lookup",
+        "typeProperties": {
+          "firstRowOnly": 1
+        }
+      },
+      {
+        "name": "CopyOrders",
+        "type": "Copy",
+        "dependsOn": [
+          {
+            "activity": "LookupOld",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          },
+          {
+            "activity": "LookupNew",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ],
+        "typeProperties": {
+          "source": {
+            "type": "AzureSqlSource"
+          },
+          "sink": {
+            "type": "AzureSqlSink",
+            "writeBehavior": "upsert",
+            "upsertSettings": {
+              "keys": [
+                "order_id"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "name": "AdvanceWatermark",
+        "type": "SqlServerStoredProcedure",
+        "dependsOn": [
+          {
+            "activity": "CopyOrders",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ],
+        "typeProperties": {
+          "storedProcedureName": "dbo.AdvanceOrdersWatermark",
+          "storedProcedureParameters": {
+            "NewWatermarkValue": {
+              "value": "@activity('LookupNew').output.firstRow.NewWatermarkValue",
+              "type": "Int"
+            }
+          }
+        }
+      }
+    ],
+    "variant": "new_numeric_one_ref"
+  },
+  "old_numeric_zero_array": {
+    "name": "orders-watermark-teaching-subset",
+    "simulatorPredicate": {
+      "lowerOperator": ">",
+      "upperOperator": "<=",
+      "includeUpper": true,
+      "lowerExpression": "@activity('LookupOld').output.value[0].WatermarkValue",
+      "upperExpression": "@activity('LookupNew').output.value[0].NewWatermarkValue"
+    },
+    "activities": [
+      {
+        "name": "LookupOld",
+        "type": "Lookup",
+        "typeProperties": {
+          "firstRowOnly": 0
+        }
+      },
+      {
+        "name": "LookupNew",
+        "type": "Lookup",
+        "typeProperties": {
+          "firstRowOnly": false
+        }
+      },
+      {
+        "name": "CopyOrders",
+        "type": "Copy",
+        "dependsOn": [
+          {
+            "activity": "LookupOld",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          },
+          {
+            "activity": "LookupNew",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ],
+        "typeProperties": {
+          "source": {
+            "type": "AzureSqlSource"
+          },
+          "sink": {
+            "type": "AzureSqlSink",
+            "writeBehavior": "upsert",
+            "upsertSettings": {
+              "keys": [
+                "order_id"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "name": "AdvanceWatermark",
+        "type": "SqlServerStoredProcedure",
+        "dependsOn": [
+          {
+            "activity": "CopyOrders",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ],
+        "typeProperties": {
+          "storedProcedureName": "dbo.AdvanceOrdersWatermark",
+          "storedProcedureParameters": {
+            "NewWatermarkValue": {
+              "value": "@activity('LookupNew').output.value[0].NewWatermarkValue",
+              "type": "Int"
+            }
+          }
+        }
+      }
+    ],
+    "variant": "old_numeric_zero_array"
+  },
+  "new_numeric_zero_array": {
+    "name": "orders-watermark-teaching-subset",
+    "simulatorPredicate": {
+      "lowerOperator": ">",
+      "upperOperator": "<=",
+      "includeUpper": true,
+      "lowerExpression": "@activity('LookupOld').output.value[0].WatermarkValue",
+      "upperExpression": "@activity('LookupNew').output.value[0].NewWatermarkValue"
+    },
+    "activities": [
+      {
+        "name": "LookupOld",
+        "type": "Lookup",
+        "typeProperties": {
+          "firstRowOnly": false
+        }
+      },
+      {
+        "name": "LookupNew",
+        "type": "Lookup",
+        "typeProperties": {
+          "firstRowOnly": 0
+        }
+      },
+      {
+        "name": "CopyOrders",
+        "type": "Copy",
+        "dependsOn": [
+          {
+            "activity": "LookupOld",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          },
+          {
+            "activity": "LookupNew",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ],
+        "typeProperties": {
+          "source": {
+            "type": "AzureSqlSource"
+          },
+          "sink": {
+            "type": "AzureSqlSink",
+            "writeBehavior": "upsert",
+            "upsertSettings": {
+              "keys": [
+                "order_id"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "name": "AdvanceWatermark",
+        "type": "SqlServerStoredProcedure",
+        "dependsOn": [
+          {
+            "activity": "CopyOrders",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ],
+        "typeProperties": {
+          "storedProcedureName": "dbo.AdvanceOrdersWatermark",
+          "storedProcedureParameters": {
+            "NewWatermarkValue": {
+              "value": "@activity('LookupNew').output.value[0].NewWatermarkValue",
+              "type": "Int"
+            }
+          }
+        }
+      }
+    ],
+    "variant": "new_numeric_zero_array"
+  },
+  "old_string_true_ref": {
+    "name": "orders-watermark-teaching-subset",
+    "simulatorPredicate": {
+      "lowerOperator": ">",
+      "upperOperator": "<=",
+      "includeUpper": true,
+      "lowerExpression": "@activity('LookupOld').output.firstRow.WatermarkValue",
+      "upperExpression": "@activity('LookupNew').output.firstRow.NewWatermarkValue"
+    },
+    "activities": [
+      {
+        "name": "LookupOld",
+        "type": "Lookup",
+        "typeProperties": {
+          "firstRowOnly": "true"
+        }
+      },
+      {
+        "name": "LookupNew",
+        "type": "Lookup",
+        "typeProperties": {
+          "firstRowOnly": true
+        }
+      },
+      {
+        "name": "CopyOrders",
+        "type": "Copy",
+        "dependsOn": [
+          {
+            "activity": "LookupOld",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          },
+          {
+            "activity": "LookupNew",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ],
+        "typeProperties": {
+          "source": {
+            "type": "AzureSqlSource"
+          },
+          "sink": {
+            "type": "AzureSqlSink",
+            "writeBehavior": "upsert",
+            "upsertSettings": {
+              "keys": [
+                "order_id"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "name": "AdvanceWatermark",
+        "type": "SqlServerStoredProcedure",
+        "dependsOn": [
+          {
+            "activity": "CopyOrders",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ],
+        "typeProperties": {
+          "storedProcedureName": "dbo.AdvanceOrdersWatermark",
+          "storedProcedureParameters": {
+            "NewWatermarkValue": {
+              "value": "@activity('LookupNew').output.firstRow.NewWatermarkValue",
+              "type": "Int"
+            }
+          }
+        }
+      }
+    ],
+    "variant": "old_string_true_ref"
+  },
+  "new_null_ref": {
+    "name": "orders-watermark-teaching-subset",
+    "simulatorPredicate": {
+      "lowerOperator": ">",
+      "upperOperator": "<=",
+      "includeUpper": true,
+      "lowerExpression": "@activity('LookupOld').output.firstRow.WatermarkValue",
+      "upperExpression": "@activity('LookupNew').output.firstRow.NewWatermarkValue"
+    },
+    "activities": [
+      {
+        "name": "LookupOld",
+        "type": "Lookup",
+        "typeProperties": {
+          "firstRowOnly": true
+        }
+      },
+      {
+        "name": "LookupNew",
+        "type": "Lookup",
+        "typeProperties": {
+          "firstRowOnly": null
+        }
+      },
+      {
+        "name": "CopyOrders",
+        "type": "Copy",
+        "dependsOn": [
+          {
+            "activity": "LookupOld",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          },
+          {
+            "activity": "LookupNew",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ],
+        "typeProperties": {
+          "source": {
+            "type": "AzureSqlSource"
+          },
+          "sink": {
+            "type": "AzureSqlSink",
+            "writeBehavior": "upsert",
+            "upsertSettings": {
+              "keys": [
+                "order_id"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "name": "AdvanceWatermark",
+        "type": "SqlServerStoredProcedure",
+        "dependsOn": [
+          {
+            "activity": "CopyOrders",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ],
+        "typeProperties": {
+          "storedProcedureName": "dbo.AdvanceOrdersWatermark",
+          "storedProcedureParameters": {
+            "NewWatermarkValue": {
+              "value": "@activity('LookupNew').output.firstRow.NewWatermarkValue",
+              "type": "Int"
+            }
+          }
+        }
+      }
+    ],
+    "variant": "new_null_ref"
+  },
+  "old_float_one_ref": {
+    "name": "orders-watermark-teaching-subset",
+    "simulatorPredicate": {
+      "lowerOperator": ">",
+      "upperOperator": "<=",
+      "includeUpper": true,
+      "lowerExpression": "@activity('LookupOld').output.firstRow.WatermarkValue",
+      "upperExpression": "@activity('LookupNew').output.firstRow.NewWatermarkValue"
+    },
+    "activities": [
+      {
+        "name": "LookupOld",
+        "type": "Lookup",
+        "typeProperties": {
+          "firstRowOnly": 1.0
+        }
+      },
+      {
+        "name": "LookupNew",
+        "type": "Lookup",
+        "typeProperties": {
+          "firstRowOnly": true
+        }
+      },
+      {
+        "name": "CopyOrders",
+        "type": "Copy",
+        "dependsOn": [
+          {
+            "activity": "LookupOld",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          },
+          {
+            "activity": "LookupNew",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ],
+        "typeProperties": {
+          "source": {
+            "type": "AzureSqlSource"
+          },
+          "sink": {
+            "type": "AzureSqlSink",
+            "writeBehavior": "upsert",
+            "upsertSettings": {
+              "keys": [
+                "order_id"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "name": "AdvanceWatermark",
+        "type": "SqlServerStoredProcedure",
+        "dependsOn": [
+          {
+            "activity": "CopyOrders",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ],
+        "typeProperties": {
+          "storedProcedureName": "dbo.AdvanceOrdersWatermark",
+          "storedProcedureParameters": {
+            "NewWatermarkValue": {
+              "value": "@activity('LookupNew').output.firstRow.NewWatermarkValue",
+              "type": "Int"
+            }
+          }
+        }
+      }
+    ],
+    "variant": "old_float_one_ref"
+  },
+  "new_string_false_array": {
+    "name": "orders-watermark-teaching-subset",
+    "simulatorPredicate": {
+      "lowerOperator": ">",
+      "upperOperator": "<=",
+      "includeUpper": true,
+      "lowerExpression": "@activity('LookupOld').output.value[0].WatermarkValue",
+      "upperExpression": "@activity('LookupNew').output.value[0].NewWatermarkValue"
+    },
+    "activities": [
+      {
+        "name": "LookupOld",
+        "type": "Lookup",
+        "typeProperties": {
+          "firstRowOnly": false
+        }
+      },
+      {
+        "name": "LookupNew",
+        "type": "Lookup",
+        "typeProperties": {
+          "firstRowOnly": "false"
+        }
+      },
+      {
+        "name": "CopyOrders",
+        "type": "Copy",
+        "dependsOn": [
+          {
+            "activity": "LookupOld",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          },
+          {
+            "activity": "LookupNew",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ],
+        "typeProperties": {
+          "source": {
+            "type": "AzureSqlSource"
+          },
+          "sink": {
+            "type": "AzureSqlSink",
+            "writeBehavior": "upsert",
+            "upsertSettings": {
+              "keys": [
+                "order_id"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "name": "AdvanceWatermark",
+        "type": "SqlServerStoredProcedure",
+        "dependsOn": [
+          {
+            "activity": "CopyOrders",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ],
+        "typeProperties": {
+          "storedProcedureName": "dbo.AdvanceOrdersWatermark",
+          "storedProcedureParameters": {
+            "NewWatermarkValue": {
+              "value": "@activity('LookupNew').output.value[0].NewWatermarkValue",
+              "type": "Int"
+            }
+          }
+        }
+      }
+    ],
+    "variant": "new_string_false_array"
+  },
+  "old_list_ref": {
+    "name": "orders-watermark-teaching-subset",
+    "simulatorPredicate": {
+      "lowerOperator": ">",
+      "upperOperator": "<=",
+      "includeUpper": true,
+      "lowerExpression": "@activity('LookupOld').output.firstRow.WatermarkValue",
+      "upperExpression": "@activity('LookupNew').output.firstRow.NewWatermarkValue"
+    },
+    "activities": [
+      {
+        "name": "LookupOld",
+        "type": "Lookup",
+        "typeProperties": {
+          "firstRowOnly": []
+        }
+      },
+      {
+        "name": "LookupNew",
+        "type": "Lookup",
+        "typeProperties": {
+          "firstRowOnly": true
+        }
+      },
+      {
+        "name": "CopyOrders",
+        "type": "Copy",
+        "dependsOn": [
+          {
+            "activity": "LookupOld",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          },
+          {
+            "activity": "LookupNew",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ],
+        "typeProperties": {
+          "source": {
+            "type": "AzureSqlSource"
+          },
+          "sink": {
+            "type": "AzureSqlSink",
+            "writeBehavior": "upsert",
+            "upsertSettings": {
+              "keys": [
+                "order_id"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "name": "AdvanceWatermark",
+        "type": "SqlServerStoredProcedure",
+        "dependsOn": [
+          {
+            "activity": "CopyOrders",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ],
+        "typeProperties": {
+          "storedProcedureName": "dbo.AdvanceOrdersWatermark",
+          "storedProcedureParameters": {
+            "NewWatermarkValue": {
+              "value": "@activity('LookupNew').output.firstRow.NewWatermarkValue",
+              "type": "Int"
+            }
+          }
+        }
+      }
+    ],
+    "variant": "old_list_ref"
+  },
+  "new_object_array": {
+    "name": "orders-watermark-teaching-subset",
+    "simulatorPredicate": {
+      "lowerOperator": ">",
+      "upperOperator": "<=",
+      "includeUpper": true,
+      "lowerExpression": "@activity('LookupOld').output.value[0].WatermarkValue",
+      "upperExpression": "@activity('LookupNew').output.value[0].NewWatermarkValue"
+    },
+    "activities": [
+      {
+        "name": "LookupOld",
+        "type": "Lookup",
+        "typeProperties": {
+          "firstRowOnly": false
+        }
+      },
+      {
+        "name": "LookupNew",
+        "type": "Lookup",
+        "typeProperties": {
+          "firstRowOnly": {}
+        }
+      },
+      {
+        "name": "CopyOrders",
+        "type": "Copy",
+        "dependsOn": [
+          {
+            "activity": "LookupOld",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          },
+          {
+            "activity": "LookupNew",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ],
+        "typeProperties": {
+          "source": {
+            "type": "AzureSqlSource"
+          },
+          "sink": {
+            "type": "AzureSqlSink",
+            "writeBehavior": "upsert",
+            "upsertSettings": {
+              "keys": [
+                "order_id"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "name": "AdvanceWatermark",
+        "type": "SqlServerStoredProcedure",
+        "dependsOn": [
+          {
+            "activity": "CopyOrders",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ],
+        "typeProperties": {
+          "storedProcedureName": "dbo.AdvanceOrdersWatermark",
+          "storedProcedureParameters": {
+            "NewWatermarkValue": {
+              "value": "@activity('LookupNew').output.value[0].NewWatermarkValue",
+              "type": "Int"
+            }
+          }
+        }
+      }
+    ],
+    "variant": "new_object_array"
+  }
+}

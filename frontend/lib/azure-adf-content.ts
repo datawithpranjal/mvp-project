@@ -1,0 +1,11 @@
+import fixtures from "../data/azure-adf/fixtures.json";
+import packet from "../data/azure-adf/packet.json";
+import starter from "../data/azure-adf/starter.json";
+import reference from "../data/azure-adf/reference.json";
+import alternatives from "../data/azure-adf/alternatives.json";
+import wrong from "../data/azure-adf/wrong-configs.json";
+import malformed from "../data/azure-adf/malformed-configs.json";
+import cases from "../data/azure-adf/cases.json";
+import expected from "../data/azure-adf/manual-expected.json";
+export const adfContent = { fixtures, packet, starter, reference, alternatives, wrong, malformed, cases, expected };
+export const adfConfigs: Record<string, unknown> = { starter, reference, ...alternatives, ...wrong, ...malformed };

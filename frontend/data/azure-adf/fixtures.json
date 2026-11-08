@@ -1,0 +1,430 @@
+{
+  "id": "azure-adf-watermark-recovery-001",
+  "version": "1.0.1-draft",
+  "table_schema": {
+    "source": "dbo.Orders(order_id INT PRIMARY KEY, change_version INT NOT NULL, amount_cents INT NOT NULL)",
+    "target": "dbo.Orders same columns and visible order_id primary key",
+    "checkpoint": "dbo.Watermark(entity VARCHAR(30) PRIMARY KEY,last_version INT NOT NULL), entity orders"
+  },
+  "target_states": {
+    "initial": [
+      [
+        1,
+        100,
+        1000
+      ],
+      [
+        5,
+        100,
+        500
+      ]
+    ],
+    "partial": [
+      [
+        1,
+        100,
+        1000
+      ],
+      [
+        2,
+        101,
+        2000
+      ],
+      [
+        5,
+        100,
+        500
+      ]
+    ],
+    "complete104": [
+      [
+        1,
+        102,
+        1500
+      ],
+      [
+        2,
+        101,
+        2000
+      ],
+      [
+        3,
+        104,
+        3000
+      ],
+      [
+        4,
+        104,
+        4000
+      ],
+      [
+        5,
+        100,
+        500
+      ]
+    ],
+    "complete105": [
+      [
+        1,
+        102,
+        1500
+      ],
+      [
+        2,
+        101,
+        2000
+      ],
+      [
+        3,
+        104,
+        3000
+      ],
+      [
+        4,
+        104,
+        4000
+      ],
+      [
+        5,
+        100,
+        500
+      ],
+      [
+        6,
+        105,
+        6000
+      ]
+    ],
+    "completed_bad": [
+      [
+        1,
+        100,
+        1000
+      ],
+      [
+        2,
+        101,
+        2000
+      ],
+      [
+        5,
+        100,
+        500
+      ],
+      [
+        6,
+        105,
+        6000
+      ]
+    ],
+    "upper_exclusive": [
+      [
+        1,
+        102,
+        1500
+      ],
+      [
+        2,
+        101,
+        2000
+      ],
+      [
+        5,
+        100,
+        500
+      ]
+    ]
+  },
+  "source_at_upper_lookup": [
+    [
+      1,
+      102,
+      1500
+    ],
+    [
+      2,
+      101,
+      2000
+    ],
+    [
+      3,
+      104,
+      3000
+    ],
+    [
+      4,
+      104,
+      4000
+    ],
+    [
+      5,
+      100,
+      500
+    ]
+  ],
+  "source_at_copy": [
+    [
+      1,
+      102,
+      1500
+    ],
+    [
+      2,
+      101,
+      2000
+    ],
+    [
+      3,
+      104,
+      3000
+    ],
+    [
+      4,
+      104,
+      4000
+    ],
+    [
+      5,
+      100,
+      500
+    ],
+    [
+      6,
+      105,
+      6000
+    ]
+  ],
+  "source_at_next_upper_lookup": [
+    [
+      1,
+      102,
+      1500
+    ],
+    [
+      2,
+      101,
+      2000
+    ],
+    [
+      3,
+      104,
+      3000
+    ],
+    [
+      4,
+      104,
+      4000
+    ],
+    [
+      5,
+      100,
+      500
+    ],
+    [
+      6,
+      105,
+      6000
+    ]
+  ],
+  "lookup_outputs": {
+    "old_first": {
+      "firstRow": {
+        "WatermarkValue": 100
+      }
+    },
+    "new_first": {
+      "firstRow": {
+        "NewWatermarkValue": 104
+      }
+    },
+    "old_array": {
+      "count": "1",
+      "value": [
+        {
+          "WatermarkValue": 100
+        }
+      ]
+    },
+    "new_array": {
+      "count": "1",
+      "value": [
+        {
+          "NewWatermarkValue": 104
+        }
+      ]
+    },
+    "new_next": {
+      "firstRow": {
+        "NewWatermarkValue": 105
+      }
+    },
+    "old_next": {
+      "firstRow": {
+        "WatermarkValue": 104
+      }
+    },
+    "new_empty": {
+      "firstRow": {
+        "NewWatermarkValue": null
+      }
+    }
+  },
+  "initial_checkpoint": 100,
+  "faults": {
+    "partial_after_first": "Declared deterministic fault: committed first selected row (ID2), then final Copy Failed. Not an ADF row-commit guarantee.",
+    "fail_before_write": "Declared Copy failure before first selected row.",
+    "checkpoint_fail_before_mutation": "Declared stored procedure failure before checkpoint mutation; Copy already succeeded."
+  },
+  "wrong_key_fixture": {
+    "source_at_upper_lookup": [
+      [
+        1,
+        102,
+        1500
+      ],
+      [
+        2,
+        101,
+        2000
+      ],
+      [
+        3,
+        104,
+        3000
+      ],
+      [
+        4,
+        104,
+        4000
+      ],
+      [
+        5,
+        100,
+        500
+      ],
+      [
+        7,
+        103,
+        2000
+      ]
+    ],
+    "source_at_copy": [
+      [
+        1,
+        102,
+        1500
+      ],
+      [
+        2,
+        101,
+        2000
+      ],
+      [
+        3,
+        104,
+        3000
+      ],
+      [
+        4,
+        104,
+        4000
+      ],
+      [
+        5,
+        100,
+        500
+      ],
+      [
+        6,
+        105,
+        6000
+      ],
+      [
+        7,
+        103,
+        2000
+      ]
+    ],
+    "reason": "Distinct IDs2 and7 share amount_cents2000; this simulator supports order_id/PK identity only."
+  },
+  "invalid_fixtures": {
+    "duplicate_source_order_id": [
+      [
+        1,
+        102,
+        1500
+      ],
+      [
+        2,
+        101,
+        2000
+      ],
+      [
+        3,
+        104,
+        3000
+      ],
+      [
+        4,
+        104,
+        4000
+      ],
+      [
+        5,
+        100,
+        500
+      ],
+      [
+        6,
+        105,
+        6000
+      ],
+      [
+        2,
+        106,
+        2300
+      ]
+    ],
+    "invalid_integer": [
+      [
+        1,
+        102,
+        1500
+      ],
+      [
+        2,
+        101,
+        2000
+      ],
+      [
+        3,
+        104,
+        3000
+      ],
+      [
+        4,
+        104,
+        4000
+      ],
+      [
+        5,
+        100,
+        500
+      ],
+      [
+        6,
+        105,
+        6000
+      ],
+      [
+        8,
+        106,
+        -1
+      ]
+    ],
+    "upper_less_than_lower": {
+      "lower": 100,
+      "upper": 99
+    }
+  }
+}

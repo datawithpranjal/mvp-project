@@ -60,9 +60,9 @@ export const CORE_LABS = [
   {
     title: "Azure Lab",
     description:
-      "Practice Azure data platform decisions across ADLS, ADF, Synapse, Databricks, governance, and production trade-offs.",
+      "One free Azure Data Factory configuration and recovery simulation; no Azure account required.",
     href: "/labs/azure",
-    status: "coming-soon"
+    status: "available"
   },
   {
     title: "GCP Lab",

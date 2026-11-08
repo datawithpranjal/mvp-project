@@ -1,0 +1,92 @@
+{
+  "id": "azure-adf-watermark-recovery-001",
+  "version": "1.0.1-draft",
+  "status": "original Free author packet revision; review-needed, no Product acceptance/integration/release",
+  "revision_note": "Strict JSON Boolean validation for both Lookup firstRowOnly fields before mutation; ten malformed-type cases, independent oracle, manual no-mutation traces. v1.0.0 remains frozen.",
+  "title": "ADF Copy failed—why did the watermark advance?",
+  "route_proposal": "/labs/azure",
+  "outcome": "Repair an ADF-shaped incremental Copy configuration so partial failure cannot advance the checkpoint; replay with upsert restores exact target rows and tied upper-bound versions.",
+  "prerequisites": [
+    "SQL primary keys",
+    "incremental watermarks",
+    "upsert versus insert",
+    "activity success/failure dependencies"
+  ],
+  "engine": "isolated Python 3 state-transition model; T-SQL is an illustration and is never executed",
+  "scope": "Azure Data Factory v2 + Azure SQL Database shaped subset; not Fabric, full ARM, deployed Azure or production transaction",
+  "source_assumptions": [
+    "change_version is fictional monotonic application integer, not SQL rowversion or Azure automatic field",
+    "single pipeline writer/no overlapping runs",
+    "source rows inside captured window are stable during retry",
+    "full latest order rows, no deletes, refunds or history",
+    "new post-capture row has version greater than captured upper",
+    "keys/order/version/amount are nonnegative safe INT32 with positive version and unique order_id"
+  ],
+  "supported_subset": {
+    "ADF_shaped": [
+      "Lookup.name/type/typeProperties.firstRowOnly",
+      "Copy.name/type/dependsOn Succeeded Lookups/typeProperties.source.type AzureSqlSource",
+      "Copy.typeProperties.sink.type AzureSqlSink/writeBehavior insert|upsert/upsertSettings.keys order_id or absent with visible PK",
+      "AdvanceWatermark.type SqlServerStoredProcedure/dependsOn Copy Succeeded|Completed/storedProcedureName/storedProcedureParameters.NewWatermarkValue Int"
+    ],
+    "simulator_only": [
+      "simulatorPredicate.lowerOperator >|>=",
+      "simulatorPredicate.upperOperator <|<=",
+      "simulatorPredicate.includeUpper Boolean",
+      "simulatorPredicate.lowerExpression/upperExpression restricted Lookup accessors",
+      "fault names and deterministic selected-row ordering"
+    ],
+    "expression_support": "Only exact named LookupOld/LookupNew firstRow or value[0] field accessors, matched to strictly Boolean firstRowOnly and shown output. JSON numeric0/1, strings, null, float, array and object are configuration errors before mutation. No arbitrary dynamic content, full ADF expression evaluator or output parameter support.",
+    "write_support": "Upsert only by order_id explicit key or omitted key with the visible target order_id PK. amount_cents key rejected as unsupported/ambiguous in this simulator; no claim Azure globally rejects it.",
+    "procedure_effect": "Fictional preprovided dbo.AdvanceOrdersWatermark replaces orders checkpoint with supplied Int when scheduled and not injected to fail. It does not internally recheck Copy status."
+  },
+  "rendered_tsql_illustration": "SELECT order_id,change_version,amount_cents FROM dbo.Orders WHERE change_version > @Lower AND change_version <= @Upper; -- rendered from simulator fields; never executed against Azure SQL",
+  "invalid_vs_unsafe": "Malformed source, unsupported key/expression or bounds stop before mutation; valid >=, <, unbounded, insert, Completed run and expose incorrect state/selection.",
+  "assistance": [
+    "Hint1: Which Copy final status is allowed to trigger AdvanceWatermark?",
+    "Hint2: When the same order is replayed, what happens with insert versus upsert by the visible primary key?",
+    "Hint3: Compare Lookup firstRow/value[0] to firstRowOnly, then test >lower and <=upper including both version104 rows."
+  ],
+  "reveal": "Worked reference configuration is deliberate assisted/reviewed practice, not independent pass or job-ready score. Finite disclosed cases are not hidden mastery proof.",
+  "recovery": "Each run has named input state, captured bounds, config revision and trace. Editing config retains draft/last trace but invalidates result. Retry same captured window only when explicitly selected; new run captures a new window. Cancel/stale results must not add transitions. Preserve last committed simulated state, including partial rows; reset asks before restoring baseline. Device-only state is not cloud save.",
+  "tradeoffs": "Captured bounded window plus keyed upsert helps replay but does not make Copy and watermark one transaction. Staging plus transactional merge could strengthen atomicity but is not executed here. Real late/backdated updates, deletions, concurrent writers and checkpoint authority require a different consistency/CDC design.",
+  "source_review_date_ist": "2026-11-08",
+  "sources": [
+    {
+      "url": "https://learn.microsoft.com/en-us/azure/data-factory/concepts-pipelines-activities",
+      "maps_to": "Succeeded versus Completed dependency conditions"
+    },
+    {
+      "url": "https://learn.microsoft.com/en-us/azure/data-factory/control-flow-lookup-activity",
+      "maps_to": "firstRowOnly true→firstRow; false→value[0]"
+    },
+    {
+      "url": "https://learn.microsoft.com/en-us/azure/data-factory/connector-azure-sql-database",
+      "maps_to": "AzureSqlSource/AzureSqlSink, upsert, explicit keys or visible PK fallback"
+    },
+    {
+      "url": "https://learn.microsoft.com/en-us/azure/data-factory/transform-data-using-stored-procedure",
+      "maps_to": "SqlServerStoredProcedure typed Int input; no output parameter"
+    }
+  ],
+  "runtime_not_proven": [
+    "browser worker/cancel/stale fencing",
+    "actual integration/editor/trace/last-good/device recovery",
+    "360px/desktop/keyboard/theme UI",
+    "real Azure/T-SQL/ARM/linked service/credentials/cloud bill",
+    "production source consistency and Copy transaction/row-order semantics",
+    "learner or customer outcome"
+  ],
+  "ten_quality_gates": [
+    "1 one outcome and prerequisites: exact checkpoint-safe replay plus PK/watermark/dependency prerequisite in learner.md",
+    "2 realistic situation: failed incremental ADF Copy with partial target and unsafe checkpoint progression",
+    "3 explicit technology/version/dialect/scale: ADFv2 and Azure SQL shaped subset, T-SQL illustration not executed, tiny fictional INT32 fixture",
+    "4 deterministic inputs/outputs/edges: fixtures.json and manual-expected.json include exact selected/committed/target/checkpoint states",
+    "5 causal non-keyword task: repaired/unsafe configurations execute; same target sum can conceal lower-inclusive selection",
+    "6 progressive hints: dependency, sink identity, Lookup shape/bounds in learner.md",
+    "7 reference/alternatives/tradeoff: reference.json, both alternatives.json variants and staged-merge discussion",
+    "8 acceptance/error/retry: independent oracle, typed preflight, wrong-config traces, checkpoint-failure and replay",
+    "9 consequence/observability/recovery: partial/stale state, explicit reset, captured-window replay and transaction limitations",
+    "10 primary dated sources: four Microsoft Learn mappings reviewed 2026-11-08, each mapped to one supported rule"
+  ]
+}

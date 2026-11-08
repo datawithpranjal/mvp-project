@@ -1,0 +1,326 @@
+{
+  "clean": [
+    {
+      "config": "reference",
+      "start_target": "initial",
+      "checkpoint": 100,
+      "captured_lower": 100,
+      "captured_upper": 104,
+      "source": "normal",
+      "fault": null
+    }
+  ],
+  "checkpoint_failure_then_replay": [
+    {
+      "config": "reference",
+      "start_target": "initial",
+      "checkpoint": 100,
+      "captured_lower": 100,
+      "captured_upper": 104,
+      "source": "normal",
+      "fault": "checkpoint_fail_before_mutation"
+    },
+    {
+      "config": "reference",
+      "start_target": "complete104",
+      "checkpoint": 100,
+      "captured_lower": 100,
+      "captured_upper": 104,
+      "source": "normal",
+      "fault": null
+    }
+  ],
+  "partial_then_retry": [
+    {
+      "config": "reference",
+      "start_target": "initial",
+      "checkpoint": 100,
+      "captured_lower": 100,
+      "captured_upper": 104,
+      "source": "normal",
+      "fault": "partial_after_first"
+    },
+    {
+      "config": "reference",
+      "start_target": "partial",
+      "checkpoint": 100,
+      "captured_lower": 100,
+      "captured_upper": 104,
+      "source": "normal",
+      "fault": null
+    }
+  ],
+  "failure_before_first_write": [
+    {
+      "config": "reference",
+      "start_target": "initial",
+      "checkpoint": 100,
+      "captured_lower": 100,
+      "captured_upper": 104,
+      "source": "normal",
+      "fault": "fail_before_write"
+    }
+  ],
+  "completed_after_partial_then_next": [
+    {
+      "config": "completed_after_failure",
+      "start_target": "initial",
+      "checkpoint": 100,
+      "captured_lower": 100,
+      "captured_upper": 104,
+      "source": "normal",
+      "fault": "partial_after_first"
+    },
+    {
+      "config": "reference",
+      "start_target": "partial",
+      "checkpoint": 104,
+      "captured_lower": 104,
+      "captured_upper": 105,
+      "source": "next",
+      "fault": null
+    }
+  ],
+  "upper_exclusive": [
+    {
+      "config": "upper_exclusive",
+      "start_target": "initial",
+      "checkpoint": 100,
+      "captured_lower": 100,
+      "captured_upper": 104,
+      "source": "normal",
+      "fault": null
+    }
+  ],
+  "lower_inclusive": [
+    {
+      "config": "lower_inclusive",
+      "start_target": "initial",
+      "checkpoint": 100,
+      "captured_lower": 100,
+      "captured_upper": 104,
+      "source": "normal",
+      "fault": null
+    }
+  ],
+  "unbounded_upper": [
+    {
+      "config": "unbounded_upper",
+      "start_target": "initial",
+      "checkpoint": 100,
+      "captured_lower": 100,
+      "captured_upper": 104,
+      "source": "normal",
+      "fault": null
+    }
+  ],
+  "insert_pk": [
+    {
+      "config": "insert_pk",
+      "start_target": "initial",
+      "checkpoint": 100,
+      "captured_lower": 100,
+      "captured_upper": 104,
+      "source": "normal",
+      "fault": null
+    }
+  ],
+  "starter_combined": [
+    {
+      "config": "starter",
+      "start_target": "initial",
+      "checkpoint": 100,
+      "captured_lower": 100,
+      "captured_upper": 104,
+      "source": "normal",
+      "fault": null
+    }
+  ],
+  "no_change": [
+    {
+      "config": "reference",
+      "start_target": "complete104",
+      "checkpoint": 104,
+      "captured_lower": 104,
+      "captured_upper": 104,
+      "source": "normal",
+      "fault": null
+    }
+  ],
+  "empty_new_watermark": [
+    {
+      "config": "reference",
+      "start_target": "initial",
+      "checkpoint": 100,
+      "captured_lower": 100,
+      "captured_upper": null,
+      "source": "empty",
+      "fault": null
+    }
+  ],
+  "lookup_shape_mismatch": [
+    {
+      "config": "lookup_shape_mismatch",
+      "start_target": "initial",
+      "checkpoint": 100,
+      "captured_lower": 100,
+      "captured_upper": 104,
+      "source": "normal",
+      "fault": null
+    }
+  ],
+  "wrong_upsert_key": [
+    {
+      "config": "wrong_upsert_key",
+      "start_target": "initial",
+      "checkpoint": 100,
+      "captured_lower": 100,
+      "captured_upper": 104,
+      "source": "wrong_key",
+      "fault": null
+    }
+  ],
+  "duplicate_source_order_id": [
+    {
+      "config": "reference",
+      "start_target": "initial",
+      "checkpoint": 100,
+      "captured_lower": 100,
+      "captured_upper": 104,
+      "source": "duplicate_source_order_id",
+      "fault": null
+    }
+  ],
+  "invalid_integer": [
+    {
+      "config": "reference",
+      "start_target": "initial",
+      "checkpoint": 100,
+      "captured_lower": 100,
+      "captured_upper": 104,
+      "source": "invalid_integer",
+      "fault": null
+    }
+  ],
+  "upper_less_than_lower": [
+    {
+      "config": "reference",
+      "start_target": "initial",
+      "checkpoint": 100,
+      "captured_lower": 100,
+      "captured_upper": 99,
+      "source": "normal",
+      "fault": null
+    }
+  ],
+  "old_numeric_one_ref": [
+    {
+      "config": "old_numeric_one_ref",
+      "start_target": "initial",
+      "checkpoint": 100,
+      "captured_lower": 100,
+      "captured_upper": 104,
+      "source": "normal",
+      "fault": null
+    }
+  ],
+  "new_numeric_one_ref": [
+    {
+      "config": "new_numeric_one_ref",
+      "start_target": "initial",
+      "checkpoint": 100,
+      "captured_lower": 100,
+      "captured_upper": 104,
+      "source": "normal",
+      "fault": null
+    }
+  ],
+  "old_numeric_zero_array": [
+    {
+      "config": "old_numeric_zero_array",
+      "start_target": "initial",
+      "checkpoint": 100,
+      "captured_lower": 100,
+      "captured_upper": 104,
+      "source": "normal",
+      "fault": null
+    }
+  ],
+  "new_numeric_zero_array": [
+    {
+      "config": "new_numeric_zero_array",
+      "start_target": "initial",
+      "checkpoint": 100,
+      "captured_lower": 100,
+      "captured_upper": 104,
+      "source": "normal",
+      "fault": null
+    }
+  ],
+  "old_string_true_ref": [
+    {
+      "config": "old_string_true_ref",
+      "start_target": "initial",
+      "checkpoint": 100,
+      "captured_lower": 100,
+      "captured_upper": 104,
+      "source": "normal",
+      "fault": null
+    }
+  ],
+  "new_null_ref": [
+    {
+      "config": "new_null_ref",
+      "start_target": "initial",
+      "checkpoint": 100,
+      "captured_lower": 100,
+      "captured_upper": 104,
+      "source": "normal",
+      "fault": null
+    }
+  ],
+  "old_float_one_ref": [
+    {
+      "config": "old_float_one_ref",
+      "start_target": "initial",
+      "checkpoint": 100,
+      "captured_lower": 100,
+      "captured_upper": 104,
+      "source": "normal",
+      "fault": null
+    }
+  ],
+  "new_string_false_array": [
+    {
+      "config": "new_string_false_array",
+      "start_target": "initial",
+      "checkpoint": 100,
+      "captured_lower": 100,
+      "captured_upper": 104,
+      "source": "normal",
+      "fault": null
+    }
+  ],
+  "old_list_ref": [
+    {
+      "config": "old_list_ref",
+      "start_target": "initial",
+      "checkpoint": 100,
+      "captured_lower": 100,
+      "captured_upper": 104,
+      "source": "normal",
+      "fault": null
+    }
+  ],
+  "new_object_array": [
+    {
+      "config": "new_object_array",
+      "start_target": "initial",
+      "checkpoint": 100,
+      "captured_lower": 100,
+      "captured_upper": 104,
+      "source": "normal",
+      "fault": null
+    }
+  ]
+}

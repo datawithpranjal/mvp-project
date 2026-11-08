@@ -153,6 +153,7 @@ export default function PricingPage() {
       </section>
 
       <p className="mt-4 text-sm leading-6 text-slate-400">One guided Project Sandbox exercise is available free: practise order replay, late cancellations and simulated report publishing in your browser. <Link href="/projects/ecommerce-pipeline" className="text-teal-200 underline">Try the free project</Link></p>
+      <p className="mt-3 text-sm leading-6 text-slate-400">One free Azure Data Factory configuration and recovery simulation; no Azure account required. <Link href="/labs/azure" className="text-teal-200 underline">Practise ADF recovery</Link></p>
 
       <div id="unlock-premium" className="mt-8 scroll-mt-28">
         <section aria-label="Premium activation steps" className="mb-5 rounded-3xl border border-slate-700 p-5">
