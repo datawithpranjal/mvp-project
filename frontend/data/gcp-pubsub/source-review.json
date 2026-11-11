@@ -1,0 +1,32 @@
+{
+  "reviewed_ist_date": "2026-11-10",
+  "vendor": "Google Cloud Pub/Sub standard service",
+  "version_scope": "v1 pull subscription concepts; no client or API request executed",
+  "primary_sources": [
+    {
+      "url": "https://docs.cloud.google.com/pubsub/docs/subscription-overview",
+      "verified_point": "Default at-least-once delivery and no guaranteed order; deadline expiry can permit redelivery, and a duplicate can occur even after a successful ACK.",
+      "packet_use": "Motivates idempotent business processing and explicit post-ACK duplicate fixture. No exact timing guarantee is inferred."
+    },
+    {
+      "url": "https://docs.cloud.google.com/pubsub/docs/exactly-once-delivery",
+      "verified_point": "Exactly-once delivery is pull/regional/message-ID scoped; retry of a published message retains its message ID. This does not merge distinct publications of one business event.",
+      "packet_use": "Clarifies message identity versus business identity; exactly-once is discussed as a limitation and never enabled."
+    },
+    {
+      "url": "https://docs.cloud.google.com/pubsub/docs/reference/rest/v1/projects.subscriptions/acknowledge",
+      "verified_point": "Acknowledge takes delivery ackIds returned by pull; an expired acknowledgment does not safely imply permanent removal under ordinary delivery.",
+      "packet_use": "Illustrative a-m*-* ACK IDs are distinct from message IDs and business event IDs."
+    }
+  ],
+  "fictional_model_assumptions": [
+    "Oldest-pending deterministic delivery order and one delivery in flight",
+    "Manual simulated expiry and retry with no actual timer or automatic concurrency",
+    "Injected first-attempt sink failure for m1 and commit-before-late-ACK crash for m2",
+    "Local ledger write and dedup registration are atomic",
+    "Modeled ACK attempts succeed; no Google transport-error or RPC validation emulation",
+    "Illustrative ack IDs and forced post-ACK duplicate fixture",
+    "Fixed additive cent events, no refunds, currency conversion, updates or actual cloud sink"
+  ],
+  "nonclaims": ["real Pub/Sub execution", "exactly-once toggle", "ordering guarantee", "retry timing guarantee", "business exactly-once from ACK alone", "independent assessment", "production readiness"]
+}

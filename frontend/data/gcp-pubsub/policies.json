@@ -1,0 +1,30 @@
+{
+  "reference": {
+    "ackTiming": "after_write",
+    "dedupKey": "producer_event_id"
+  },
+  "global_event_alternative": {
+    "ackTiming": "after_write",
+    "dedupKey": "event_id"
+  },
+  "no_dedup": {
+    "ackTiming": "after_write",
+    "dedupKey": "none"
+  },
+  "message_id": {
+    "ackTiming": "after_write",
+    "dedupKey": "message_id"
+  },
+  "order_id": {
+    "ackTiming": "after_write",
+    "dedupKey": "order_id"
+  },
+  "starter": {
+    "ackTiming": "before_write",
+    "dedupKey": "none"
+  },
+  "early_business": {
+    "ackTiming": "before_write",
+    "dedupKey": "producer_event_id"
+  }
+}

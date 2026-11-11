@@ -8,6 +8,13 @@ export const BRAND = {
 };
 
 export const DIFFICULTY_FILTERS = ["All", "Beginner", "Intermediate", "Advanced"];
+export const GCP_PUBSUB_LAB = {
+  id: "gcp-pubsub-event-recovery-001",
+  title: "Pub/Sub delivered it again—why did revenue increase?",
+  description: "One free Pub/Sub recovery simulation. Practise acknowledgments, retries and business-event deduplication in your browser.",
+  href: "/labs/gcp",
+  cta: "Practise Pub/Sub recovery"
+} as const;
 export const TOPIC_FILTERS = [
   "All",
   "SQL",
@@ -66,10 +73,9 @@ export const CORE_LABS = [
   },
   {
     title: "GCP Lab",
-    description:
-      "Practice GCP data engineering choices across BigQuery, Cloud Storage, Dataflow, Pub/Sub, orchestration, and cost controls.",
-    href: "/labs/gcp",
-    status: "coming-soon"
+    description: GCP_PUBSUB_LAB.description,
+    href: GCP_PUBSUB_LAB.href,
+    status: "available"
   },
   {
     title: "Data Modelling Lab",

@@ -1,0 +1,3062 @@
+[
+  {
+    "name": "reference_default",
+    "policy": "reference",
+    "source": [
+      {
+        "message_id": "m1",
+        "producer": "shop",
+        "event_id": "e1",
+        "order_id": "o10",
+        "amount_cents": 1000
+      },
+      {
+        "message_id": "m2",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m3",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m4",
+        "producer": "shop",
+        "event_id": "e3",
+        "order_id": "o10",
+        "amount_cents": 3000
+      }
+    ],
+    "steps": [
+      {
+        "action": "process_next",
+        "fault": "sink_failure_before_write",
+        "status": "SinkFailed",
+        "sink": "none"
+      },
+      {
+        "action": "expire_current",
+        "fault": "none",
+        "status": "ExpiredForRetry"
+      },
+      {
+        "action": "retry_current",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      },
+      {
+        "action": "process_next",
+        "fault": "crash_after_commit_before_ack",
+        "status": "CrashedAfterCommit",
+        "sink": "insert"
+      },
+      {
+        "action": "expire_current",
+        "fault": "none",
+        "status": "ExpiredForRetry"
+      },
+      {
+        "action": "retry_current",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "skip_duplicate"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "skip_duplicate"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      }
+    ]
+  },
+  {
+    "name": "global_event_alternative_default",
+    "policy": "global_event_alternative",
+    "source": [
+      {
+        "message_id": "m1",
+        "producer": "shop",
+        "event_id": "e1",
+        "order_id": "o10",
+        "amount_cents": 1000
+      },
+      {
+        "message_id": "m2",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m3",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m4",
+        "producer": "shop",
+        "event_id": "e3",
+        "order_id": "o10",
+        "amount_cents": 3000
+      }
+    ],
+    "steps": [
+      {
+        "action": "process_next",
+        "fault": "sink_failure_before_write",
+        "status": "SinkFailed",
+        "sink": "none"
+      },
+      {
+        "action": "expire_current",
+        "fault": "none",
+        "status": "ExpiredForRetry"
+      },
+      {
+        "action": "retry_current",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      },
+      {
+        "action": "process_next",
+        "fault": "crash_after_commit_before_ack",
+        "status": "CrashedAfterCommit",
+        "sink": "insert"
+      },
+      {
+        "action": "expire_current",
+        "fault": "none",
+        "status": "ExpiredForRetry"
+      },
+      {
+        "action": "retry_current",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "skip_duplicate"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "skip_duplicate"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      }
+    ]
+  },
+  {
+    "name": "reference_forced_post_ack",
+    "policy": "reference",
+    "source": [
+      {
+        "message_id": "m1",
+        "producer": "shop",
+        "event_id": "e1",
+        "order_id": "o10",
+        "amount_cents": 1000
+      },
+      {
+        "message_id": "m2",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m3",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m4",
+        "producer": "shop",
+        "event_id": "e3",
+        "order_id": "o10",
+        "amount_cents": 3000
+      }
+    ],
+    "steps": [
+      {
+        "action": "process_next",
+        "fault": "sink_failure_before_write",
+        "status": "SinkFailed",
+        "sink": "none"
+      },
+      {
+        "action": "expire_current",
+        "fault": "none",
+        "status": "ExpiredForRetry"
+      },
+      {
+        "action": "retry_current",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      },
+      {
+        "action": "process_next",
+        "fault": "crash_after_commit_before_ack",
+        "status": "CrashedAfterCommit",
+        "sink": "insert"
+      },
+      {
+        "action": "expire_current",
+        "fault": "none",
+        "status": "ExpiredForRetry"
+      },
+      {
+        "action": "retry_current",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "skip_duplicate"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "skip_duplicate"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      },
+      {
+        "action": "force_redelivery",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "skip_duplicate",
+        "message_id": "m2"
+      }
+    ]
+  },
+  {
+    "name": "reference_cancel_stale_unsafe_edit",
+    "policy": "reference",
+    "source": [
+      {
+        "message_id": "m1",
+        "producer": "shop",
+        "event_id": "e1",
+        "order_id": "o10",
+        "amount_cents": 1000
+      },
+      {
+        "message_id": "m2",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m3",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m4",
+        "producer": "shop",
+        "event_id": "e3",
+        "order_id": "o10",
+        "amount_cents": 3000
+      }
+    ],
+    "steps": [
+      {
+        "action": "process_next",
+        "fault": "sink_failure_before_write",
+        "status": "SinkFailed",
+        "sink": "none"
+      },
+      {
+        "action": "expire_current",
+        "fault": "none",
+        "status": "ExpiredForRetry"
+      },
+      {
+        "action": "retry_current",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      },
+      {
+        "action": "process_next",
+        "fault": "crash_after_commit_before_ack",
+        "status": "CrashedAfterCommit",
+        "sink": "insert"
+      },
+      {
+        "action": "cancel",
+        "fault": "none",
+        "status": "Ignored"
+      },
+      {
+        "action": "stale_reply",
+        "fault": "none",
+        "status": "Ignored"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "error": "current unacknowledged message",
+        "policy": "starter"
+      },
+      {
+        "action": "expire_current",
+        "fault": "none",
+        "status": "ExpiredForRetry"
+      },
+      {
+        "action": "retry_current",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "skip_duplicate"
+      },
+      {
+        "action": "reset_confirmed",
+        "fault": "none",
+        "status": "ResetConfirmed"
+      }
+    ]
+  },
+  {
+    "name": "reference_no_fault",
+    "policy": "reference",
+    "source": [
+      {
+        "message_id": "m1",
+        "producer": "shop",
+        "event_id": "e1",
+        "order_id": "o10",
+        "amount_cents": 1000
+      },
+      {
+        "message_id": "m2",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m3",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m4",
+        "producer": "shop",
+        "event_id": "e3",
+        "order_id": "o10",
+        "amount_cents": 3000
+      }
+    ],
+    "steps": [
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "skip_duplicate"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "NoMessages"
+      }
+    ]
+  },
+  {
+    "name": "no_dedup_default",
+    "policy": "no_dedup",
+    "source": [
+      {
+        "message_id": "m1",
+        "producer": "shop",
+        "event_id": "e1",
+        "order_id": "o10",
+        "amount_cents": 1000
+      },
+      {
+        "message_id": "m2",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m3",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m4",
+        "producer": "shop",
+        "event_id": "e3",
+        "order_id": "o10",
+        "amount_cents": 3000
+      }
+    ],
+    "steps": [
+      {
+        "action": "process_next",
+        "fault": "sink_failure_before_write",
+        "status": "SinkFailed",
+        "sink": "none"
+      },
+      {
+        "action": "expire_current",
+        "fault": "none",
+        "status": "ExpiredForRetry"
+      },
+      {
+        "action": "retry_current",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      },
+      {
+        "action": "process_next",
+        "fault": "crash_after_commit_before_ack",
+        "status": "CrashedAfterCommit",
+        "sink": "insert"
+      },
+      {
+        "action": "expire_current",
+        "fault": "none",
+        "status": "ExpiredForRetry"
+      },
+      {
+        "action": "retry_current",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      }
+    ]
+  },
+  {
+    "name": "message_id_default",
+    "policy": "message_id",
+    "source": [
+      {
+        "message_id": "m1",
+        "producer": "shop",
+        "event_id": "e1",
+        "order_id": "o10",
+        "amount_cents": 1000
+      },
+      {
+        "message_id": "m2",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m3",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m4",
+        "producer": "shop",
+        "event_id": "e3",
+        "order_id": "o10",
+        "amount_cents": 3000
+      }
+    ],
+    "steps": [
+      {
+        "action": "process_next",
+        "fault": "sink_failure_before_write",
+        "status": "SinkFailed",
+        "sink": "none"
+      },
+      {
+        "action": "expire_current",
+        "fault": "none",
+        "status": "ExpiredForRetry"
+      },
+      {
+        "action": "retry_current",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      },
+      {
+        "action": "process_next",
+        "fault": "crash_after_commit_before_ack",
+        "status": "CrashedAfterCommit",
+        "sink": "insert"
+      },
+      {
+        "action": "expire_current",
+        "fault": "none",
+        "status": "ExpiredForRetry"
+      },
+      {
+        "action": "retry_current",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "skip_duplicate"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      }
+    ]
+  },
+  {
+    "name": "order_id_default",
+    "policy": "order_id",
+    "source": [
+      {
+        "message_id": "m1",
+        "producer": "shop",
+        "event_id": "e1",
+        "order_id": "o10",
+        "amount_cents": 1000
+      },
+      {
+        "message_id": "m2",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m3",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m4",
+        "producer": "shop",
+        "event_id": "e3",
+        "order_id": "o10",
+        "amount_cents": 3000
+      }
+    ],
+    "steps": [
+      {
+        "action": "process_next",
+        "fault": "sink_failure_before_write",
+        "status": "SinkFailed",
+        "sink": "none"
+      },
+      {
+        "action": "expire_current",
+        "fault": "none",
+        "status": "ExpiredForRetry"
+      },
+      {
+        "action": "retry_current",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      },
+      {
+        "action": "process_next",
+        "fault": "crash_after_commit_before_ack",
+        "status": "CrashedAfterCommit",
+        "sink": "insert"
+      },
+      {
+        "action": "expire_current",
+        "fault": "none",
+        "status": "ExpiredForRetry"
+      },
+      {
+        "action": "retry_current",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "skip_duplicate"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "skip_duplicate"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "skip_duplicate"
+      }
+    ]
+  },
+  {
+    "name": "starter_default",
+    "policy": "starter",
+    "source": [
+      {
+        "message_id": "m1",
+        "producer": "shop",
+        "event_id": "e1",
+        "order_id": "o10",
+        "amount_cents": 1000
+      },
+      {
+        "message_id": "m2",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m3",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m4",
+        "producer": "shop",
+        "event_id": "e3",
+        "order_id": "o10",
+        "amount_cents": 3000
+      }
+    ],
+    "steps": [
+      {
+        "action": "process_next",
+        "fault": "sink_failure_before_write",
+        "status": "SinkFailed",
+        "sink": "none"
+      },
+      {
+        "action": "retry_current",
+        "fault": "none",
+        "error": "retry requires explicit expiry"
+      },
+      {
+        "action": "process_next",
+        "fault": "crash_after_commit_before_ack",
+        "status": "CrashedAfterCommit",
+        "sink": "insert"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      }
+    ]
+  },
+  {
+    "name": "early_business_default",
+    "policy": "early_business",
+    "source": [
+      {
+        "message_id": "m1",
+        "producer": "shop",
+        "event_id": "e1",
+        "order_id": "o10",
+        "amount_cents": 1000
+      },
+      {
+        "message_id": "m2",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m3",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m4",
+        "producer": "shop",
+        "event_id": "e3",
+        "order_id": "o10",
+        "amount_cents": 3000
+      }
+    ],
+    "steps": [
+      {
+        "action": "process_next",
+        "fault": "sink_failure_before_write",
+        "status": "SinkFailed",
+        "sink": "none"
+      },
+      {
+        "action": "retry_current",
+        "fault": "none",
+        "error": "retry requires explicit expiry"
+      },
+      {
+        "action": "process_next",
+        "fault": "crash_after_commit_before_ack",
+        "status": "CrashedAfterCommit",
+        "sink": "insert"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "skip_duplicate"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      }
+    ]
+  },
+  {
+    "name": "reverse_order_no_fault",
+    "policy": "reference",
+    "source": [
+      {
+        "message_id": "m4",
+        "producer": "shop",
+        "event_id": "e3",
+        "order_id": "o10",
+        "amount_cents": 3000
+      },
+      {
+        "message_id": "m3",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m2",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m1",
+        "producer": "shop",
+        "event_id": "e1",
+        "order_id": "o10",
+        "amount_cents": 1000
+      }
+    ],
+    "steps": [
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "skip_duplicate"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      }
+    ]
+  },
+  {
+    "name": "empty",
+    "policy": "reference",
+    "source": [],
+    "steps": [
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "NoMessages"
+      }
+    ]
+  },
+  {
+    "name": "amount_0",
+    "policy": "reference",
+    "source": [
+      {
+        "message_id": "m0",
+        "producer": "shop",
+        "event_id": "e0",
+        "order_id": "o0",
+        "amount_cents": 0
+      }
+    ],
+    "steps": [
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      }
+    ]
+  },
+  {
+    "name": "amount_2147483647",
+    "policy": "reference",
+    "source": [
+      {
+        "message_id": "m0",
+        "producer": "shop",
+        "event_id": "e0",
+        "order_id": "o0",
+        "amount_cents": 2147483647
+      }
+    ],
+    "steps": [
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      }
+    ]
+  },
+  {
+    "name": "invalid_source_malformed_source_json",
+    "policy": "reference",
+    "source": [
+      {
+        "message_id": "m1",
+        "producer": "shop",
+        "event_id": "e1",
+        "order_id": "o10",
+        "amount_cents": 1000
+      },
+      {
+        "message_id": "m2",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m3",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m4",
+        "producer": "shop",
+        "event_id": "e3",
+        "order_id": "o10",
+        "amount_cents": 3000
+      }
+    ],
+    "steps": [
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "error": "source publications must be an array",
+        "source": "{bad"
+      }
+    ]
+  },
+  {
+    "name": "invalid_source_conflicting_business_payload",
+    "policy": "reference",
+    "source": [
+      {
+        "message_id": "m1",
+        "producer": "shop",
+        "event_id": "e1",
+        "order_id": "o10",
+        "amount_cents": 1000
+      },
+      {
+        "message_id": "m2",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m3",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m4",
+        "producer": "shop",
+        "event_id": "e3",
+        "order_id": "o10",
+        "amount_cents": 3000
+      }
+    ],
+    "steps": [
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "error": "SOURCE CONFLICT shop/e2: m2 versus m3",
+        "source": [
+          {
+            "message_id": "m1",
+            "producer": "shop",
+            "event_id": "e1",
+            "order_id": "o10",
+            "amount_cents": 1000
+          },
+          {
+            "message_id": "m2",
+            "producer": "shop",
+            "event_id": "e2",
+            "order_id": "o20",
+            "amount_cents": 2000
+          },
+          {
+            "message_id": "m3",
+            "producer": "shop",
+            "event_id": "e2",
+            "order_id": "o20",
+            "amount_cents": 2500
+          },
+          {
+            "message_id": "m4",
+            "producer": "shop",
+            "event_id": "e3",
+            "order_id": "o10",
+            "amount_cents": 3000
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "invalid_source_duplicate_message_id",
+    "policy": "reference",
+    "source": [
+      {
+        "message_id": "m1",
+        "producer": "shop",
+        "event_id": "e1",
+        "order_id": "o10",
+        "amount_cents": 1000
+      },
+      {
+        "message_id": "m2",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m3",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m4",
+        "producer": "shop",
+        "event_id": "e3",
+        "order_id": "o10",
+        "amount_cents": 3000
+      }
+    ],
+    "steps": [
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "error": "duplicate message_id m1",
+        "source": [
+          {
+            "message_id": "m1",
+            "producer": "shop",
+            "event_id": "e1",
+            "order_id": "o10",
+            "amount_cents": 1000
+          },
+          {
+            "message_id": "m1",
+            "producer": "shop",
+            "event_id": "e2",
+            "order_id": "o20",
+            "amount_cents": 2000
+          },
+          {
+            "message_id": "m3",
+            "producer": "shop",
+            "event_id": "e2",
+            "order_id": "o20",
+            "amount_cents": 2000
+          },
+          {
+            "message_id": "m4",
+            "producer": "shop",
+            "event_id": "e3",
+            "order_id": "o10",
+            "amount_cents": 3000
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "invalid_source_blank_id",
+    "policy": "reference",
+    "source": [
+      {
+        "message_id": "m1",
+        "producer": "shop",
+        "event_id": "e1",
+        "order_id": "o10",
+        "amount_cents": 1000
+      },
+      {
+        "message_id": "m2",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m3",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m4",
+        "producer": "shop",
+        "event_id": "e3",
+        "order_id": "o10",
+        "amount_cents": 3000
+      }
+    ],
+    "steps": [
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "error": "publication[0].event_id",
+        "source": [
+          {
+            "message_id": "m1",
+            "producer": "shop",
+            "event_id": "  ",
+            "order_id": "o10",
+            "amount_cents": 1000
+          },
+          {
+            "message_id": "m2",
+            "producer": "shop",
+            "event_id": "e2",
+            "order_id": "o20",
+            "amount_cents": 2000
+          },
+          {
+            "message_id": "m3",
+            "producer": "shop",
+            "event_id": "e2",
+            "order_id": "o20",
+            "amount_cents": 2000
+          },
+          {
+            "message_id": "m4",
+            "producer": "shop",
+            "event_id": "e3",
+            "order_id": "o10",
+            "amount_cents": 3000
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "invalid_source_boolean_amount",
+    "policy": "reference",
+    "source": [
+      {
+        "message_id": "m1",
+        "producer": "shop",
+        "event_id": "e1",
+        "order_id": "o10",
+        "amount_cents": 1000
+      },
+      {
+        "message_id": "m2",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m3",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m4",
+        "producer": "shop",
+        "event_id": "e3",
+        "order_id": "o10",
+        "amount_cents": 3000
+      }
+    ],
+    "steps": [
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "error": "publication[0].amount_cents",
+        "source": [
+          {
+            "message_id": "m1",
+            "producer": "shop",
+            "event_id": "e1",
+            "order_id": "o10",
+            "amount_cents": true
+          },
+          {
+            "message_id": "m2",
+            "producer": "shop",
+            "event_id": "e2",
+            "order_id": "o20",
+            "amount_cents": 2000
+          },
+          {
+            "message_id": "m3",
+            "producer": "shop",
+            "event_id": "e2",
+            "order_id": "o20",
+            "amount_cents": 2000
+          },
+          {
+            "message_id": "m4",
+            "producer": "shop",
+            "event_id": "e3",
+            "order_id": "o10",
+            "amount_cents": 3000
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "invalid_source_string_amount",
+    "policy": "reference",
+    "source": [
+      {
+        "message_id": "m1",
+        "producer": "shop",
+        "event_id": "e1",
+        "order_id": "o10",
+        "amount_cents": 1000
+      },
+      {
+        "message_id": "m2",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m3",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m4",
+        "producer": "shop",
+        "event_id": "e3",
+        "order_id": "o10",
+        "amount_cents": 3000
+      }
+    ],
+    "steps": [
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "error": "publication[0].amount_cents",
+        "source": [
+          {
+            "message_id": "m1",
+            "producer": "shop",
+            "event_id": "e1",
+            "order_id": "o10",
+            "amount_cents": "1000"
+          },
+          {
+            "message_id": "m2",
+            "producer": "shop",
+            "event_id": "e2",
+            "order_id": "o20",
+            "amount_cents": 2000
+          },
+          {
+            "message_id": "m3",
+            "producer": "shop",
+            "event_id": "e2",
+            "order_id": "o20",
+            "amount_cents": 2000
+          },
+          {
+            "message_id": "m4",
+            "producer": "shop",
+            "event_id": "e3",
+            "order_id": "o10",
+            "amount_cents": 3000
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "invalid_source_null_amount",
+    "policy": "reference",
+    "source": [
+      {
+        "message_id": "m1",
+        "producer": "shop",
+        "event_id": "e1",
+        "order_id": "o10",
+        "amount_cents": 1000
+      },
+      {
+        "message_id": "m2",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m3",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m4",
+        "producer": "shop",
+        "event_id": "e3",
+        "order_id": "o10",
+        "amount_cents": 3000
+      }
+    ],
+    "steps": [
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "error": "publication[0].amount_cents",
+        "source": [
+          {
+            "message_id": "m1",
+            "producer": "shop",
+            "event_id": "e1",
+            "order_id": "o10",
+            "amount_cents": null
+          },
+          {
+            "message_id": "m2",
+            "producer": "shop",
+            "event_id": "e2",
+            "order_id": "o20",
+            "amount_cents": 2000
+          },
+          {
+            "message_id": "m3",
+            "producer": "shop",
+            "event_id": "e2",
+            "order_id": "o20",
+            "amount_cents": 2000
+          },
+          {
+            "message_id": "m4",
+            "producer": "shop",
+            "event_id": "e3",
+            "order_id": "o10",
+            "amount_cents": 3000
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "invalid_source_fraction_amount",
+    "policy": "reference",
+    "source": [
+      {
+        "message_id": "m1",
+        "producer": "shop",
+        "event_id": "e1",
+        "order_id": "o10",
+        "amount_cents": 1000
+      },
+      {
+        "message_id": "m2",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m3",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m4",
+        "producer": "shop",
+        "event_id": "e3",
+        "order_id": "o10",
+        "amount_cents": 3000
+      }
+    ],
+    "steps": [
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "error": "publication[0].amount_cents",
+        "source": [
+          {
+            "message_id": "m1",
+            "producer": "shop",
+            "event_id": "e1",
+            "order_id": "o10",
+            "amount_cents": 1.5
+          },
+          {
+            "message_id": "m2",
+            "producer": "shop",
+            "event_id": "e2",
+            "order_id": "o20",
+            "amount_cents": 2000
+          },
+          {
+            "message_id": "m3",
+            "producer": "shop",
+            "event_id": "e2",
+            "order_id": "o20",
+            "amount_cents": 2000
+          },
+          {
+            "message_id": "m4",
+            "producer": "shop",
+            "event_id": "e3",
+            "order_id": "o10",
+            "amount_cents": 3000
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "invalid_source_negative_amount",
+    "policy": "reference",
+    "source": [
+      {
+        "message_id": "m1",
+        "producer": "shop",
+        "event_id": "e1",
+        "order_id": "o10",
+        "amount_cents": 1000
+      },
+      {
+        "message_id": "m2",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m3",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m4",
+        "producer": "shop",
+        "event_id": "e3",
+        "order_id": "o10",
+        "amount_cents": 3000
+      }
+    ],
+    "steps": [
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "error": "publication[0].amount_cents",
+        "source": [
+          {
+            "message_id": "m1",
+            "producer": "shop",
+            "event_id": "e1",
+            "order_id": "o10",
+            "amount_cents": -1
+          },
+          {
+            "message_id": "m2",
+            "producer": "shop",
+            "event_id": "e2",
+            "order_id": "o20",
+            "amount_cents": 2000
+          },
+          {
+            "message_id": "m3",
+            "producer": "shop",
+            "event_id": "e2",
+            "order_id": "o20",
+            "amount_cents": 2000
+          },
+          {
+            "message_id": "m4",
+            "producer": "shop",
+            "event_id": "e3",
+            "order_id": "o10",
+            "amount_cents": 3000
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "invalid_source_overflow_amount",
+    "policy": "reference",
+    "source": [
+      {
+        "message_id": "m1",
+        "producer": "shop",
+        "event_id": "e1",
+        "order_id": "o10",
+        "amount_cents": 1000
+      },
+      {
+        "message_id": "m2",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m3",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m4",
+        "producer": "shop",
+        "event_id": "e3",
+        "order_id": "o10",
+        "amount_cents": 3000
+      }
+    ],
+    "steps": [
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "error": "publication[0].amount_cents",
+        "source": [
+          {
+            "message_id": "m1",
+            "producer": "shop",
+            "event_id": "e1",
+            "order_id": "o10",
+            "amount_cents": 2147483648
+          },
+          {
+            "message_id": "m2",
+            "producer": "shop",
+            "event_id": "e2",
+            "order_id": "o20",
+            "amount_cents": 2000
+          },
+          {
+            "message_id": "m3",
+            "producer": "shop",
+            "event_id": "e2",
+            "order_id": "o20",
+            "amount_cents": 2000
+          },
+          {
+            "message_id": "m4",
+            "producer": "shop",
+            "event_id": "e3",
+            "order_id": "o10",
+            "amount_cents": 3000
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "invalid_source_extra_source_field",
+    "policy": "reference",
+    "source": [
+      {
+        "message_id": "m1",
+        "producer": "shop",
+        "event_id": "e1",
+        "order_id": "o10",
+        "amount_cents": 1000
+      },
+      {
+        "message_id": "m2",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m3",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m4",
+        "producer": "shop",
+        "event_id": "e3",
+        "order_id": "o10",
+        "amount_cents": 3000
+      }
+    ],
+    "steps": [
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "error": "publication[0] requires exactly",
+        "source": [
+          {
+            "message_id": "m1",
+            "producer": "shop",
+            "event_id": "e1",
+            "order_id": "o10",
+            "amount_cents": 1000,
+            "secret": "x"
+          },
+          {
+            "message_id": "m2",
+            "producer": "shop",
+            "event_id": "e2",
+            "order_id": "o20",
+            "amount_cents": 2000
+          },
+          {
+            "message_id": "m3",
+            "producer": "shop",
+            "event_id": "e2",
+            "order_id": "o20",
+            "amount_cents": 2000
+          },
+          {
+            "message_id": "m4",
+            "producer": "shop",
+            "event_id": "e3",
+            "order_id": "o10",
+            "amount_cents": 3000
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "invalid_source_too_many_publications",
+    "policy": "reference",
+    "source": [
+      {
+        "message_id": "m1",
+        "producer": "shop",
+        "event_id": "e1",
+        "order_id": "o10",
+        "amount_cents": 1000
+      },
+      {
+        "message_id": "m2",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m3",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m4",
+        "producer": "shop",
+        "event_id": "e3",
+        "order_id": "o10",
+        "amount_cents": 3000
+      }
+    ],
+    "steps": [
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "error": "at most 100 rows",
+        "source": [
+          {
+            "message_id": "x0",
+            "producer": "p",
+            "event_id": "e0",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x1",
+            "producer": "p",
+            "event_id": "e1",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x2",
+            "producer": "p",
+            "event_id": "e2",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x3",
+            "producer": "p",
+            "event_id": "e3",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x4",
+            "producer": "p",
+            "event_id": "e4",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x5",
+            "producer": "p",
+            "event_id": "e5",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x6",
+            "producer": "p",
+            "event_id": "e6",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x7",
+            "producer": "p",
+            "event_id": "e7",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x8",
+            "producer": "p",
+            "event_id": "e8",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x9",
+            "producer": "p",
+            "event_id": "e9",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x10",
+            "producer": "p",
+            "event_id": "e10",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x11",
+            "producer": "p",
+            "event_id": "e11",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x12",
+            "producer": "p",
+            "event_id": "e12",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x13",
+            "producer": "p",
+            "event_id": "e13",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x14",
+            "producer": "p",
+            "event_id": "e14",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x15",
+            "producer": "p",
+            "event_id": "e15",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x16",
+            "producer": "p",
+            "event_id": "e16",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x17",
+            "producer": "p",
+            "event_id": "e17",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x18",
+            "producer": "p",
+            "event_id": "e18",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x19",
+            "producer": "p",
+            "event_id": "e19",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x20",
+            "producer": "p",
+            "event_id": "e20",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x21",
+            "producer": "p",
+            "event_id": "e21",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x22",
+            "producer": "p",
+            "event_id": "e22",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x23",
+            "producer": "p",
+            "event_id": "e23",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x24",
+            "producer": "p",
+            "event_id": "e24",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x25",
+            "producer": "p",
+            "event_id": "e25",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x26",
+            "producer": "p",
+            "event_id": "e26",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x27",
+            "producer": "p",
+            "event_id": "e27",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x28",
+            "producer": "p",
+            "event_id": "e28",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x29",
+            "producer": "p",
+            "event_id": "e29",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x30",
+            "producer": "p",
+            "event_id": "e30",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x31",
+            "producer": "p",
+            "event_id": "e31",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x32",
+            "producer": "p",
+            "event_id": "e32",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x33",
+            "producer": "p",
+            "event_id": "e33",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x34",
+            "producer": "p",
+            "event_id": "e34",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x35",
+            "producer": "p",
+            "event_id": "e35",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x36",
+            "producer": "p",
+            "event_id": "e36",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x37",
+            "producer": "p",
+            "event_id": "e37",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x38",
+            "producer": "p",
+            "event_id": "e38",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x39",
+            "producer": "p",
+            "event_id": "e39",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x40",
+            "producer": "p",
+            "event_id": "e40",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x41",
+            "producer": "p",
+            "event_id": "e41",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x42",
+            "producer": "p",
+            "event_id": "e42",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x43",
+            "producer": "p",
+            "event_id": "e43",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x44",
+            "producer": "p",
+            "event_id": "e44",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x45",
+            "producer": "p",
+            "event_id": "e45",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x46",
+            "producer": "p",
+            "event_id": "e46",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x47",
+            "producer": "p",
+            "event_id": "e47",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x48",
+            "producer": "p",
+            "event_id": "e48",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x49",
+            "producer": "p",
+            "event_id": "e49",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x50",
+            "producer": "p",
+            "event_id": "e50",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x51",
+            "producer": "p",
+            "event_id": "e51",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x52",
+            "producer": "p",
+            "event_id": "e52",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x53",
+            "producer": "p",
+            "event_id": "e53",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x54",
+            "producer": "p",
+            "event_id": "e54",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x55",
+            "producer": "p",
+            "event_id": "e55",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x56",
+            "producer": "p",
+            "event_id": "e56",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x57",
+            "producer": "p",
+            "event_id": "e57",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x58",
+            "producer": "p",
+            "event_id": "e58",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x59",
+            "producer": "p",
+            "event_id": "e59",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x60",
+            "producer": "p",
+            "event_id": "e60",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x61",
+            "producer": "p",
+            "event_id": "e61",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x62",
+            "producer": "p",
+            "event_id": "e62",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x63",
+            "producer": "p",
+            "event_id": "e63",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x64",
+            "producer": "p",
+            "event_id": "e64",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x65",
+            "producer": "p",
+            "event_id": "e65",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x66",
+            "producer": "p",
+            "event_id": "e66",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x67",
+            "producer": "p",
+            "event_id": "e67",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x68",
+            "producer": "p",
+            "event_id": "e68",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x69",
+            "producer": "p",
+            "event_id": "e69",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x70",
+            "producer": "p",
+            "event_id": "e70",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x71",
+            "producer": "p",
+            "event_id": "e71",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x72",
+            "producer": "p",
+            "event_id": "e72",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x73",
+            "producer": "p",
+            "event_id": "e73",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x74",
+            "producer": "p",
+            "event_id": "e74",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x75",
+            "producer": "p",
+            "event_id": "e75",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x76",
+            "producer": "p",
+            "event_id": "e76",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x77",
+            "producer": "p",
+            "event_id": "e77",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x78",
+            "producer": "p",
+            "event_id": "e78",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x79",
+            "producer": "p",
+            "event_id": "e79",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x80",
+            "producer": "p",
+            "event_id": "e80",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x81",
+            "producer": "p",
+            "event_id": "e81",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x82",
+            "producer": "p",
+            "event_id": "e82",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x83",
+            "producer": "p",
+            "event_id": "e83",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x84",
+            "producer": "p",
+            "event_id": "e84",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x85",
+            "producer": "p",
+            "event_id": "e85",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x86",
+            "producer": "p",
+            "event_id": "e86",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x87",
+            "producer": "p",
+            "event_id": "e87",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x88",
+            "producer": "p",
+            "event_id": "e88",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x89",
+            "producer": "p",
+            "event_id": "e89",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x90",
+            "producer": "p",
+            "event_id": "e90",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x91",
+            "producer": "p",
+            "event_id": "e91",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x92",
+            "producer": "p",
+            "event_id": "e92",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x93",
+            "producer": "p",
+            "event_id": "e93",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x94",
+            "producer": "p",
+            "event_id": "e94",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x95",
+            "producer": "p",
+            "event_id": "e95",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x96",
+            "producer": "p",
+            "event_id": "e96",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x97",
+            "producer": "p",
+            "event_id": "e97",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x98",
+            "producer": "p",
+            "event_id": "e98",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x99",
+            "producer": "p",
+            "event_id": "e99",
+            "order_id": "o",
+            "amount_cents": 0
+          },
+          {
+            "message_id": "x100",
+            "producer": "p",
+            "event_id": "e100",
+            "order_id": "o",
+            "amount_cents": 0
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "invalid_policy_malformed_json",
+    "policy": "reference",
+    "source": [
+      {
+        "message_id": "m1",
+        "producer": "shop",
+        "event_id": "e1",
+        "order_id": "o10",
+        "amount_cents": 1000
+      },
+      {
+        "message_id": "m2",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m3",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m4",
+        "producer": "shop",
+        "event_id": "e3",
+        "order_id": "o10",
+        "amount_cents": 3000
+      }
+    ],
+    "steps": [
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "error": "policy is malformed JSON",
+        "policy": "{"
+      }
+    ]
+  },
+  {
+    "name": "invalid_policy_unknown_ack",
+    "policy": "reference",
+    "source": [
+      {
+        "message_id": "m1",
+        "producer": "shop",
+        "event_id": "e1",
+        "order_id": "o10",
+        "amount_cents": 1000
+      },
+      {
+        "message_id": "m2",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m3",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m4",
+        "producer": "shop",
+        "event_id": "e3",
+        "order_id": "o10",
+        "amount_cents": 3000
+      }
+    ],
+    "steps": [
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "error": "policy.ackTiming",
+        "policy": {
+          "ackTiming": "later",
+          "dedupKey": "none"
+        }
+      }
+    ]
+  },
+  {
+    "name": "invalid_policy_boolean_ack",
+    "policy": "reference",
+    "source": [
+      {
+        "message_id": "m1",
+        "producer": "shop",
+        "event_id": "e1",
+        "order_id": "o10",
+        "amount_cents": 1000
+      },
+      {
+        "message_id": "m2",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m3",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m4",
+        "producer": "shop",
+        "event_id": "e3",
+        "order_id": "o10",
+        "amount_cents": 3000
+      }
+    ],
+    "steps": [
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "error": "policy.ackTiming",
+        "policy": {
+          "ackTiming": true,
+          "dedupKey": "none"
+        }
+      }
+    ]
+  },
+  {
+    "name": "invalid_policy_unknown_key",
+    "policy": "reference",
+    "source": [
+      {
+        "message_id": "m1",
+        "producer": "shop",
+        "event_id": "e1",
+        "order_id": "o10",
+        "amount_cents": 1000
+      },
+      {
+        "message_id": "m2",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m3",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m4",
+        "producer": "shop",
+        "event_id": "e3",
+        "order_id": "o10",
+        "amount_cents": 3000
+      }
+    ],
+    "steps": [
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "error": "policy.dedupKey",
+        "policy": {
+          "ackTiming": "after_write",
+          "dedupKey": "ack_id"
+        }
+      }
+    ]
+  },
+  {
+    "name": "invalid_policy_exactly_once_toggle",
+    "policy": "reference",
+    "source": [
+      {
+        "message_id": "m1",
+        "producer": "shop",
+        "event_id": "e1",
+        "order_id": "o10",
+        "amount_cents": 1000
+      },
+      {
+        "message_id": "m2",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m3",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m4",
+        "producer": "shop",
+        "event_id": "e3",
+        "order_id": "o10",
+        "amount_cents": 3000
+      }
+    ],
+    "steps": [
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "error": "extra/unknown fields",
+        "policy": {
+          "ackTiming": "after_write",
+          "dedupKey": "none",
+          "exactlyOnce": true
+        }
+      }
+    ]
+  },
+  {
+    "name": "invalid_policy_sql_field",
+    "policy": "reference",
+    "source": [
+      {
+        "message_id": "m1",
+        "producer": "shop",
+        "event_id": "e1",
+        "order_id": "o10",
+        "amount_cents": 1000
+      },
+      {
+        "message_id": "m2",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m3",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m4",
+        "producer": "shop",
+        "event_id": "e3",
+        "order_id": "o10",
+        "amount_cents": 3000
+      }
+    ],
+    "steps": [
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "error": "extra/unknown fields",
+        "policy": {
+          "ackTiming": "after_write",
+          "dedupKey": "none",
+          "sql": "SELECT 1"
+        }
+      }
+    ]
+  },
+  {
+    "name": "invalid_policy_code_field",
+    "policy": "reference",
+    "source": [
+      {
+        "message_id": "m1",
+        "producer": "shop",
+        "event_id": "e1",
+        "order_id": "o10",
+        "amount_cents": 1000
+      },
+      {
+        "message_id": "m2",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m3",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m4",
+        "producer": "shop",
+        "event_id": "e3",
+        "order_id": "o10",
+        "amount_cents": 3000
+      }
+    ],
+    "steps": [
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "error": "extra/unknown fields",
+        "policy": {
+          "ackTiming": "after_write",
+          "dedupKey": "none",
+          "code": "pass"
+        }
+      }
+    ]
+  },
+  {
+    "name": "unsupported_actions_and_faults",
+    "policy": "reference",
+    "source": [
+      {
+        "message_id": "m1",
+        "producer": "shop",
+        "event_id": "e1",
+        "order_id": "o10",
+        "amount_cents": 1000
+      },
+      {
+        "message_id": "m2",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m3",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m4",
+        "producer": "shop",
+        "event_id": "e3",
+        "order_id": "o10",
+        "amount_cents": 3000
+      }
+    ],
+    "steps": [
+      {
+        "action": "retry_current",
+        "fault": "none",
+        "error": "retry requires explicit expiry"
+      },
+      {
+        "action": "expire_current",
+        "fault": "none",
+        "error": "no unacknowledged in-flight delivery"
+      },
+      {
+        "action": "force_redelivery",
+        "fault": "none",
+        "error": "needs an acknowledged message",
+        "message_id": "m2"
+      },
+      {
+        "action": "process_next",
+        "fault": "network_random",
+        "error": "unsupported local fault"
+      },
+      {
+        "action": "publish_now",
+        "fault": "none",
+        "error": "unsupported local action"
+      }
+    ]
+  },
+  {
+    "name": "source_change_requires_confirmed_reset",
+    "policy": "reference",
+    "source": [
+      {
+        "message_id": "m1",
+        "producer": "shop",
+        "event_id": "e1",
+        "order_id": "o10",
+        "amount_cents": 1000
+      },
+      {
+        "message_id": "m2",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m3",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m4",
+        "producer": "shop",
+        "event_id": "e3",
+        "order_id": "o10",
+        "amount_cents": 3000
+      }
+    ],
+    "steps": [
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "error": "SOURCE_CHANGE_RESET_REQUIRED",
+        "source": [
+          {
+            "message_id": "m1",
+            "producer": "shop",
+            "event_id": "e1",
+            "order_id": "o10",
+            "amount_cents": 1500
+          },
+          {
+            "message_id": "m2",
+            "producer": "shop",
+            "event_id": "e2",
+            "order_id": "o20",
+            "amount_cents": 2000
+          },
+          {
+            "message_id": "m3",
+            "producer": "shop",
+            "event_id": "e2",
+            "order_id": "o20",
+            "amount_cents": 2000
+          },
+          {
+            "message_id": "m4",
+            "producer": "shop",
+            "event_id": "e3",
+            "order_id": "o10",
+            "amount_cents": 3000
+          }
+        ]
+      },
+      {
+        "action": "reset_confirmed",
+        "fault": "none",
+        "status": "ResetConfirmed",
+        "source": [
+          {
+            "message_id": "m1",
+            "producer": "shop",
+            "event_id": "e1",
+            "order_id": "o10",
+            "amount_cents": 1500
+          },
+          {
+            "message_id": "m2",
+            "producer": "shop",
+            "event_id": "e2",
+            "order_id": "o20",
+            "amount_cents": 2000
+          },
+          {
+            "message_id": "m3",
+            "producer": "shop",
+            "event_id": "e2",
+            "order_id": "o20",
+            "amount_cents": 2000
+          },
+          {
+            "message_id": "m4",
+            "producer": "shop",
+            "event_id": "e3",
+            "order_id": "o10",
+            "amount_cents": 3000
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "policy_edit_preserves_unsafe_history",
+    "policy": "starter",
+    "source": [
+      {
+        "message_id": "m1",
+        "producer": "shop",
+        "event_id": "e1",
+        "order_id": "o10",
+        "amount_cents": 1000
+      },
+      {
+        "message_id": "m2",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m3",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m4",
+        "producer": "shop",
+        "event_id": "e3",
+        "order_id": "o10",
+        "amount_cents": 3000
+      }
+    ],
+    "steps": [
+      {
+        "action": "process_next",
+        "fault": "sink_failure_before_write",
+        "status": "SinkFailed",
+        "sink": "none"
+      },
+      {
+        "action": "process_next",
+        "fault": "none",
+        "status": "Succeeded",
+        "sink": "insert",
+        "policy": "reference"
+      },
+      {
+        "action": "reset_confirmed",
+        "fault": "none",
+        "status": "ResetConfirmed",
+        "policy": "reference"
+      }
+    ]
+  }
+]

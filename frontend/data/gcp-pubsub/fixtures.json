@@ -1,0 +1,85 @@
+{
+  "publications": [
+    {
+      "message_id": "m1",
+      "producer": "shop",
+      "event_id": "e1",
+      "order_id": "o10",
+      "amount_cents": 1000
+    },
+    {
+      "message_id": "m2",
+      "producer": "shop",
+      "event_id": "e2",
+      "order_id": "o20",
+      "amount_cents": 2000
+    },
+    {
+      "message_id": "m3",
+      "producer": "shop",
+      "event_id": "e2",
+      "order_id": "o20",
+      "amount_cents": 2000
+    },
+    {
+      "message_id": "m4",
+      "producer": "shop",
+      "event_id": "e3",
+      "order_id": "o10",
+      "amount_cents": 3000
+    }
+  ],
+  "default_faults": {
+    "m1/attempt1": "sink_failure_before_write",
+    "m2/attempt1": "crash_after_commit_before_ack"
+  },
+  "initial_state": {
+    "source_publications": [
+      {
+        "message_id": "m1",
+        "producer": "shop",
+        "event_id": "e1",
+        "order_id": "o10",
+        "amount_cents": 1000
+      },
+      {
+        "message_id": "m2",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m3",
+        "producer": "shop",
+        "event_id": "e2",
+        "order_id": "o20",
+        "amount_cents": 2000
+      },
+      {
+        "message_id": "m4",
+        "producer": "shop",
+        "event_id": "e3",
+        "order_id": "o10",
+        "amount_cents": 3000
+      }
+    ],
+    "ledger": [],
+    "acked_message_ids": [],
+    "ack_history": [],
+    "pending": [
+      "m1",
+      "m2",
+      "m3",
+      "m4"
+    ],
+    "inflight": null,
+    "retry_for": null,
+    "attempts": {
+      "m1": 0,
+      "m2": 0,
+      "m3": 0,
+      "m4": 0
+    }
+  }
+}

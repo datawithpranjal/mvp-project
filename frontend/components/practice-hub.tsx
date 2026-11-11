@@ -18,6 +18,7 @@ import {
   type Scenario
 } from "../lib/scenarios";
 import { LAB_TRACKS, type LabTrack } from "../lib/labs";
+import { GCP_PUBSUB_LAB } from "../lib/product";
 import { trackEvent } from "../lib/analytics";
 import { PremiumAccessBadge } from "./premium-access-badge";
 
@@ -30,6 +31,7 @@ type SortOption =
 
 type PracticeItem =
   | { kind: "azure" }
+  | { kind: "gcp" }
   | { kind: "project" }
   | { kind: "modelling" }
   | { kind: "coding"; lab: CodingLab }
@@ -73,6 +75,7 @@ export function PracticeHub() {
 
   const allItems = useMemo<PracticeItem[]>(
     () => [
+      { kind: "gcp" as const },
       { kind: "azure" as const },
       { kind: "project" as const },
       { kind: "modelling" as const },
@@ -383,7 +386,7 @@ function PracticeResultCard({
             : "bg-amber-300 text-slate-950 hover:bg-amber-200"
         }`}
       >
-        {item.kind === "azure" ? "Practise ADF recovery" : item.kind === "project" ? "Open free project" : locked ? "Unlock Premium" : progress?.attemptCount ? "Continue Lab" : "Start Lab"}
+        {item.kind === "gcp" ? GCP_PUBSUB_LAB.cta : item.kind === "azure" ? "Practise ADF recovery" : item.kind === "project" ? "Open free project" : locked ? "Unlock Premium" : progress?.attemptCount ? "Continue Lab" : "Start Lab"}
       </Link>
     </article>
   );
@@ -466,6 +469,7 @@ function Stat({ label, value }: { label: string; value: string | number }) {
 }
 
 function practiceKey(item: PracticeItem): string {
+  if (item.kind === "gcp") return GCP_PUBSUB_LAB.id;
   if (item.kind === "azure") return "azure-adf-watermark-recovery-001";
   if (item.kind === "project") return "project-order-replay-001";
   if (item.kind === "modelling") return "dm-historical-territory-001";
@@ -474,6 +478,17 @@ function practiceKey(item: PracticeItem): string {
 }
 
 function getPracticeMetadata(item: PracticeItem): PracticeMetadata {
+  if (item.kind === "gcp") return {
+    title: GCP_PUBSUB_LAB.title,
+    outcome: GCP_PUBSUB_LAB.description,
+    domain: "GCP",
+    type: "Free · Local simulation",
+    difficulty: "Intermediate",
+    estimatedMinutes: 35,
+    isFree: true,
+    skills: ["Pub/Sub", "ACK IDs", "Business-event deduplication", "Retry recovery"],
+    href: GCP_PUBSUB_LAB.href
+  };
   if (item.kind === "azure") return {
     title: "ADF Copy failed—why did the watermark advance?",
     outcome: "One free Azure Data Factory configuration and recovery simulation; no Azure account required.",
