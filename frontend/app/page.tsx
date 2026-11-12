@@ -7,16 +7,16 @@ import styles from "./home.module.css";
 const otherPractice = [
   {
     label: "Data Modelling",
-    title: "Handle a backdated territory change",
-    description: "Write sale-time and effective-as-of reports from territory history.",
+    description: "Backdated territory changes",
     href: "/labs/data-modelling"
   },
   {
     label: "Project Sandbox",
-    title: "Replay an order feed safely",
-    description: "Build linked SQL stages and test replay and late cancellations in your browser.",
+    description: "Safe order-feed replay",
     href: "/projects/ecommerce-pipeline"
-  }
+  },
+  { label: "Python practice", href: "/labs/python" },
+  { label: "PySpark practice", href: "/labs/pyspark" }
 ];
 
 export default function HomePage() {
@@ -28,35 +28,75 @@ export default function HomePage() {
         <section aria-labelledby="home-title" className={styles.hero}>
           <div className={styles.intro}>
             <h1 id="home-title" className={styles.title}>
-              Practice data engineering on real problems
+              Practise data engineering. <span>Fix what breaks.</span>
             </h1>
-            <p className={styles.lead}>Inspect data, make a decision, and check the result.</p>
-            <TrackedLink
-              id="homepage-primary-start"
-              href={firstFreeScenarioHref}
-              event="homepage_start_clicked"
-              eventPayload={{ destination: "first_free_scenario" }}
-              aria-describedby="free-sql-account"
-              className={styles.primary}
-            >
-              Try the free SQL scenario
-              <span aria-hidden="true">→</span>
-            </TrackedLink>
+            <p className={styles.lead}>
+              Debug broken reports, recover pipelines, and check your decisions through practical exercises.
+            </p>
+            <div className={styles.actions}>
+              <TrackedLink
+                id="homepage-primary-start"
+                href={firstFreeScenarioHref}
+                event="homepage_start_clicked"
+                eventPayload={{ destination: "first_free_scenario" }}
+                aria-describedby="free-sql-account"
+                className={styles.primary}
+              >
+                Try the free SQL scenario
+                <span aria-hidden="true">→</span>
+              </TrackedLink>
+              <TrackedLink
+                id="homepage-catalogue-link"
+                href="/labs"
+                event="homepage_start_clicked"
+                eventPayload={{ choice: "explore_labs" }}
+                className={styles.catalogue}
+              >
+                Browse all practice
+              </TrackedLink>
+            </div>
             <p id="free-sql-account" className={styles.account}>
               No sign-in for the sample. A free account is required to submit for evaluation.
             </p>
+
+            <nav aria-label="Practice tracks" className={styles.practice}>
+              <ul className={styles.routes}>
+                {otherPractice.map(({ label, description, href }) => (
+                  <li key={href}>
+                    <Link href={href} className={styles.route}>
+                      <span>
+                        <span className={styles.routeLabel}>{label}</span>
+                        {description && <span className={styles.routeDescription}>{description}</span>}
+                      </span>
+                      <span className={styles.routeArrow} aria-hidden="true">↗</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </nav>
           </div>
 
-          <figure className={styles.preview} aria-labelledby="home-preview-title">
+          <figure className={styles.incident} aria-labelledby="home-incident-title">
             <figcaption>
-              <p className={styles.previewLabel}>Exercise preview</p>
-              <h2 id="home-preview-title">Fix a revenue report</h2>
+              <p className={styles.incidentLabel}>Exercise example</p>
+              <h2 id="home-incident-title">Revenue report mismatch</h2>
             </figcaption>
-            <p className={styles.previewTask}>
-              Use <code>orders</code> and <code>customers</code> to return one row per customer from completed orders.
-            </p>
+            <dl className={styles.incidentFacts}>
+              <div>
+                <dt>Symptom</dt>
+                <dd>A customer revenue report is higher than expected.</dd>
+              </div>
+              <div>
+                <dt>Inputs</dt>
+                <dd className={styles.inputs}><code>orders</code> <code>customers</code></dd>
+              </div>
+              <div>
+                <dt>Expected output</dt>
+                <dd>One row per customer with completed-order revenue.</dd>
+              </div>
+            </dl>
             <table className={styles.sample}>
-              <caption>Supplied example result</caption>
+              <caption>Supplied example rows</caption>
               <thead>
                 <tr>
                   <th scope="col">Customer ID</th>
@@ -70,33 +110,6 @@ export default function HomePage() {
               </tbody>
             </table>
           </figure>
-        </section>
-
-        <section className={styles.practice} aria-labelledby="practice-starts-title">
-          <h2 id="practice-starts-title" className={styles.sectionTitle}>More ways to practise</h2>
-          <ul className={styles.routes}>
-            {otherPractice.map(({ label, title, description, href }) => (
-              <li key={href}>
-                <Link href={href} className={styles.route}>
-                  <span className={styles.routeLabel}>{label}</span>
-                  <span className={styles.routeText}>
-                    <span className={styles.routeTitle}>{title}</span>
-                    <span className={styles.routeDescription}>{description}</span>
-                  </span>
-                  <span className={styles.routeArrow} aria-hidden="true">→</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-          <TrackedLink
-            id="homepage-catalogue-link"
-            href="/labs"
-            event="homepage_start_clicked"
-            eventPayload={{ choice: "explore_labs" }}
-            className={styles.textLink}
-          >
-            Browse all practice
-          </TrackedLink>
         </section>
 
         <section className={styles.premium} aria-labelledby="premium-title">
