@@ -107,7 +107,8 @@ export default function HomePage() {
               Revenue Dropped 30% After New SUCCESSFUL Status
             </Link>
             <p className={styles.qualification}>
-              Guided practice only. SQL checks cover the supplied example, and explanation feedback is advisory.
+              Guided practice uses the supplied example for SQL checks and gives advisory explanation feedback.
+              Independent skill assessment is outside its scope.
             </p>
           </div>
           <div className={styles.plans}>
