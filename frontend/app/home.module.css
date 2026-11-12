@@ -1,0 +1,402 @@
+.home {
+  --canvas: #0e1722;
+  --surface: #172330;
+  --band: #14212c;
+  --rule: #344554;
+  --ink: #f0f4f7;
+  --secondary: #b5c4d1;
+  --link: #8ce6d2;
+  --button: #8ce6d2;
+  --button-ink: #102923;
+  --button-hover: #adf2e1;
+  background-color: var(--canvas);
+  color: var(--ink);
+}
+
+:global(html[data-theme="light"]) .home {
+  --canvas: #f7f8f5;
+  --surface: #fff;
+  --band: #eaf0ec;
+  --rule: #cbd6ce;
+  --ink: #192924;
+  --secondary: #475a52;
+  --link: #17674f;
+  --button: #155b46;
+  --button-ink: #fff;
+  --button-hover: #0d4836;
+}
+
+.content {
+  width: min(100%, 1120px);
+  margin-inline: auto;
+  padding: 64px 24px 24px;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(32px, 5vw, 64px);
+}
+
+.intro {
+  min-width: 0;
+}
+
+.title {
+  max-width: 16ch;
+  margin: 0;
+  font-size: clamp(40px, 4.45vw, 56px);
+  font-weight: 700;
+  line-height: 1.04;
+  letter-spacing: -0.055em;
+  text-wrap: balance;
+}
+
+.lead {
+  margin: 16px 0 0;
+  font-size: 18px;
+  line-height: 1.55;
+  color: var(--secondary);
+}
+
+.primary {
+  display: inline-flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 24px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  background-color: var(--button);
+  color: var(--button-ink);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.primary:hover {
+  background-color: var(--button-hover);
+}
+
+.account,
+.qualification,
+.credit {
+  color: var(--secondary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.account {
+  max-width: 46ch;
+  margin: 9px 0 0;
+}
+
+.preview {
+  min-width: 0;
+  margin: 0;
+  padding: 24px;
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  background-color: var(--surface);
+}
+
+.previewLabel {
+  margin: 0;
+  color: var(--link);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.045em;
+}
+
+.preview h2 {
+  margin: 4px 0 0;
+  font-size: 23px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+}
+
+.previewTask {
+  margin: 9px 0 0;
+  color: var(--secondary);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.previewTask code {
+  color: var(--ink);
+  font-size: 0.92em;
+}
+
+.sample {
+  width: 100%;
+  margin-top: 14px;
+  border-collapse: collapse;
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+
+.sample caption {
+  padding-bottom: 5px;
+  color: var(--secondary);
+  font-size: 12px;
+  text-align: left;
+}
+
+.sample th,
+.sample td {
+  padding: 5px 6px 5px 0;
+  border-top: 1px solid var(--rule);
+}
+
+.sample th {
+  color: var(--secondary);
+  font-weight: 600;
+}
+
+.sample th:last-child,
+.sample td:last-child {
+  padding-right: 0;
+  text-align: right;
+}
+
+.practice {
+  margin-top: 58px;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.18;
+  letter-spacing: -0.035em;
+}
+
+.routes {
+  margin: 15px 0 4px;
+  padding: 0;
+  border-top: 1px solid var(--rule);
+  list-style: none;
+}
+
+.routes li {
+  border-bottom: 1px solid var(--rule);
+}
+
+.route {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  min-height: 78px;
+  padding: 12px 0;
+}
+
+.routeLabel {
+  color: var(--secondary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.routeText {
+  min-width: 0;
+}
+
+.routeTitle {
+  display: block;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.routeDescription {
+  display: block;
+  margin-top: 3px;
+  color: var(--secondary);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.routeArrow {
+  color: var(--link);
+  font-size: 20px;
+}
+
+.route:hover .routeTitle,
+.textLink,
+.example {
+  text-decoration: underline;
+  text-underline-offset: 0.22em;
+}
+
+.textLink,
+.example {
+  display: inline-flex;
+  min-height: 44px;
+  max-width: 100%;
+  align-items: center;
+  color: var(--link);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.premium {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 32px;
+  margin-top: 46px;
+  padding: 25px 28px;
+  border-radius: 14px;
+  background-color: var(--band);
+}
+
+.premiumLead {
+  margin: 9px 0 0;
+  color: var(--secondary);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.qualification {
+  margin: 0;
+}
+
+.plans {
+  min-width: 0;
+  padding-left: 24px;
+  border-left: 1px solid var(--rule);
+}
+
+.terms {
+  display: grid;
+  gap: 11px;
+  margin: 0;
+}
+
+.terms dt {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.terms dd {
+  margin: 2px 0 0;
+  color: var(--secondary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.credit {
+  margin: 21px 0 0;
+  font-size: 13px;
+}
+
+.home a:focus-visible {
+  outline: 3px solid var(--link);
+  outline-offset: 4px;
+}
+
+@media (max-width: 760px) {
+  .content {
+    padding: 30px 18px 18px;
+  }
+
+  .hero {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 21px;
+  }
+
+  .title {
+    max-width: 15ch;
+    font-size: clamp(34px, 7vw, 45px);
+  }
+
+  .lead {
+    margin-top: 11px;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+
+  .primary {
+    width: 100%;
+    margin-top: 16px;
+  }
+
+  .account {
+    margin-top: 8px;
+  }
+
+  .preview {
+    padding: 14px 15px;
+  }
+
+  .preview h2 {
+    font-size: 20px;
+  }
+
+  .previewTask {
+    margin-top: 6px;
+  }
+
+  .sample {
+    margin-top: 10px;
+    font-size: 12px;
+  }
+
+  .sample th,
+  .sample td {
+    padding-block: 4px;
+  }
+
+  .practice {
+    margin-top: 31px;
+  }
+
+  .sectionTitle {
+    font-size: 23px;
+  }
+
+  .routes {
+    margin-top: 11px;
+  }
+
+  .route {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 3px 14px;
+    padding-block: 11px;
+  }
+
+  .routeText {
+    grid-column: 1;
+  }
+
+  .routeArrow {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+
+  .premium {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+    margin-top: 28px;
+    padding: 17px;
+  }
+
+  .plans {
+    padding: 13px 0 0;
+    border-top: 1px solid var(--rule);
+    border-left: 0;
+  }
+
+  .terms {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .credit {
+    margin-top: 15px;
+  }
+}
