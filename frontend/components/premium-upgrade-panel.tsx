@@ -247,6 +247,7 @@ export function PremiumUpgradePanel({
   }
 
   async function applyCoupon() {
+    if (isRazorpayLoading || orderRequest.current) return;
     const token = getAuthToken();
     const normalizedCode = couponCode.trim();
     if (!token) {
@@ -283,13 +284,14 @@ export function PremiumUpgradePanel({
   }
 
   function removeCoupon() {
+    if (isRazorpayLoading || orderRequest.current) return;
     setCouponCode("");
     setCouponQuote(null);
     setCouponError(null);
   }
 
   async function handleRazorpayCheckout() {
-    if (!currentUser) {
+    if (!currentUser || isRazorpayLoading || orderRequest.current || couponRequest.current) {
       return;
     }
 
@@ -426,12 +428,13 @@ export function PremiumUpgradePanel({
         );
       }
     } finally {
+      if (orderRequest.current === request) orderRequest.current = null;
       setIsRazorpayLoading(false);
     }
   }
 
   async function handleFreeCouponUnlock() {
-    if (!currentUser) {
+    if (!currentUser || isRazorpayLoading || couponRequest.current) {
       return;
     }
 
@@ -688,7 +691,9 @@ export function PremiumUpgradePanel({
                 id="premium-coupon-code"
                 type="text"
                 value={couponCode}
+                disabled={isRazorpayLoading}
                 onChange={(event) => {
+                  if (isRazorpayLoading || orderRequest.current) return;
                   couponRequest.current = null;
                   setIsApplyingCoupon(false);
                   setCouponCode(event.target.value);
@@ -697,13 +702,14 @@ export function PremiumUpgradePanel({
                 }}
                 placeholder="Enter coupon code"
                 autoComplete="off"
-                className="min-w-0 flex-1 rounded-2xl border border-slate-700 bg-slate-950/60 px-4 py-3 text-sm uppercase text-slate-100 outline-none transition focus:border-amber-300/40"
+                className="min-w-0 flex-1 rounded-2xl border border-slate-700 bg-slate-950/60 px-4 py-3 text-sm uppercase text-slate-100 outline-none transition focus:border-amber-300/40 disabled:opacity-60"
               />
               {couponQuote ? (
                 <button
                   type="button"
                   onClick={removeCoupon}
-                  className="rounded-full border border-slate-700 px-5 py-3 text-sm font-semibold text-slate-200 transition hover:border-rose-300/40"
+                  disabled={isRazorpayLoading}
+                  className="rounded-full border border-slate-700 px-5 py-3 text-sm font-semibold text-slate-200 transition hover:border-rose-300/40 disabled:opacity-60"
                 >
                   Remove
                 </button>
@@ -711,7 +717,7 @@ export function PremiumUpgradePanel({
                 <button
                   type="button"
                   onClick={applyCoupon}
-                  disabled={isApplyingCoupon}
+                  disabled={isApplyingCoupon || isRazorpayLoading}
                   className="rounded-full border border-amber-300/35 bg-amber-300/10 px-5 py-3 text-sm font-semibold text-amber-100 transition hover:bg-amber-300/20 disabled:cursor-wait disabled:opacity-60"
                 >
                   {isApplyingCoupon ? "Applying..." : "Apply coupon"}
@@ -754,7 +760,7 @@ export function PremiumUpgradePanel({
           <button
             type="button"
             onClick={payableAmount === 0 ? handleFreeCouponUnlock : handleRazorpayCheckout}
-            disabled={isRazorpayLoading}
+            disabled={isRazorpayLoading || isApplyingCoupon}
             className="mt-5 w-full rounded-full bg-teal-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-teal-200 disabled:cursor-not-allowed disabled:bg-teal-100"
           >
             {isRazorpayLoading
