@@ -4,6 +4,8 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
+from app.services.missing_sales_fixtures import CASES as MISSING_SALES_CASES
+
 PysparkMode = Literal["sample", "hidden"]
 
 
@@ -21,6 +23,7 @@ class PysparkInputTable:
     name: str
     rows: list[dict[str, Any]]
     timestamp_columns: tuple[str, ...] = ()
+    input_schema: str | None = None
 
 
 @dataclass(frozen=True)
@@ -29,6 +32,7 @@ class PysparkCase:
     inputs: tuple[PysparkInputTable, ...] = ()
     context: dict[str, Any] = field(default_factory=dict)
     expected_rows: list[list[Any]] | None = None
+    session_timezone: str | None = None
 
 
 @dataclass(frozen=True)
@@ -39,6 +43,9 @@ class PysparkSpec:
     sample_cases: tuple[PysparkCase, ...] = ()
     hidden_cases: tuple[PysparkCase, ...] = ()
     code_checks: tuple[PysparkCodeCheck, ...] = ()
+    # Empty retains legacy comparison. Declared columns compare unrounded finite
+    # numbers with this absolute tolerance; representation is not a dtype test.
+    numeric_tolerances: dict[str, str] = field(default_factory=dict)
 
 
 def code_check(
@@ -1592,163 +1599,31 @@ PYSPARK_PDF_LAB_SPECS: dict[str, PysparkSpec] = {
 }
 
 
+def _missing_sales_case(case: dict[str, Any]) -> PysparkCase:
+    return PysparkCase(
+        name=case["name"],
+        inputs=(PysparkInputTable(
+            name="raw_sales",
+            rows=case["rows"],
+            timestamp_columns=tuple(case["timestamp_columns"]),
+            input_schema=case["input_schema"],
+        ),),
+        context={"run_date": case["run_date"]},
+        expected_rows=case["expected"],
+        session_timezone=case["session_timezone"],
+    )
+
+
 YESTERDAYS_SALES_SPEC = PysparkSpec(
     slug="yesterdays-sales-missing-late-source-arrival",
     output_columns=("business_date", "order_count", "gross_sales"),
     output_variable_names=("daily_sales", "fixed_daily_sales", "result_df"),
-    sample_cases=(
-        PysparkCase(
-            name="visible late-arriving paid sales",
-            context={"run_date": "2026-05-07"},
-            inputs=(
-                input_table(
-                    "raw_sales",
-                    [
-                        {
-                            "order_id": 7001,
-                            "customer_id": 101,
-                            "sale_ts_utc": "2026-05-07 10:15:00",
-                            "amount": 250.0,
-                            "status": "PAID",
-                            "source_file_date": "2026-05-07",
-                            "ingested_at": "2026-05-08 03:22:10",
-                        },
-                        {
-                            "order_id": 7002,
-                            "customer_id": 102,
-                            "sale_ts_utc": "2026-05-07 18:40:00",
-                            "amount": 170.0,
-                            "status": "PAID",
-                            "source_file_date": "2026-05-07",
-                            "ingested_at": "2026-05-08 03:25:44",
-                        },
-                        {
-                            "order_id": 7003,
-                            "customer_id": 103,
-                            "sale_ts_utc": "2026-05-08 01:05:00",
-                            "amount": 90.0,
-                            "status": "PAID",
-                            "source_file_date": "2026-05-08",
-                            "ingested_at": "2026-05-08 03:26:01",
-                        },
-                        {
-                            "order_id": 7004,
-                            "customer_id": 104,
-                            "sale_ts_utc": "2026-05-07 12:30:00",
-                            "amount": 75.0,
-                            "status": "CANCELLED",
-                            "source_file_date": "2026-05-07",
-                            "ingested_at": "2026-05-08 03:23:00",
-                        },
-                    ],
-                    timestamp_columns=("sale_ts_utc", "ingested_at"),
-                ),
-            ),
-            expected_rows=[["2026-05-07", 2, 420.0]],
-        ),
-    ),
-    hidden_cases=(
-        PysparkCase(
-            name="hidden duplicate late file should not double count",
-            context={"run_date": "2026-05-07"},
-            inputs=(
-                input_table(
-                    "raw_sales",
-                    [
-                        {
-                            "order_id": 8101,
-                            "customer_id": 201,
-                            "sale_ts_utc": "2026-05-07 09:00:00",
-                            "amount": 300.0,
-                            "status": "PAID",
-                            "source_file_date": "2026-05-07",
-                            "ingested_at": "2026-05-09 01:10:00",
-                        },
-                        {
-                            "order_id": 8101,
-                            "customer_id": 201,
-                            "sale_ts_utc": "2026-05-07 09:00:00",
-                            "amount": 300.0,
-                            "status": "PAID",
-                            "source_file_date": "2026-05-07",
-                            "ingested_at": "2026-05-09 01:12:00",
-                        },
-                        {
-                            "order_id": 8102,
-                            "customer_id": 202,
-                            "sale_ts_utc": "2026-05-07 22:35:00",
-                            "amount": 120.0,
-                            "status": "PAID",
-                            "source_file_date": "2026-05-07",
-                            "ingested_at": "2026-05-09 01:13:00",
-                        },
-                        {
-                            "order_id": 8103,
-                            "customer_id": 203,
-                            "sale_ts_utc": "2026-05-07 12:00:00",
-                            "amount": 70.0,
-                            "status": "CANCELLED",
-                            "source_file_date": "2026-05-07",
-                            "ingested_at": "2026-05-09 01:14:00",
-                        },
-                        {
-                            "order_id": 8104,
-                            "customer_id": 204,
-                            "sale_ts_utc": "2026-05-08 00:05:00",
-                            "amount": 999.0,
-                            "status": "PAID",
-                            "source_file_date": "2026-05-08",
-                            "ingested_at": "2026-05-09 01:15:00",
-                        },
-                    ],
-                    timestamp_columns=("sale_ts_utc", "ingested_at"),
-                ),
-            ),
-            expected_rows=[["2026-05-07", 2, 420.0]],
-        ),
-        PysparkCase(
-            name="hidden same ingestion day includes wrong business dates",
-            context={"run_date": "2026-05-07"},
-            inputs=(
-                input_table(
-                    "raw_sales",
-                    [
-                        {
-                            "order_id": 8201,
-                            "customer_id": 301,
-                            "sale_ts_utc": "2026-05-06 23:50:00",
-                            "amount": 500.0,
-                            "status": "PAID",
-                            "source_file_date": "2026-05-06",
-                            "ingested_at": "2026-05-07 01:00:00",
-                        },
-                        {
-                            "order_id": 8202,
-                            "customer_id": 302,
-                            "sale_ts_utc": "2026-05-07 11:45:00",
-                            "amount": 80.0,
-                            "status": "PAID",
-                            "source_file_date": "2026-05-07",
-                            "ingested_at": "2026-05-08 02:00:00",
-                        },
-                        {
-                            "order_id": 8203,
-                            "customer_id": 303,
-                            "sale_ts_utc": "2026-05-07 19:10:00",
-                            "amount": 140.0,
-                            "status": "PAID",
-                            "source_file_date": "2026-05-07",
-                            "ingested_at": "2026-05-08 02:01:00",
-                        },
-                    ],
-                    timestamp_columns=("sale_ts_utc", "ingested_at"),
-                ),
-            ),
-            expected_rows=[["2026-05-07", 2, 220.0]],
-        ),
-    ),
+    sample_cases=tuple(_missing_sales_case(case) for case in MISSING_SALES_CASES[:1]),
+    hidden_cases=tuple(_missing_sales_case(case) for case in MISSING_SALES_CASES[1:]),
+    # Fixture-scale floating arithmetic may differ below 1e-9. A real sub-cent
+    # discrepancy (e.g. +0.004) and any fractional count must fail.
+    numeric_tolerances={"order_count": "0", "gross_sales": "0.000000001"},
 )
-
 
 PYSPARK_SPECS: dict[str, PysparkSpec] = {
     YESTERDAYS_SALES_SPEC.slug: YESTERDAYS_SALES_SPEC,
