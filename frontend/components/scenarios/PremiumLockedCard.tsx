@@ -10,6 +10,7 @@ interface PremiumLockedCardProps {
 }
 
 export function PremiumLockedCard({ scenario, accessUnavailable = false }: PremiumLockedCardProps) {
+  const showExercisePreview = scenario.id === "bpl-dq-001";
   const scenarios = getScenarios();
   const index = scenarios.findIndex((item) => item.slug === scenario.slug);
   const previous = index > 0 ? scenarios[index - 1] : null;
@@ -27,11 +28,26 @@ export function PremiumLockedCard({ scenario, accessUnavailable = false }: Premi
         <h1 className="mt-6 text-4xl font-semibold tracking-tight text-slate-50">
           {scenario.title}
         </h1>
-        <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300">
-          {accessUnavailable
-            ? "We could not confirm your Premium access right now. Check your access from Pricing and try again."
-            : "Premium unlocks the task, source data, workspace, hints, validation and model answer."}
-        </p>
+        {accessUnavailable ? (
+          <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300">
+            We could not confirm your Premium access right now. Check your access from Pricing and try again.
+          </p>
+        ) : !showExercisePreview ? (
+          <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300">
+            Premium unlocks the task, source data, workspace, hints, validation and model answer.
+          </p>
+        ) : null}
+        {showExercisePreview ? (
+          <div className="mt-5 max-w-3xl space-y-2">
+            <h2 className="text-lg font-semibold text-slate-50">In this Premium exercise</h2>
+            <p className="text-sm leading-7 text-slate-300">
+              Reconcile a fictional daily revenue report when a new payment provider uses a different label for successful transactions. Write SQL using the supplied payment records and status definitions, work through hints, then compare your approach with a model explanation and prevention questions.
+            </p>
+            <p className="text-sm leading-7 text-slate-300">
+              This is guided practice. SQL checks cover the supplied example. Explanation feedback is advisory.
+            </p>
+          </div>
+        ) : null}
         <div className="mt-6 flex flex-wrap gap-3">
           {previous ? <Link href={`/scenarios/${previous.slug}`} className="rounded-full border border-slate-700 px-5 py-3 text-sm font-semibold text-slate-200">← Previous</Link> : null}
           {next ? <Link href={`/scenarios/${next.slug}`} className="rounded-full border border-teal-300/30 px-5 py-3 text-sm font-semibold text-teal-100">Next →</Link> : null}
