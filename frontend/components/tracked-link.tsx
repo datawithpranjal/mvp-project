@@ -9,11 +9,13 @@ import { sendUsageEvent } from "../lib/usage";
 interface TrackedLinkProps extends ComponentProps<typeof Link> {
   event: AnalyticsEvent;
   eventPayload?: Record<string, string | number | boolean | null | undefined>;
+  usageDestination?: string;
 }
 
 export function TrackedLink({
   event,
   eventPayload,
+  usageDestination,
   onClick,
   ...props
 }: TrackedLinkProps) {
@@ -33,10 +35,11 @@ export function TrackedLink({
           sendUsageEvent(usageEvent, {
             metadata: {
               ...eventPayload,
-              destination:
+              destination: usageDestination ?? (
                 typeof props.href === "string"
                   ? props.href
                   : props.href.pathname ?? "unknown"
+              )
             }
           });
         }

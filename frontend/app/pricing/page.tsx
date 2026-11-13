@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { PremiumUpgradePanel } from "../../components/premium-upgrade-panel";
+import { PricingCheckout, PricingPlanLink } from "./pricing-checkout";
 import { TrackedLink } from "../../components/tracked-link";
 import { getCodingLabs } from "../../lib/coding-labs";
 import { GCP_PUBSUB_LAB } from "../../lib/product";
@@ -122,14 +122,13 @@ export default function PricingPage() {
           tone="yearly"
           badge="Best value"
           action={
-            <TrackedLink
-              href="#unlock-premium"
-              event="premium_unlock_clicked"
-              eventPayload={{ source: "pricing_plan" }}
-              className="mt-6 inline-flex w-full items-center justify-center rounded-full bg-amber-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-200"
+            <PricingPlanLink
+              plan="yearly"
+              source="pricing_plan"
+              className="mt-6 inline-flex w-full items-center justify-center rounded-full bg-amber-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-200 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-4 focus-visible:outline-[color:var(--accent)]"
             >
               Unlock premium
-            </TrackedLink>
+            </PricingPlanLink>
           }
         />
         <PlanCard
@@ -141,14 +140,13 @@ export default function PricingPage() {
           tone="monthly"
           badge="Flexible"
           action={
-            <TrackedLink
-              href="#unlock-premium"
-              event="premium_unlock_clicked"
-              eventPayload={{ source: "pricing_monthly_plan" }}
-              className="mt-6 inline-flex w-full items-center justify-center rounded-full border border-amber-300/35 bg-amber-300/10 px-5 py-3 text-sm font-semibold text-amber-100 transition hover:bg-amber-300/20"
+            <PricingPlanLink
+              plan="monthly"
+              source="pricing_monthly_plan"
+              className="mt-6 inline-flex w-full items-center justify-center rounded-full border border-amber-300/35 bg-amber-300/10 px-5 py-3 text-sm font-semibold text-amber-100 transition hover:bg-amber-300/20 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-4 focus-visible:outline-[color:var(--accent)]"
             >
               Choose monthly
-            </TrackedLink>
+            </PricingPlanLink>
           }
         />
       </section>
@@ -157,13 +155,13 @@ export default function PricingPage() {
       <p className="mt-3 text-sm leading-6 text-slate-400">One free Azure Data Factory configuration and recovery simulation; no Azure account required. <Link href="/labs/azure" className="text-teal-200 underline">Practise ADF recovery</Link></p>
       <p className="mt-3 text-sm leading-6 text-slate-400">{GCP_PUBSUB_LAB.description} <Link href={GCP_PUBSUB_LAB.href} className="text-teal-200 underline">{GCP_PUBSUB_LAB.cta}</Link></p>
 
-      <div id="unlock-premium" className="mt-8 scroll-mt-28">
+      <div id="unlock-premium" tabIndex={-1} className="mt-8 scroll-mt-28">
         <section aria-label="Premium activation steps" className="mb-5 rounded-3xl border border-slate-700 p-5">
           <h2 className="text-xl font-semibold text-slate-50">Choose your Premium plan</h2>
           <p className="mt-2 text-sm leading-6 text-slate-300">₹199 for one month or ₹999 for 12 months from activation. Sign in or create an account, choose your plan, then pay through Razorpay. Premium access requires payment verification.</p>
           <Link href="/dashboard" className="mt-3 inline-flex text-sm text-teal-200 underline">Already a member? Open your practice dashboard</Link>
         </section>
-        <PremiumUpgradePanel
+        <PricingCheckout
           title="Choose your Premium plan"
           description="₹199 for one month or ₹999 for 12 months from activation. Sign in or create an account, choose your plan, then pay through Razorpay. Premium access requires payment verification."
         />

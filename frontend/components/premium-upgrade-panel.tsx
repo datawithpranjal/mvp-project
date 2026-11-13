@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { AUTH_UPDATED_EVENT, getAuthToken, getCurrentUser, type AuthUser } from "../lib/auth";
 import {
@@ -28,6 +28,8 @@ interface PremiumUpgradePanelProps {
   title: string;
   description: string;
   onUnlocked?: () => void;
+  billingInterval?: BillingInterval;
+  onBillingIntervalChange?: (plan: BillingInterval) => void;
 }
 
 interface PricingPlan {
@@ -144,11 +146,14 @@ function formatTimestamp(value: string): string {
 export function PremiumUpgradePanel({
   title,
   description,
-  onUnlocked
+  onUnlocked,
+  billingInterval,
+  onBillingIntervalChange
 }: PremiumUpgradePanelProps) {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [premiumAccess, setPremiumAccessState] = useState<PremiumAccessRecord | null>(null);
-  const [selectedPlan, setSelectedPlan] = useState<BillingInterval>("yearly");
+  const [localPlan, setLocalPlan] = useState<BillingInterval>("yearly");
+  const selectedPlan = billingInterval ?? localPlan;
   const [couponCode, setCouponCode] = useState("");
   const [couponQuote, setCouponQuote] = useState<PremiumCouponQuote | null>(null);
   const [couponError, setCouponError] = useState<string | null>(null);
@@ -157,6 +162,20 @@ export function PremiumUpgradePanel({
   const [checkoutSuccess, setCheckoutSuccess] = useState<string | null>(null);
   const [isRazorpayLoading, setIsRazorpayLoading] = useState(false);
   const [isAccessLoading, setIsAccessLoading] = useState(true);
+  const couponRequest = useRef<symbol | null>(null);
+  const orderRequest = useRef<symbol | null>(null);
+
+  useLayoutEffect(() => {
+    setCouponQuote(null);
+    setCouponError(null);
+    setIsApplyingCoupon(false);
+    setCheckoutError(null);
+    setCheckoutSuccess(null);
+    return () => {
+      couponRequest.current = null;
+      orderRequest.current = null;
+    };
+  }, [selectedPlan]);
 
   useEffect(() => {
     let isActive = true;
@@ -215,7 +234,12 @@ export function PremiumUpgradePanel({
   const payableAmount = couponQuote?.final_amount_inr ?? activePlan.amountInr;
 
   function choosePlan(plan: BillingInterval) {
-    setSelectedPlan(plan);
+    if (plan === selectedPlan) return;
+    if (onBillingIntervalChange) onBillingIntervalChange(plan);
+    else setLocalPlan(plan);
+    couponRequest.current = null;
+    orderRequest.current = null;
+    setIsApplyingCoupon(false);
     setCouponQuote(null);
     setCouponError(null);
     setCheckoutError(null);
@@ -234,22 +258,27 @@ export function PremiumUpgradePanel({
       return;
     }
 
+    const request = Symbol();
+    couponRequest.current = request;
     try {
       setIsApplyingCoupon(true);
       setCouponError(null);
-      setCouponQuote(
-        await validatePremiumCoupon(token, {
-          billing_interval: activePlan.id,
-          coupon_code: normalizedCode
-        })
-      );
+      const quote = await validatePremiumCoupon(token, {
+        billing_interval: activePlan.id,
+        coupon_code: normalizedCode
+      });
+      if (couponRequest.current === request) setCouponQuote(quote);
     } catch (error) {
+      if (couponRequest.current !== request) return;
       setCouponQuote(null);
       setCouponError(
         error instanceof Error ? error.message : "Unable to apply this coupon."
       );
     } finally {
-      setIsApplyingCoupon(false);
+      if (couponRequest.current === request) {
+        couponRequest.current = null;
+        setIsApplyingCoupon(false);
+      }
     }
   }
 
@@ -275,6 +304,8 @@ export function PremiumUpgradePanel({
       return;
     }
 
+    const request = Symbol();
+    orderRequest.current = request;
     try {
       setIsRazorpayLoading(true);
       setCheckoutError(null);
@@ -284,6 +315,7 @@ export function PremiumUpgradePanel({
         email: currentUser.email,
         source: `premium-razorpay-${activePlan.id}`,
       });
+      if (orderRequest.current !== request) return;
 
       const order = await createRazorpayOrder(token, {
         billing_interval: activePlan.id,
@@ -295,6 +327,7 @@ export function PremiumUpgradePanel({
       }
 
       await loadRazorpayCheckout();
+      if (orderRequest.current !== request) return;
 
       trackEvent("payment_started", {
         plan: activePlan.id,
@@ -385,11 +418,13 @@ export function PremiumUpgradePanel({
         checkout.open();
       });
     } catch (error) {
-      setCheckoutError(
-        error instanceof Error
-          ? error.message
-          : "Unable to complete Razorpay checkout. Please try again."
-      );
+      if (orderRequest.current === request) {
+        setCheckoutError(
+          error instanceof Error
+            ? error.message
+            : "Unable to complete Razorpay checkout. Please try again."
+        );
+      }
     } finally {
       setIsRazorpayLoading(false);
     }
@@ -483,7 +518,9 @@ export function PremiumUpgradePanel({
     return (
       <AuthForm
         title="Continue to Premium"
-        description="Sign in or create your account, then choose your plan. Existing members keep their access."
+        description={billingInterval
+          ? `${activePlan.label} costs ₹${activePlan.amountInr} ${activePlan.cadenceLabel}. Sign in or create your account to continue. Existing members keep their access.`
+          : "Sign in or create your account, then choose your plan. Existing members keep their access."}
       />
     );
   }
@@ -579,6 +616,7 @@ export function PremiumUpgradePanel({
                 key={plan.id}
                 type="button"
                 onClick={() => choosePlan(plan.id)}
+                aria-pressed={selectedPlan === plan.id}
                 className={`rounded-3xl border p-5 text-left transition ${
                   selectedPlan === plan.id
                     ? "border-amber-300/50 bg-amber-300/10 shadow-glow"
@@ -651,6 +689,8 @@ export function PremiumUpgradePanel({
                 type="text"
                 value={couponCode}
                 onChange={(event) => {
+                  couponRequest.current = null;
+                  setIsApplyingCoupon(false);
                   setCouponCode(event.target.value);
                   setCouponQuote(null);
                   setCouponError(null);
