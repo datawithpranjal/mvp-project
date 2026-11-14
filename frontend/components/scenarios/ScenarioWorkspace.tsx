@@ -115,6 +115,10 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
   const [draftMessage, setDraftMessage] = useState<string | null>(null);
   const [evaluationNotice, setEvaluationNotice] = useState<string | null>(null);
   const [sqlExecution, setSqlExecution] = useState<BrowserSqlValidationResult | null>(null);
+  const [sqlFollowUpSample, setSqlFollowUpSample] = useState<{
+    answer: string;
+    result: BrowserSqlValidationResult;
+  } | null>(null);
   const [pysparkExecution, setPysparkExecution] = useState<PysparkValidationResponse | null>(null);
   const [isChecking, setIsChecking] = useState(false);
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
@@ -480,6 +484,15 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
   const allScenarios = useMemo(() => {
     try { return getScenarios(); } catch { return []; }
   }, []);
+  const isRevenueGrainScenario =
+    scenario.id === "bpl-sql-001" && scenario.slug === "wrong-group-by-grain-customer-revenue";
+  const freeSqlFollowUp =
+    isRevenueGrainScenario && scenario.isFree && !isChecking && sqlExecution?.passed &&
+    sqlFollowUpSample?.result === sqlExecution && sqlFollowUpSample.answer === answer
+      ? allScenarios.find((item) =>
+          item.id === "bpl-sql-002" && item.slug === "left-join-where-filter-inner-join" && item.isFree
+        )
+      : undefined;
   const continuationSlug = getScenarioContinuationSlug(scenario.slug, pysparkExecution);
   const continuationScenario = allScenarios.find((item) => item.slug === continuationSlug);
   const nextScenario = useMemo(() => {
@@ -1004,6 +1017,7 @@ Impact: ${scenario.incident.impact}`
           scenario.expectedSql
         );
         setSqlExecution(result);
+        if (isRevenueGrainScenario && result.passed) setSqlFollowUpSample({ answer, result });
         setDraftMessage(
           result.passed
             ? "Visible sample check passed. Submit for the complete evaluation."
@@ -1476,7 +1490,14 @@ Impact: ${scenario.incident.impact}`
           </section>
 
           {sqlExecution ? <ScenarioSqlResultPanel result={sqlExecution} /> : null}
-          {scenario.id === "bpl-sql-001" && scenario.slug === "wrong-group-by-grain-customer-revenue" && sqlExecution ? (
+          {freeSqlFollowUp ? (
+            <section aria-labelledby="free-sql-follow-up-title" className="rounded-3xl border border-teal-300/25 bg-teal-300/5 p-5">
+              <h3 id="free-sql-follow-up-title" className="text-lg font-semibold text-slate-50">Next free practice: keep every active customer</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-300">The revenue exercise focuses on customer-level totals. This follow-up adds a different check: keeping every active customer, even with no click for the selected campaign.</p>
+              <Link href={`/scenarios/${freeSqlFollowUp.slug}`} className="mt-4 inline-flex text-sm font-semibold leading-6 text-teal-200 underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[color:var(--accent)]">Practise LEFT JOIN</Link>
+            </section>
+          ) : null}
+          {isRevenueGrainScenario && sqlExecution ? (
             <section aria-label="Optional guided revenue practice" className="rounded-3xl border border-slate-700 p-5">
               {!sqlExecution.passed ? (
                 <div className="mb-5 rounded-2xl border border-teal-300/25 bg-teal-300/5 p-4">
