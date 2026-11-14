@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 import { trackEvent } from "../../lib/analytics";
@@ -112,15 +112,24 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
   const [evaluation, setEvaluation] = useState<ScenarioEvaluationResult | null>(null);
   const [progress, setProgress] = useState<ScenarioProgressSummary | null>(null);
   const [activeFollowUpIndex, setActiveFollowUpIndex] = useState(0);
-  const [draftMessage, setDraftMessage] = useState<string | null>(null);
+  const [draftMessage, setDraftMessage] = useState<string | { sqlSample: string } | null>(null);
   const [evaluationNotice, setEvaluationNotice] = useState<string | null>(null);
-  const [sqlExecution, setSqlExecution] = useState<BrowserSqlValidationResult | null>(null);
-  const [sqlFollowUpSample, setSqlFollowUpSample] = useState<{
+  const [submittedSqlExecution, setSqlExecution] = useState<BrowserSqlValidationResult | null>(null);
+  const [sqlSampleResult, setSqlSampleResult] = useState<{
     answer: string;
     result: BrowserSqlValidationResult;
   } | null>(null);
   const [pysparkExecution, setPysparkExecution] = useState<PysparkValidationResponse | null>(null);
-  const [isChecking, setIsChecking] = useState(false);
+  const [isValidationChecking, setIsChecking] = useState(false);
+  const [isSqlSampleChecking, setIsSqlSampleChecking] = useState(false);
+  const isChecking = isValidationChecking || isSqlSampleChecking;
+  const sqlExecution = sqlSampleResult?.result ?? submittedSqlExecution;
+  const sqlEditorRevision = useRef(0);
+  const sqlSampleRun = useRef<{
+    scenario: Scenario;
+    revision: number;
+    answer: string;
+  } | null>(null);
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [showRevealConfirmation, setShowRevealConfirmation] = useState(false);
@@ -147,6 +156,32 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
       (scope, payload) => saveLearnerAttempt(scope.token, "scenario", scope.slug, payload),
       (status) => { if (recoveryMountedRef.current) setAttemptSaveStatus(status); }
     );
+  }
+
+  const clearSqlSample = useCallback(() => {
+    sqlSampleRun.current = null;
+    setIsSqlSampleChecking(false);
+    setSqlSampleResult(null);
+    setDraftMessage((message) => typeof message === "string" ? message : null);
+  }, []);
+
+  const replaceEditorAnswer = useCallback((nextAnswer: string) => {
+    sqlEditorRevision.current += 1;
+    clearSqlSample();
+    setAnswer(nextAnswer);
+  }, [clearSqlSample]);
+
+  useLayoutEffect(() => {
+    clearSqlSample();
+    return () => { sqlSampleRun.current = null; };
+  }, [clearSqlSample, scenario]);
+
+  function editAnswer(nextAnswer: string) {
+    replaceEditorAnswer(nextAnswer);
+    setSqlExecution(null);
+    setPysparkExecution(null);
+    setEvaluation(null);
+    setDraftMessage(null);
   }
 
   function readAttemptScope(): AttemptSaveScope | null {
@@ -243,7 +278,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
       ) {
         setSelectedOptionId(savedAnswer);
       } else {
-        setAnswer(
+        replaceEditorAnswer(
           savedAnswer ||
             EXECUTABLE_PYSPARK_STARTERS[scenario.slug] ||
             scenario.brokenCode ||
@@ -343,7 +378,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
         ) {
           setSelectedOptionId(resolvedAnswer);
         } else if (resolvedAnswer) {
-          setAnswer(resolvedAnswer);
+          replaceEditorAnswer(resolvedAnswer);
         }
         setInterviewAnswer(resolvedProgress.draftInterviewAnswer);
         setHintsRevealed(
@@ -359,6 +394,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
           evaluationNotice?: string | null;
         } | null;
         if (snapshot) {
+          clearSqlSample();
           setEvaluation(snapshot.evaluation ?? null);
           setSqlExecution(snapshot.sqlExecution ?? null);
           setPysparkExecution(snapshot.pysparkExecution ?? null);
@@ -381,7 +417,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
     return () => {
       cancelled = true;
     };
-  }, [authEpoch, scenario]);
+  }, [authEpoch, clearSqlSample, replaceEditorAnswer, scenario]);
 
   useEffect(() => {
     if (hydratedScenarioSlug !== scenario.slug || !persistenceReady) return;
@@ -488,7 +524,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
     scenario.id === "bpl-sql-001" && scenario.slug === "wrong-group-by-grain-customer-revenue";
   const freeSqlFollowUp =
     isRevenueGrainScenario && scenario.isFree && !isChecking && sqlExecution?.passed &&
-    sqlFollowUpSample?.result === sqlExecution && sqlFollowUpSample.answer === answer
+    sqlSampleResult?.result === sqlExecution && sqlSampleResult.answer === answer
       ? allScenarios.find((item) =>
           item.id === "bpl-sql-002" && item.slug === "left-join-where-filter-inner-join" && item.isFree
         )
@@ -661,6 +697,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
       scenario.scenarioType === "mcq"
         ? selectedOptionId
         : `${answer}\n\nDiagnosis selected:\n${selectedDiagnosis ? `${selectedDiagnosis.id}. ${selectedDiagnosis.text}` : "Not selected"}\n\nInterview explanation:\n${interviewAnswer}`;
+    clearSqlSample();
     setIsChecking(true);
     setSqlExecution(null);
     setPysparkExecution(null);
@@ -987,10 +1024,46 @@ Impact: ${scenario.incident.impact}`
       recoveryMountedRef.current && activeScenarioRef.current === sampleSlug && (sampleScope ? isCurrentAttemptScope(sampleScope) : readAttemptScope() === null)
     );
 
-    if (
-      !canRunPyspark &&
-      (!canRunSql || !scenario.sampleTables || !scenario.expectedSql)
-    ) {
+    if (!canRunPyspark) {
+      if (!canRunSql || !scenario.sampleTables || !scenario.expectedSql ||
+          sqlSampleRun.current || isValidationChecking) return;
+      const run = { scenario, revision: sqlEditorRevision.current, answer };
+      const ownsSample = () =>
+        sqlSampleRun.current === run && activeScenarioRef.current === run.scenario.slug &&
+        sqlEditorRevision.current === run.revision;
+      sqlSampleRun.current = run;
+      sendUsageEvent("sample_run_started", { metadata: { content_id: scenario.slug, content_type: "scenario" } });
+      setIsSqlSampleChecking(true);
+      setSqlSampleResult(null);
+      setSqlExecution(null);
+      setDraftMessage((message) => typeof message === "string" ? message : null);
+      try {
+        const result = await validateSqlOutput(scenario.sampleTables, run.answer, scenario.expectedSql);
+        if (!ownsSample()) return;
+        setSqlSampleResult({ answer: run.answer, result });
+        setDraftMessage({
+          sqlSample: result.passed
+            ? "Visible sample check passed. Submit for the complete evaluation."
+            : "Visible sample check found an output mismatch."
+        });
+      } catch (error) {
+        if (!ownsSample()) return;
+        setSqlSampleResult({
+          answer: run.answer,
+          result: {
+            passed: false,
+            message: error instanceof Error ? error.message : "The query could not be run.",
+            actual: { columns: [], rows: [] },
+            expected: { columns: [], rows: [] }
+          }
+        });
+        setDraftMessage({ sqlSample: "Query execution failed." });
+      } finally {
+        if (ownsSample()) {
+          sqlSampleRun.current = null;
+          setIsSqlSampleChecking(false);
+        }
+      }
       return;
     }
     sendUsageEvent("sample_run_started", { metadata: { content_id: scenario.slug, content_type: "scenario" } });
@@ -998,62 +1071,37 @@ Impact: ${scenario.incident.impact}`
     setSqlExecution(null);
     setPysparkExecution(null);
     try {
-      if (canRunPyspark) {
-        const result = await validatePysparkScenario(scenario.slug, {
-          code: answer,
-          mode: "sample"
-        }, authSession.authToken);
-        if (!sampleIsCurrent()) return;
-        setPysparkExecution(result);
-        setDraftMessage(
-          result.passed
-            ? "Visible PySpark sample passed. Submit for hidden production-style tests."
-            : "Visible PySpark sample found an output mismatch."
-        );
-      } else if (scenario.sampleTables && scenario.expectedSql) {
-        const result = await validateSqlOutput(
-          scenario.sampleTables,
-          answer,
-          scenario.expectedSql
-        );
-        setSqlExecution(result);
-        if (isRevenueGrainScenario && result.passed) setSqlFollowUpSample({ answer, result });
-        setDraftMessage(
-          result.passed
-            ? "Visible sample check passed. Submit for the complete evaluation."
-            : "Visible sample check found an output mismatch."
-        );
-      }
+      const result = await validatePysparkScenario(scenario.slug, {
+        code: answer,
+        mode: "sample"
+      }, authSession.authToken);
+      if (!sampleIsCurrent()) return;
+      setPysparkExecution(result);
+      setDraftMessage(
+        result.passed
+          ? "Visible PySpark sample passed. Submit for hidden production-style tests."
+          : "Visible PySpark sample found an output mismatch."
+      );
     } catch (error) {
       if (!sampleIsCurrent()) return;
       const message = error instanceof Error ? error.message : "The query could not be run.";
-      if (canRunPyspark) {
-        setPysparkExecution({
-          validation_type: "PYSPARK_OUTPUT_MATCH",
-          mode: "sample",
-          passed: false,
-          message,
-          tests: [
-            {
-              name: "executor",
-              passed: false,
-              message,
-              actual_output: null,
-              expected_output: null
-            }
-          ],
-          execution_engine: "remote"
-        });
-        setDraftMessage("PySpark sample execution failed.");
-      } else {
-        setSqlExecution({
-          passed: false,
-          message,
-          actual: { columns: [], rows: [] },
-          expected: { columns: [], rows: [] }
-        });
-        setDraftMessage("Query execution failed.");
-      }
+      setPysparkExecution({
+        validation_type: "PYSPARK_OUTPUT_MATCH",
+        mode: "sample",
+        passed: false,
+        message,
+        tests: [
+          {
+            name: "executor",
+            passed: false,
+            message,
+            actual_output: null,
+            expected_output: null
+          }
+        ],
+        execution_engine: "remote"
+      });
+      setDraftMessage("PySpark sample execution failed.");
     } finally {
       if (sampleIsCurrent()) setIsChecking(false);
     }
@@ -1386,8 +1434,8 @@ Impact: ${scenario.incident.impact}`
                     <textarea
                       id={scenario.id === "bpl-sql-001" && scenario.slug === "wrong-group-by-grain-customer-revenue" ? "scenario-answer" : undefined}
                       value={answer}
-                      onChange={(event) => { setAnswer(event.target.value); setSqlExecution(null); setPysparkExecution(null); setEvaluation(null); setDraftMessage(null); }}
-                      onKeyDown={(event) => handleTextareaTabKeyDown(event, (nextValue) => { setAnswer(nextValue); setSqlExecution(null); setPysparkExecution(null); setEvaluation(null); setDraftMessage(null); })}
+                      onChange={(event) => editAnswer(event.target.value)}
+                      onKeyDown={(event) => handleTextareaTabKeyDown(event, editAnswer)}
                       rows={18}
                       spellCheck={false}
                       className="mt-5 w-full rounded-3xl border border-slate-800 bg-slate-950/80 p-4 font-mono text-sm leading-7 text-slate-100 outline-none transition focus:border-teal-300/50 sm:p-5"
@@ -1462,7 +1510,7 @@ Impact: ${scenario.incident.impact}`
               <div className="mt-6 border-t border-slate-800 pt-5">
                 <div className="flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
                   <div aria-live="polite" className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                    {draftMessage || autoSaveStatus}
+                    {(typeof draftMessage === "string" ? draftMessage : draftMessage?.sqlSample) || autoSaveStatus}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <button type="button" onClick={saveDraft} className="rounded-full border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-teal-300/40">Save draft</button>
