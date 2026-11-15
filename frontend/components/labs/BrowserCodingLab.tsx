@@ -1449,11 +1449,6 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
             {workspaceMessage ? (
               <p className="mt-3 text-sm font-semibold text-teal-100">{workspaceMessage}</p>
             ) : null}
-            <CodingSyncStatus localStatus={saveStatus} details={syncDetails} conflict={Boolean(draftConflict)}
-              onRetryLoad={() => retryLoadRef.current?.()}
-              onRetrySave={() => retryDraftRef.current?.()}
-              onRetryLocal={() => void saveDraftNow()}
-              onSignIn={() => { saveLocalDraft(selectedLab.slug, answer); setIsAuthOpen(true); }} />
             {draftConflict ? (
               <section aria-label="Draft conflict" role="status" className="mt-4 rounded-2xl border border-amber-300/40 bg-amber-300/10 p-4 text-sm text-amber-50">
                 <h2 className="font-bold">Another saved draft is available</h2>
@@ -1491,6 +1486,11 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
               spellCheck={false}
               className="mt-5 min-h-[360px] w-full resize-y rounded-3xl border border-slate-700 bg-slate-950/80 p-5 font-mono text-sm leading-7 text-teal-50 outline-none transition focus:border-teal-300/70"
             />
+            <CodingSyncStatus localStatus={saveStatus} details={syncDetails} conflict={Boolean(draftConflict)}
+              onRetryLoad={() => retryLoadRef.current?.()}
+              onRetrySave={() => retryDraftRef.current?.()}
+              onRetryLocal={() => void saveDraftNow()}
+              onSignIn={() => { saveLocalDraft(selectedLab.slug, answer); setIsAuthOpen(true); }} />
             {isPythonIntro ? <p className="mt-3 text-sm leading-6 text-slate-300">
               Run sample tests the code in your editor against the visible example.
               {isPythonIntroStarter(selectedLab, answer) ? " The starter is unfinished—replace the placeholder with your solution." : ""}
