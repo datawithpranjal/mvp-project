@@ -225,6 +225,9 @@ function PlanCard({
   badge?: string;
   action: React.ReactNode;
 }) {
+  const isYearly = tone === "yearly";
+  const Title = isYearly ? "h2" : "p";
+
   return (
     <div
       className={`relative rounded-[2rem] border p-6 ${
@@ -237,13 +240,15 @@ function PlanCard({
     >
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p
+          <Title
+            id={isYearly ? "premium-plans" : undefined}
+            tabIndex={isYearly ? -1 : undefined}
             className={`text-xs font-semibold uppercase tracking-[0.24em] ${
               tone === "free" ? "text-teal-100" : "text-amber-100"
-            }`}
+            }${isYearly ? " scroll-mt-28 rounded-sm focus:outline focus:outline-2 focus:outline-offset-4 focus:outline-[color:var(--accent)]" : ""}`}
           >
             {title}
-          </p>
+          </Title>
           <div className="mt-3 flex flex-wrap items-end gap-3">
             <p className="text-4xl font-semibold text-slate-50">{price}</p>
             {compareAt ? (

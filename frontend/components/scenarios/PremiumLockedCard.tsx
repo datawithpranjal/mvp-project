@@ -46,6 +46,14 @@ export function PremiumLockedCard({ scenario, accessUnavailable = false }: Premi
             <p className="text-sm leading-7 text-slate-300">
               This is guided practice. SQL checks cover the supplied example. Explanation feedback is advisory.
             </p>
+            {scenario.slug === "revenue-drop-new-successful-status" ? (
+              <Link
+                href="/pricing#premium-plans"
+                className="inline-block rounded-sm text-sm font-semibold text-teal-100 underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[color:var(--accent)]"
+              >
+                Compare Premium plans
+              </Link>
+            ) : null}
           </div>
         ) : null}
         <div className="mt-6 flex flex-wrap gap-3">
