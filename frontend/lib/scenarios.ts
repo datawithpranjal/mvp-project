@@ -91,6 +91,7 @@ export interface Scenario {
   requirement?: string;
   schema?: string;
   sampleInput?: string;
+  inputContract?: string;
   brokenCode?: string;
   actualOutput?: string;
   expectedOutput?: string;
@@ -681,8 +682,9 @@ export const BROKEN_PIPELINE_SCENARIOS: Scenario[] = [
       "Diagnose why yesterday's sales are late, fix the PySpark transformation so sales are assigned to the correct business_date, and propose an Airflow scheduling change that waits for the required source partition before loading the warehouse. For executable validation, create a Spark DataFrame named daily_sales or fixed_daily_sales with business_date, order_count, and gross_sales. Do not write to the warehouse from the practice runner.",
     schema:
       "raw_sales_events(order_id, customer_id, sale_ts_utc, amount, status, source_file_date, ingested_at)\nwarehouse_daily_sales(business_date, order_count, gross_sales, loaded_at)",
+    inputContract: "Use the supplied `run_date` (YYYY-MM-DD); do not use today's date. Sale and ingestion timestamps are parsed as UTC, and business_date is the UTC calendar date of the sale. Inputs have valid, non-null IDs, timestamps and non-negative amounts in one currency with at most two decimal places. Repeated order IDs are replays with identical customer, sale timestamp, amount and status; only ingestion time may differ. There are no changing order versions or status updates in this exercise. Count PAID orders for run_date once each and sum their amounts once each. Return a Spark DataFrame with business_date, order_count and gross_sales. If input is empty or no PAID orders qualify, return an empty DataFrame with those columns; do not invent a zero-filled row. Do not read external files or write to the warehouse.",
     sampleInput:
-      "The Airflow logical date is 2026-05-08 and the dashboard needs sales for business_date=2026-05-07. Two valid sales records arrived after the scheduled 2 AM run, so they have ingested_at on 2026-05-08 but sale_ts_utc on 2026-05-07.",
+      "This illustrative DAG processes business date 2026-05-07. Its configured logical-date label is 2026-05-07; the actual run starts on 2026-05-08 at 02:00. This exercise supplies run_date explicitly. Two valid sales records arrived after that run, with ingested_at on 2026-05-08 and sale_ts_utc on 2026-05-07.",
     brokenCode:
       "from pyspark.sql import functions as F\n\nrun_date = \"2026-05-07\"\n\nraw_sales = spark.read.parquet(raw_sales_path)\n\n# Broken: this assumes records for the sales day are ingested on the same date.\n# Late files arrive on 2026-05-08, so yesterday's valid sales are filtered out.\ndaily_sales = (\n    raw_sales\n    .withColumn(\"ingest_date\", F.to_date(\"ingested_at\"))\n    .filter(F.col(\"ingest_date\") == F.lit(run_date))\n    .filter(F.col(\"status\") == F.lit(\"PAID\"))\n    .groupBy(F.col(\"ingest_date\").alias(\"business_date\"))\n    .agg(\n        F.countDistinct(\"order_id\").alias(\"order_count\"),\n        F.sum(\"amount\").alias(\"gross_sales\")\n    )\n)\n\ndaily_sales.write.mode(\"overwrite\").insertInto(\"warehouse.daily_sales\")",
     actualOutput:
