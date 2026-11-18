@@ -522,6 +522,7 @@ export function ScenarioWorkspace({ scenario }: ScenarioWorkspaceProps) {
   }, []);
   const isRevenueGrainScenario =
     scenario.id === "bpl-sql-001" && scenario.slug === "wrong-group-by-grain-customer-revenue";
+  const showFreeSqlJump = isRevenueGrainScenario && scenario.isFree && canRunSql;
   const freeSqlFollowUp =
     isRevenueGrainScenario && scenario.isFree && !isChecking && sqlExecution?.passed &&
     sqlSampleResult?.result === sqlExecution && sqlSampleResult.answer === answer
@@ -1229,6 +1230,29 @@ Impact: ${scenario.incident.impact}`
             <p className="mt-2 hidden max-w-4xl text-sm leading-6 text-slate-300 sm:block">
               {scenario.requirement || scenario.businessContext}
             </p>
+            {showFreeSqlJump ? (
+              <div className="mt-3 lg:hidden">
+                <button
+                  type="button"
+                  aria-controls="free-sql-sample-controls"
+                  aria-describedby="free-sql-jump-access"
+                  onClick={() => {
+                    setWorkspaceStep("fix");
+                    requestAnimationFrame(() => {
+                      const controls = document.getElementById("free-sql-sample-controls");
+                      controls?.focus({ preventScroll: true });
+                      controls?.scrollIntoView({ block: "center" });
+                    });
+                  }}
+                  className="inline-flex min-h-11 items-center rounded-full bg-teal-300 px-4 py-2 text-sm font-semibold text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[color:var(--accent)]"
+                >
+                  Jump to SQL practice
+                </button>
+                <p id="free-sql-jump-access" className="mt-2 text-sm leading-5 text-slate-300">
+                  Run the sample without signing in. A free account is required to submit.
+                </p>
+              </div>
+            ) : null}
           </div>
           <div className="flex w-full shrink-0 flex-col gap-2 xl:w-80">
           <ScenarioChooserBoundary>
@@ -1512,7 +1536,13 @@ Impact: ${scenario.incident.impact}`
                   <div aria-live="polite" className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
                     {(typeof draftMessage === "string" ? draftMessage : draftMessage?.sqlSample) || autoSaveStatus}
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div
+                    id={showFreeSqlJump ? "free-sql-sample-controls" : undefined}
+                    role={showFreeSqlJump ? "group" : undefined}
+                    aria-label={showFreeSqlJump ? "SQL sample controls" : undefined}
+                    tabIndex={showFreeSqlJump ? -1 : undefined}
+                    className={`flex flex-wrap gap-2${showFreeSqlJump ? " scroll-mt-28 rounded-xl focus:outline focus:outline-2 focus:outline-offset-4 focus:outline-[color:var(--accent)]" : ""}`}
+                  >
                     <button type="button" onClick={saveDraft} className="rounded-full border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-teal-300/40">Save draft</button>
                     <button type="button" onClick={revealHint} disabled={hintsRevealed >= scenario.hints.length} className="rounded-full border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-amber-300/40 disabled:opacity-40">Show hint</button>
                     {workspaceStep === "fix" && canRunSql ? <button type="button" onClick={copySchema} className="rounded-full border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-200">Copy schema</button> : null}
