@@ -10,6 +10,8 @@ import {
 } from "../../lib/browser-sql";
 import {
   ApiDecodeError,
+  ApiError,
+  ApiTransportError,
   getLearnerProgress,
   getPythonLabSolution,
   saveLearnerAttempt,
@@ -294,6 +296,19 @@ function queryResultToBrowserTable(table?: QueryResult | null): BrowserSqlResult
   return {
     columns: table.columns,
     rows: table.rows
+  };
+}
+
+function pysparkUnavailableResult(lab: CodingLab, error: unknown): LabRunResult | undefined {
+  if (lab.validationMode !== "pyspark" || !(
+    error instanceof ApiTransportError || error instanceof ApiDecodeError ||
+    (error instanceof ApiError && error.status >= 500)
+  )) return undefined;
+
+  return {
+    passed: null,
+    status: "unavailable",
+    message: "PySpark checking is temporarily unavailable. No result is available for this check. Keep your code and try again shortly."
   };
 }
 
@@ -1067,12 +1082,13 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
         setWorkspaceMessage(`${attemptSaveNotice}Not correct yet. Review the result details, fix the answer, and submit again.`);
       }
     } catch (error) {
-      const failedResult: LabRunResult = {
+      const failedResult: LabRunResult = pysparkUnavailableResult(selectedLab, error) ?? {
         passed: false,
         ...(selectedLab.track === "sql" && error instanceof BrowserSqlError ? { status: error.kind } : {}),
         message: error instanceof Error ? error.message : "Code execution failed."
       };
       setResult(failedResult);
+      if (selectedLab.validationMode === "pyspark" && failedResult.status === "unavailable") setWorkspaceMessage("");
       const presentation = pythonIntroError(selectedLab, answer, phase, error);
       if (presentation) setPythonError({ result: failedResult, presentation });
     } finally {
@@ -1181,13 +1197,14 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
             : "Add a concrete PySpark fix before submitting. Mention the API change and production trade-off."
       });
     } catch (error) {
-      const failedResult: LabRunResult = {
+      const failedResult: LabRunResult = pysparkUnavailableResult(selectedLab, error) ?? {
         passed: false,
         ...(selectedLab.track === "sql" && error instanceof BrowserSqlError ? { status: error.kind } : {}),
         message: error instanceof Error ? error.message : "The query could not run.",
         table: { columns: [], rows: [] }
       };
       setResult(failedResult);
+      if (selectedLab.validationMode === "pyspark" && failedResult.status === "unavailable") setWorkspaceMessage("");
       const presentation = pythonIntroError(selectedLab, answer, phase, error);
       if (presentation) setPythonError({ result: failedResult, presentation });
     } finally {
