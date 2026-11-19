@@ -42,6 +42,52 @@ BACKEND_CORS_ORIGINS=https://datawithpranjal.com,https://www.datawithpranjal.com
 
 Do not set `PYSPARK_RUNNER_URL` on the runner itself. That variable is only for the Vercel backend proxy.
 
+The worker image starts `app.pyspark_worker:app`, a dedicated internal API. It
+requires a configured `PYSPARK_RUNNER_TOKEN` and its matching `X-Runner-Token`
+header on both validation aliases, including Free labs. Disabled local execution,
+a missing token, or a configured runner URL fail closed without executing code.
+The unchanged public backend checks learner entitlement before forwarding. Do not
+deploy `app.main:app` as the worker: its public Premium check expects learner
+authorization, which the internal proxy does not forward.
+
+The image copies the current `backend/app`, including all `PYSPARK_SPECS` and
+PDF lab definitions. Worker health aliases `/healthz` and `/api/healthz` report
+the internal contract, supported lab count and SHA-256 of the sorted supported
+slug list (compact JSON, UTF-8). This identifies catalogue membership only; it
+does not attest grading fixtures, source revision or the deployed image. Retain
+the exact Git revision, immutable image digest, build record, previous revision
+and traffic settings separately before any rollout. A healthy process does not
+prove validation readiness.
+
+### November 19 PDF-lab incident candidate
+
+Canonical synthetic probes returned remote success for the original sales
+scenario and the older duplicate-rerun lab, but Free PDF01 returned HTTP 503
+wrapping runner HTTP 404. The actual signed-in app reproduced the same error.
+This establishes a lab-specific failure and supports catalogue drift; the live
+worker source and its upstream 404 body remain unverified. The retained October
+worker revision predates the PDF catalogue. This source candidate is not a
+deployed repair and changes no public backend, entitlement, fixture, timeout,
+resource, token value or cloud setting.
+
+The repository has a Docker Cloud Build recipe, but no checked-in automatic
+worker deployment workflow. Before release, an authorized operator must verify
+the configured runner origin, current service/revision/image and existing build
+route. Build this exact candidate, preserve the existing token binding without
+printing it, and test an isolated revision before changing traffic. Require the
+PDF01 correct and boundary-missing wrong answers, sample and hidden cases,
+older sales/core labs, internal token failures and unchanged public paid-access
+denials. Preserve existing worker resource and process limits. Do not substitute
+an arbitrary runner or widen execution budgets to treat this 404.
+
+If accepted, record first verified public PDF01 success and monitor unavailable
+responses separately from completed mismatches. Roll back worker traffic to the
+recorded prior revision/image if necessary; a Vercel-only revert does not roll
+back the external worker. Customer recovery remains unverified until support
+receives confirmation for the reported exercise. Cloud access and write-only
+runner-origin configuration currently prevent the required live identity and
+rollout proof.
+
 ## Local Runner
 
 To run Spark locally, install the Spark dependencies into your backend environment:
@@ -49,10 +95,13 @@ To run Spark locally, install the Spark dependencies into your backend environme
 ```bash
 cd backend
 pip install -r requirements-spark.txt
-PYSPARK_EXECUTION_ENABLED=true uvicorn app.main:app --host 127.0.0.1 --port 8000
+PYSPARK_EXECUTION_ENABLED=true uvicorn app.pyspark_worker:app --host 127.0.0.1 --port 8001
 ```
 
-Then run the frontend with:
+Provide a local-only test runner token to the worker and a separate local
+backend on port 8000 configured with `PYSPARK_RUNNER_URL=http://127.0.0.1:8001`
+and the same token. Never place the
+token in frontend configuration. Then point the frontend to the local backend:
 
 ```bash
 cd frontend
