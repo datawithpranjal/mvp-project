@@ -53,7 +53,7 @@ OVERRIDE_MARKERS = {
     "NO_PROXY": "synthetic-untrusted-proxy",
 }
 REQUIRED_KEYS = {
-    "PATH", "JAVA_HOME", "SPARK_HOME", "PYSPARK_PYTHON", "PYSPARK_DRIVER_PYTHON",
+    "PATH", "JAVA_HOME", "JAVA_TOOL_OPTIONS", "SPARK_HOME", "PYSPARK_PYTHON", "PYSPARK_DRIVER_PYTHON",
     "SPARK_LOCAL_HOSTNAME", "HOME", "TMPDIR", "TMP", "TEMP", "SPARK_LOCAL_DIRS",
     "PYTHONNOUSERSITE", "PYTHONDONTWRITEBYTECODE", "LANG", "LC_ALL",
 }
@@ -108,6 +108,8 @@ def assert_runtime_environment(env, request_dir, runtime):
         "/usr/local/bin", "/usr/bin", "/bin",
     ]))
     assert env["JAVA_HOME"] == str(runtime.java_home)
+    assert env["JAVA_TOOL_OPTIONS"] == "-Djdk.net.hosts.file=" + str(request_dir / "java-hosts")
+    assert stat.S_IMODE((request_dir / "java-hosts").stat().st_mode) == 0o600
     assert env["SPARK_HOME"] == str(runtime.spark_home)
     assert env["PYSPARK_PYTHON"] == str(runtime.python)
     assert env["PYSPARK_DRIVER_PYTHON"] == str(runtime.python)
@@ -156,6 +158,57 @@ def test_python_import_path_requires_explicit_trusted_runtime_selection(monkeypa
     assert parent == {**SECRET_MARKERS, **OVERRIDE_MARKERS}
 
 
+def test_child_environment_uses_private_loopback_hosts_without_dns(monkeypatch, tmp_path, runtime_paths):
+    monkeypatch.setattr(pyspark_environment.socket, "gethostname", lambda: "sandbox-synthetic-123")
+
+    def no_dns(*args, **kwargs):
+        pytest.fail("Trusted hostname mapping attempted a DNS lookup")
+
+    monkeypatch.setattr(pyspark_environment.socket, "getaddrinfo", no_dns)
+    monkeypatch.setattr(pyspark_environment.socket, "gethostbyname", no_dns)
+    env = build_child_environment(tmp_path, runtime_paths)
+    assert_runtime_environment(env, tmp_path, runtime_paths)
+    hosts_file = tmp_path / "java-hosts"
+    assert hosts_file.read_text(encoding="ascii") == (
+        "127.0.0.1 localhost sandbox-synthetic-123\n::1 localhost\n"
+    )
+    assert not hosts_file.is_symlink()
+
+
+@pytest.mark.parametrize("hostname", ["sandbox injected", "sandbox\ninjected", "a" * 254, ""])
+def test_invalid_hostname_cannot_become_jvm_hosts_content(monkeypatch, tmp_path, runtime_paths, hostname):
+    monkeypatch.setattr(pyspark_environment.socket, "gethostname", lambda: hostname)
+
+    def no_process(*args, **kwargs):
+        pytest.fail("Invalid hostname reached process creation")
+
+    monkeypatch.setattr(subprocess, "Popen", no_process)
+    with pytest.raises(PysparkRuntimeConfigurationError):
+        build_child_environment(tmp_path, runtime_paths)
+    assert not (tmp_path / "java-hosts").exists()
+
+
+@pytest.mark.parametrize("existing_entry", ["symlink", "file"])
+def test_java_hosts_file_never_overwrites_an_existing_entry(tmp_path, runtime_paths, existing_entry):
+    request_dir = tmp_path / "request"
+    request_dir.mkdir()
+    outside = tmp_path / "outside-hosts"
+    outside.write_text("synthetic existing hosts content", encoding="ascii")
+    hosts_file = request_dir / "java-hosts"
+    if existing_entry == "symlink":
+        hosts_file.symlink_to(outside)
+    else:
+        hosts_file.write_text("synthetic request hosts content", encoding="ascii")
+
+    with pytest.raises(PysparkRuntimeConfigurationError):
+        build_child_environment(request_dir, runtime_paths)
+    assert outside.read_text(encoding="ascii") == "synthetic existing hosts content"
+    if existing_entry == "symlink":
+        assert hosts_file.is_symlink()
+    else:
+        assert hosts_file.read_text(encoding="ascii") == "synthetic request hosts content"
+
+
 @pytest.mark.parametrize("invalid_field", [
     "relative_python", "missing_python", "nonexecutable_python", "relative_java_home",
     "missing_java", "missing_java_release", "relative_spark_home", "missing_spark_submit",
@@ -196,7 +249,9 @@ def test_incomplete_or_untrusted_runtime_paths_fail_closed(tmp_path, runtime_pat
         build_child_environment(request_dir, runtime)
 
 
-@pytest.mark.parametrize("invalid_request", ["relative", "missing", "file", "symlink", "home_symlink"])
+@pytest.mark.parametrize("invalid_request", [
+    "relative", "missing", "file", "symlink", "home_symlink", "option_space", "option_quote",
+])
 def test_invalid_request_directory_cannot_select_external_runtime_storage(tmp_path, runtime_paths, invalid_request):
     request_dir = tmp_path / "request"
     if invalid_request == "relative":
@@ -213,11 +268,19 @@ def test_invalid_request_directory_cannot_select_external_runtime_storage(tmp_pa
         target.mkdir(mode=0o755)
         target.chmod(0o755)
         (request_dir / "home").symlink_to(target, target_is_directory=True)
+    elif invalid_request == "option_space":
+        request_dir = tmp_path / "request -Dsynthetic=true"
+        request_dir.mkdir()
+    elif invalid_request == "option_quote":
+        request_dir = tmp_path / "request'option"
+        request_dir.mkdir()
 
     with pytest.raises(PysparkRuntimeConfigurationError):
         build_child_environment(request_dir, runtime_paths)
     if invalid_request == "home_symlink":
         assert stat.S_IMODE(target.stat().st_mode) == 0o755
+    if invalid_request in {"option_space", "option_quote"}:
+        assert not (request_dir / "java-hosts").exists()
 
 
 def test_missing_runtime_discovery_fails_before_any_worker_process(monkeypatch, tmp_path):

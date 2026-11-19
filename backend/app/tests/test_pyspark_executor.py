@@ -351,6 +351,137 @@ def test_executor_cli_runtime_failure_has_no_result_or_private_detail(executor, 
     assert output.err == "PySpark executor could not complete the request.\n"
 
 
+def _synthetic_native_stdout_runtime(tmp_path, *, fail_start=False):
+    package = tmp_path / "pyspark"
+    (package / "sql").mkdir(parents=True)
+    (package / "__init__.py").write_text("", encoding="utf-8")
+    (package / "sql" / "__init__.py").write_text(
+        '''import os
+import subprocess
+import sys
+
+os.write(1, b"synthetic native import output\\n")
+functions = object()
+
+class DataFrame:
+    def __init__(self, rows):
+        self.rows = rows
+        self.columns = list(rows[0])
+
+    def select(self, *columns):
+        return self
+
+    def collect(self):
+        return [[row["value"]] for row in self.rows]
+
+class Spark:
+    @property
+    def sparkContext(self):
+        return self
+
+    def setLogLevel(self, level):
+        pass
+
+    def createDataFrame(self, rows):
+        return DataFrame(rows)
+
+    def stop(self):
+        os.write(1, b"synthetic native stop output\\n")
+
+class Builder:
+    def master(self, value):
+        return self
+
+    def appName(self, value):
+        return self
+
+    def config(self, *args):
+        return self
+
+    def getOrCreate(self):
+        os.write(1, b"synthetic native launch output\\n")
+        subprocess.run(
+            [sys.executable, "-c", "import os; os.write(1, b'synthetic JVM-style child output\\\\n')"],
+            check=True,
+        )
+        if FAIL_START:
+            raise RuntimeError("synthetic private startup detail")
+        return Spark()
+
+class SparkSession:
+    builder = Builder()
+'''.replace("FAIL_START", repr(fail_start)),
+        encoding="utf-8",
+    )
+    return {
+        "PATH": "/usr/bin:/bin",
+        "PYTHONPATH": os.pathsep.join((str(tmp_path), str(BACKEND_ROOT / "app" / "services"))),
+        "PYTHONNOUSERSITE": "1",
+        "PYTHONDONTWRITEBYTECODE": "1",
+    }
+
+
+def _synthetic_native_stdout_request():
+    return {
+        "payload": {
+            "output_columns": ["value"],
+            "output_variable_names": ["result_df"],
+            "cases": [{
+                "inputs": [{"name": "source", "rows": [{"value": 7}], "timestamp_columns": []}],
+                "context": {},
+            }],
+        },
+        "code": (
+            "import os\nos.write(1, b'synthetic native submission output\\n')\n"
+            "print('synthetic Python submission output')\nresult_df = source"
+        ),
+    }
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX execution stdout descriptors")
+def test_trusted_executor_json_survives_actual_native_and_spawned_stdout(tmp_path):
+    completed = subprocess.run(
+        [sys.executable, str(BACKEND_ROOT / "pyspark_executor.py"), "--trusted-child"],
+        input=json.dumps(_synthetic_native_stdout_request()),
+        cwd=tmp_path,
+        env=_synthetic_native_stdout_runtime(tmp_path),
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=5,
+    )
+    assert completed.returncode == 0, completed.stderr
+    assert json.loads(completed.stdout) == {"cases": [{"rows": [[7]], "error": None}]}
+    for marker in (
+        "synthetic native import output", "synthetic native launch output",
+        "synthetic JVM-style child output", "synthetic native submission output",
+        "synthetic Python submission output", "synthetic native stop output",
+    ):
+        assert marker in completed.stderr
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX execution stdout descriptors")
+def test_trusted_executor_restores_protocol_stdout_after_native_startup_failure(tmp_path):
+    wrapper = (
+        "import json,os,runpy,sys\n"
+        "executor=runpy.run_path(sys.argv[1],run_name='synthetic_executor')\n"
+        "status=executor['main'](['--trusted-child'])\n"
+        "os.write(1,json.dumps({'protocol_restored':True,'status':status}).encode())\n"
+    )
+    completed = subprocess.run(
+        [sys.executable, "-c", wrapper, str(BACKEND_ROOT / "pyspark_executor.py")],
+        input=json.dumps(_synthetic_native_stdout_request()),
+        cwd=tmp_path,
+        env=_synthetic_native_stdout_runtime(tmp_path, fail_start=True),
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=5,
+    )
+    assert completed.returncode == 0, completed.stderr
+    assert json.loads(completed.stdout) == {"protocol_restored": True, "status": 1}
+    for marker in (
+        "synthetic native import output", "synthetic native launch output",
+        "synthetic JVM-style child output", "PySpark executor could not complete the request.",
+    ):
+        assert marker in completed.stderr
+    assert "synthetic private startup detail" not in completed.stderr
+
+
 @pytest.mark.skipif(os.environ.get("RUN_SPARK_TESTS") != "1", reason="requires Java and optional Spark dependencies")
 @pytest.mark.parametrize("slug,code,mode,correct", [
     (CUSTOMER_PDF_SLUG, PDF_CODE, "sample", True),

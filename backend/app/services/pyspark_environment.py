@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from importlib.util import find_spec
 import os
 from pathlib import Path
+import re
+import socket
 import sys
 
 
@@ -55,8 +57,13 @@ def build_child_environment(
         for import_root in runtime.python_path:
             if not import_root.is_absolute() or not (import_root.is_file() or import_root.is_dir()):
                 raise PysparkRuntimeConfigurationError("The selected PySpark runtime is unavailable.")
-        if not request_dir.is_absolute() or not request_dir.is_dir() or request_dir.is_symlink():
+        if not request_dir.is_absolute() or not request_dir.is_dir() or request_dir.is_symlink() \
+                or re.fullmatch(r"/[A-Za-z0-9_./-]+", str(request_dir)) is None:
             raise PysparkRuntimeConfigurationError("The PySpark request directory is unavailable.")
+
+        hostname = socket.gethostname()
+        if re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9._-]{0,251}[A-Za-z0-9])?", hostname) is None:
+            raise PysparkRuntimeConfigurationError("The selected PySpark runtime is unavailable.")
 
         paths = {name: request_dir / name for name in ("home", "tmp", "spark")}
         for directory in paths.values():
@@ -64,6 +71,11 @@ def build_child_environment(
                 raise PysparkRuntimeConfigurationError("The PySpark request directory is unavailable.")
             directory.mkdir(mode=0o700, exist_ok=True)
             directory.chmod(0o700)
+
+        hosts_file = request_dir / "java-hosts"
+        descriptor = os.open(hosts_file, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(descriptor, "w", encoding="ascii") as hosts:
+            hosts.write(f"127.0.0.1 localhost {hostname}\n::1 localhost\n")
     except OSError as exc:
         raise PysparkRuntimeConfigurationError("The selected PySpark runtime is unavailable.") from exc
 
@@ -73,6 +85,7 @@ def build_child_environment(
             "/usr/local/bin", "/usr/bin", "/bin",
         ))),
         "JAVA_HOME": str(runtime.java_home),
+        "JAVA_TOOL_OPTIONS": "-Djdk.net.hosts.file=" + str(hosts_file),
         "SPARK_HOME": str(runtime.spark_home),
         "PYSPARK_PYTHON": str(runtime.python),
         "PYSPARK_DRIVER_PYTHON": str(runtime.python),

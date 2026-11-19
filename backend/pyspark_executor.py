@@ -74,12 +74,30 @@ def _normalize_rows(rows):
     return sorted(normalized, key=lambda row: json.dumps(row, sort_keys=True))
 
 
-def _execute_cases(payload, code):
-    from pyspark.sql import DataFrame, SparkSession, functions as F
+@contextlib.contextmanager
+def _execution_stdout_to_stderr():
+    sys.stdout.flush()
+    saved_stdout = os.dup(1)
+    try:
+        os.dup2(2, 1)
+        with contextlib.redirect_stdout(sys.stderr):
+            yield
+    finally:
+        try:
+            sys.stdout.flush()
+        finally:
+            try:
+                os.dup2(saved_stdout, 1)
+            finally:
+                os.close(saved_stdout)
 
+
+def _execute_cases(payload, code):
     _validate_payload(payload)
     results = []
-    with contextlib.redirect_stdout(sys.stderr):
+    with _execution_stdout_to_stderr():
+        from pyspark.sql import DataFrame, SparkSession, functions as F
+
         spark = (
             SparkSession.builder.master("local[1]")
             .appName("data-foundry-pyspark-executor")
