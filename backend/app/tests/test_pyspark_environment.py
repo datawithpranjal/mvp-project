@@ -108,7 +108,10 @@ def assert_runtime_environment(env, request_dir, runtime):
         "/usr/local/bin", "/usr/bin", "/bin",
     ]))
     assert env["JAVA_HOME"] == str(runtime.java_home)
-    assert env["JAVA_TOOL_OPTIONS"] == "-Djdk.net.hosts.file=" + str(request_dir / "java-hosts")
+    assert env["JAVA_TOOL_OPTIONS"] == (
+        "-Djdk.net.hosts.file=" + str(request_dir / "java-hosts")
+        + " -XX:ActiveProcessorCount=1 -XX:TieredStopAtLevel=1"
+    )
     assert stat.S_IMODE((request_dir / "java-hosts").stat().st_mode) == 0o600
     assert env["SPARK_HOME"] == str(runtime.spark_home)
     assert env["PYSPARK_PYTHON"] == str(runtime.python)
@@ -403,6 +406,21 @@ def test_trusted_python_and_spark_jvm_receive_no_application_sentinels(monkeypat
                 spark.sparkContext._jvm.java.lang.System.getenv(key) != marker
                 for key, marker in override_markers.items()
             )
+            jvm = spark.sparkContext._jvm
+            vm_options = jvm.java.lang.management.ManagementFactory.getPlatformMXBean(
+                jvm.java.lang.Class.forName("com.sun.management.HotSpotDiagnosticMXBean")
+            )
+            checks["jvm_processor_limit_one"] = (
+                jvm.java.lang.Runtime.getRuntime().availableProcessors() == 1
+                and vm_options.getVMOption("ActiveProcessorCount").getValue() == "1"
+            )
+            checks["jvm_tiered_level_one"] = (
+                vm_options.getVMOption("TieredStopAtLevel").getValue() == "1"
+            )
+            checks["jvm_hosts_option_retained"] = (
+                jvm.java.lang.System.getProperty("jdk.net.hosts.file")
+                == {str(tmp_path / "java-hosts")!r}
+            )
             checks["spark35_runtime"] = spark.version.startswith("3.5.")
             checks["spark_action_completed"] = spark.range(2).count() == 2
         finally:
@@ -424,6 +442,9 @@ def test_trusted_python_and_spark_jvm_receive_no_application_sentinels(monkeypat
         "jvm_sentinels_absent": True,
         "python_override_markers_absent": True,
         "jvm_override_markers_absent": True,
+        "jvm_processor_limit_one": True,
+        "jvm_tiered_level_one": True,
+        "jvm_hosts_option_retained": True,
         "spark35_runtime": True,
         "spark_action_completed": True,
     }

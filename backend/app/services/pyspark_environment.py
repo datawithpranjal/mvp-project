@@ -85,7 +85,10 @@ def build_child_environment(
             "/usr/local/bin", "/usr/bin", "/bin",
         ))),
         "JAVA_HOME": str(runtime.java_home),
-        "JAVA_TOOL_OPTIONS": "-Djdk.net.hosts.file=" + str(hosts_file),
+        "JAVA_TOOL_OPTIONS": (
+            "-Djdk.net.hosts.file=" + str(hosts_file)
+            + " -XX:ActiveProcessorCount=1 -XX:TieredStopAtLevel=1"
+        ),
         "SPARK_HOME": str(runtime.spark_home),
         "PYSPARK_PYTHON": str(runtime.python),
         "PYSPARK_DRIVER_PYTHON": str(runtime.python),
