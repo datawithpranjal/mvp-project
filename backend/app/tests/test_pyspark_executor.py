@@ -72,7 +72,7 @@ def test_executor_image_contains_only_generic_program_and_runtime_helper():
     assert "EXPOSE " not in dockerfile
     assert "uvicorn" not in dockerfile
     assert "PYSPARK_RUNNER_TOKEN" not in dockerfile
-    assert (BACKEND_ROOT / "requirements-pyspark-executor.txt").read_text().strip() == "pyspark>=3.5,<4.0"
+    assert (BACKEND_ROOT / "requirements-pyspark-executor.txt").read_text().strip() == "pyspark==3.5.9"
     source = (BACKEND_ROOT / "pyspark_executor.py").read_text(encoding="utf-8")
     tree = ast.parse(source)
     imports = []
