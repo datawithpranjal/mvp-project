@@ -6,13 +6,20 @@ import datetime
 from decimal import Decimal
 import json
 import os
+import math
 from pathlib import Path
+import selectors
 import signal
 import subprocess
 import sys
 import tempfile
+import time
 
 from pyspark_environment import PysparkRuntimePaths, build_child_environment
+
+MAX_OUTPUT_BYTES = 1_048_576
+MAX_INPUT_BYTES = 1_048_576
+REAP_SECONDS = 0.5
 
 
 def _string_list(value, *, nonempty=False):
@@ -114,21 +121,80 @@ def _execute_cases(payload, code):
 
 
 def _run_process(command, *, cwd, env, timeout, input_text):
-    with subprocess.Popen(
-        command, cwd=cwd, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE, text=True, start_new_session=True,
-    ) as process:
-        try:
-            stdout, stderr = process.communicate(input=input_text, timeout=timeout)
-        except subprocess.TimeoutExpired:
-            if os.name == "posix":
-                with contextlib.suppress(ProcessLookupError):
-                    os.killpg(process.pid, signal.SIGKILL)
+    if os.name != "posix" or isinstance(timeout, bool) or not isinstance(timeout, (int, float)) \
+            or not math.isfinite(timeout) or timeout <= 0:
+        raise RuntimeError("PySpark executor process is unavailable.")
+    try:
+        pending = memoryview(input_text.encode("utf-8"))
+    except (AttributeError, UnicodeError) as exc:
+        raise RuntimeError("PySpark executor request is unavailable.") from exc
+    if len(pending) > MAX_INPUT_BYTES:
+        raise RuntimeError("PySpark executor request is unavailable.")
+    deadline = time.monotonic() + timeout
+    try:
+        process = subprocess.Popen(
+            command, cwd=cwd, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL, start_new_session=True,
+        )
+    except OSError:
+        raise RuntimeError("PySpark executor process is unavailable.") from None
+    try:
+        output = bytearray()
+        with selectors.DefaultSelector() as selector:
+            os.set_blocking(process.stdout.fileno(), False)
+            selector.register(process.stdout, selectors.EVENT_READ, "output")
+            if pending:
+                os.set_blocking(process.stdin.fileno(), False)
+                selector.register(process.stdin, selectors.EVENT_WRITE, "input")
             else:
-                process.kill()
-            process.communicate(timeout=5)
+                process.stdin.close()
+            while selector.get_map():
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise subprocess.TimeoutExpired(command, timeout)
+                for key, _ in selector.select(remaining):
+                    if key.data == "input":
+                        try:
+                            sent = os.write(key.fd, pending[:65_536])
+                        except BlockingIOError:
+                            continue
+                        if sent <= 0:
+                            raise RuntimeError("PySpark executor request is unavailable.")
+                        pending = pending[sent:]
+                        if not pending:
+                            selector.unregister(key.fileobj)
+                            process.stdin.close()
+                    else:
+                        try:
+                            chunk = os.read(key.fd, min(65_536, MAX_OUTPUT_BYTES - len(output) + 1))
+                        except BlockingIOError:
+                            continue
+                        if not chunk:
+                            selector.unregister(key.fileobj)
+                        elif len(output) + len(chunk) > MAX_OUTPUT_BYTES:
+                            raise RuntimeError("PySpark executor output is unavailable.")
+                        else:
+                            output.extend(chunk)
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise subprocess.TimeoutExpired(command, timeout)
+        process.wait(timeout=remaining)
+        return subprocess.CompletedProcess(command, process.returncode, output.decode("utf-8"), "")
+    except BaseException as exc:
+        with contextlib.suppress(ProcessLookupError):
+            os.killpg(process.pid, signal.SIGKILL)
+        try:
+            process.wait(timeout=REAP_SECONDS)
+        except subprocess.TimeoutExpired:
+            raise RuntimeError("PySpark executor process is unavailable.") from None
+        if isinstance(exc, (subprocess.TimeoutExpired, KeyboardInterrupt, SystemExit)):
             raise
-        return subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
+        raise RuntimeError("PySpark executor process is unavailable.") from None
+    finally:
+        for pipe in (process.stdin, process.stdout):
+            if pipe is not None:
+                with contextlib.suppress(OSError):
+                    pipe.close()
 
 
 def run(payload: dict, code: str, *, runtime_paths: PysparkRuntimePaths | None = None,

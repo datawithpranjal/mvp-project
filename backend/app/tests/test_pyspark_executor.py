@@ -151,16 +151,204 @@ def test_executor_cli_reads_only_provided_request_and_submission(executor, monke
 def test_executor_timeout_stops_descendant_processes(executor, tmp_path):
     import time
 
-    sentinel = tmp_path / "descendant-survived"
-    child = f"import time; from pathlib import Path; time.sleep(0.8); Path({str(sentinel)!r}).write_text('unexpected')"
+    started = tmp_path / "descendant-started"
+    lifetime_pipe = tmp_path / "descendant-lifetime"
+    os.mkfifo(lifetime_pipe, mode=0o600)
+    reader = os.open(lifetime_pipe, os.O_RDONLY | os.O_NONBLOCK)
+    child = (
+        "import os,time; from pathlib import Path; "
+        f"pipe=os.open({str(lifetime_pipe)!r},os.O_WRONLY); "
+        "os.write(pipe,b'child-started'); "
+        f"Path({str(started)!r}).write_text('started'); time.sleep(10)"
+    )
     parent = f"import subprocess,sys,time; subprocess.Popen([sys.executable,'-c',{child!r}]); time.sleep(10)"
+    try:
+        with pytest.raises(subprocess.TimeoutExpired):
+            executor._run_process(
+                [sys.executable, "-c", parent], cwd=str(tmp_path),
+                env={"PATH": "/usr/bin:/bin"}, timeout=1.0, input_text="",
+            )
+        assert started.read_text() == "started", "The descendant must actually start before timeout"
+        received = bytearray()
+        deadline = time.monotonic() + 0.75
+        while True:
+            try:
+                chunk = os.read(reader, 64)
+            except BlockingIOError:
+                assert time.monotonic() < deadline, "Timed-out descendant still holds its lifetime pipe"
+                time.sleep(0.01)
+                continue
+            if not chunk:
+                break
+            received.extend(chunk)
+        assert received == b"child-started"
+    finally:
+        os.close(reader)
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX nonblocking process I/O")
+def test_executor_run_refuses_actual_child_stdout_overflow(executor, monkeypatch, tmp_path):
+    import time
+
+    monkeypatch.setattr(executor, "MAX_OUTPUT_BYTES", 4096)
+    monkeypatch.setattr(executor, "build_child_environment", lambda *args: {
+        "PATH": "/usr/bin:/bin", "PYSPARK_PYTHON": sys.executable,
+    })
+    real_run_process = executor._run_process
+    started = tmp_path / "overflow-descendant-started"
+    lifetime_pipe = tmp_path / "overflow-descendant-lifetime"
+    os.mkfifo(lifetime_pipe, mode=0o600)
+    reader = os.open(lifetime_pipe, os.O_RDONLY | os.O_NONBLOCK)
+    child = (
+        "import os,time; from pathlib import Path; "
+        f"pipe=os.open({str(lifetime_pipe)!r},os.O_WRONLY); "
+        "os.write(pipe,b'child-started'); "
+        f"Path({str(started)!r}).write_text('started'); time.sleep(10)"
+    )
+    producer = (
+        "import os,subprocess,sys,time\nfrom pathlib import Path\n"
+        "sys.stdin.read()\n"
+        f"subprocess.Popen([sys.executable,'-c',{child!r}])\n"
+        "deadline=time.monotonic()+2\n"
+        f"while not Path({str(started)!r}).exists():\n"
+        "    if time.monotonic() >= deadline:\n"
+        "        raise RuntimeError('synthetic descendant did not start')\n"
+        "    time.sleep(0.01)\n"
+        "os.write(1,b'x'*4097)\ntime.sleep(10)\n"
+    )
+
+    def trusted_overflow(command, **kwargs):
+        return real_run_process(
+            [sys.executable, "-c", producer], **kwargs
+        )
+
+    monkeypatch.setattr(executor, "_run_process", trusted_overflow)
+    try:
+        with pytest.raises(RuntimeError) as error:
+            executor.run(payload_for(), PDF_CODE, timeout_seconds=3.0)
+        assert "unavailable" in str(error.value)
+        assert "synthetic" not in str(error.value)
+        assert "x" * 64 not in str(error.value)
+        assert started.read_text() == "started", "The descendant must actually start before overflow"
+        received = bytearray()
+        deadline = time.monotonic() + 0.75
+        while True:
+            try:
+                chunk = os.read(reader, 64)
+            except BlockingIOError:
+                assert time.monotonic() < deadline, "Overflowed descendant still holds its lifetime pipe"
+                time.sleep(0.01)
+                continue
+            if not chunk:
+                break
+            received.extend(chunk)
+        assert received == b"child-started"
+    finally:
+        os.close(reader)
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX nonblocking process I/O")
+def test_executor_discards_actual_child_stderr_and_preserves_success_output(executor, monkeypatch, tmp_path):
+    monkeypatch.setattr(executor, "MAX_OUTPUT_BYTES", 4096)
+    completed = executor._run_process(
+        [sys.executable, "-c", (
+            "import os; os.write(2,b'x'*(4096*512)); "
+            "os.write(1,b'{\"cases\":[]}')"
+        )],
+        cwd=str(tmp_path), env={"PATH": "/usr/bin:/bin"}, timeout=3.0, input_text="",
+    )
+    assert completed.returncode == 0
+    assert completed.stdout == '{"cases":[]}'
+    assert completed.stderr == ""
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX nonblocking process I/O")
+def test_executor_preserves_actual_child_nonzero_return_without_returning_stderr(executor, tmp_path):
+    completed = executor._run_process(
+        [sys.executable, "-c", (
+            "import sys; sys.stdout.write('synthetic partial output'); "
+            "sys.stderr.write('synthetic private stderr'); sys.exit(7)"
+        )],
+        cwd=str(tmp_path), env={"PATH": "/usr/bin:/bin"}, timeout=3.0, input_text="",
+    )
+    assert completed.returncode == 7
+    assert completed.stdout == "synthetic partial output"
+    assert completed.stderr == ""
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX nonblocking process I/O")
+def test_executor_blocked_stdin_remains_inside_execution_deadline(executor, tmp_path):
+    import time
+
+    started = tmp_path / "nonreading-child-started"
+    code = f"import time; from pathlib import Path; Path({str(started)!r}).write_text('started'); time.sleep(10)"
+    beginning = time.monotonic()
     with pytest.raises(subprocess.TimeoutExpired):
         executor._run_process(
-            [sys.executable, "-c", parent], cwd=str(tmp_path),
-            env={"PATH": "/usr/bin:/bin"}, timeout=0.3, input_text="",
+            [sys.executable, "-c", code], cwd=str(tmp_path),
+            env={"PATH": "/usr/bin:/bin"}, timeout=1.0, input_text="x" * 524_288,
         )
-    time.sleep(1)
-    assert not sentinel.exists()
+    assert started.read_text() == "started"
+    assert time.monotonic() - beginning < 1.0 + executor.REAP_SECONDS + 1.0
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX nonblocking process I/O")
+def test_executor_write_io_failure_is_generic_after_child_started(executor, monkeypatch, tmp_path):
+    import time
+
+    started = tmp_path / "io-child-started"
+    code = f"import time; from pathlib import Path; Path({str(started)!r}).write_text('started'); time.sleep(10)"
+    original_write = os.write
+
+    def failed_input_write(descriptor, data):
+        if bytes(data).startswith(b"synthetic-trusted-input"):
+            deadline = time.monotonic() + 1.0
+            while not started.exists():
+                assert time.monotonic() < deadline, "The I/O test child did not start"
+                time.sleep(0.01)
+            raise OSError("synthetic-private-write-detail")
+        return original_write(descriptor, data)
+
+    monkeypatch.setattr(executor.os, "write", failed_input_write)
+    with pytest.raises(RuntimeError) as error:
+        executor._run_process(
+            [sys.executable, "-c", code], cwd=str(tmp_path),
+            env={"PATH": "/usr/bin:/bin"}, timeout=3.0, input_text="synthetic-trusted-input",
+        )
+    assert started.read_text() == "started"
+    assert "synthetic-private-write-detail" not in str(error.value)
+    assert "unavailable" in str(error.value)
+
+
+def test_executor_bounds_utf8_input_bytes_before_launch(executor, monkeypatch, tmp_path):
+    monkeypatch.setattr(executor, "MAX_INPUT_BYTES", 4096)
+
+    def no_process(*args, **kwargs):
+        pytest.fail("Oversized UTF-8 input reached process creation")
+
+    monkeypatch.setattr(executor.subprocess, "Popen", no_process)
+    with pytest.raises(RuntimeError) as error:
+        executor._run_process(
+            [sys.executable, "-c", "pass"], cwd=str(tmp_path),
+            env={"PATH": "/usr/bin:/bin"}, timeout=1.0, input_text="\u20ac" * 1366,
+        )
+    assert "unavailable" in str(error.value)
+
+
+def test_executor_cli_runtime_failure_has_no_result_or_private_detail(executor, monkeypatch, tmp_path, capsys):
+    request_path = tmp_path / "request.json"
+    submission_path = tmp_path / "submission.py"
+    request_path.write_text(json.dumps(payload_for()), encoding="utf-8")
+    submission_path.write_text(PDF_CODE, encoding="utf-8")
+
+    def failed_run(*args, **kwargs):
+        raise RuntimeError("synthetic-private-runtime-detail")
+
+    monkeypatch.setattr(executor, "run", failed_run)
+    assert executor.main([str(request_path), str(submission_path)]) == 1
+    output = capsys.readouterr()
+    assert output.out == ""
+    assert output.err == "PySpark executor could not complete the request.\n"
 
 
 @pytest.mark.skipif(os.environ.get("RUN_SPARK_TESTS") != "1", reason="requires Java and optional Spark dependencies")

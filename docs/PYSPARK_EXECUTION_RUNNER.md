@@ -104,15 +104,25 @@ Cloud action. Root/CEO remains the sole provider-session executor.
    ```sh
    gcloud builds submit "$OPS053_SOURCE_ARCHIVE" \
      --account="$OPS053_VERIFIED_OWNER" --project=tdfpyspark \
-     --region="$OPS053_BUILD_REGION" \
+     --region=global \
+     --gcs-source-staging-dir="gs://tdfpyspark_cloudbuild/ops053/$OPS053_SOURCE_REVISION" \
      --config=cloudbuild.pyspark-sandbox.yaml \
      --substitutions="_SOURCE_REVISION=$OPS053_SOURCE_REVISION,_WORKER_IMAGE=$OPS053_WORKER_IMAGE,_EXECUTOR_IMAGE=$OPS053_EXECUTOR_IMAGE"
    ```
 
 2. Before any revision, root records the currently verified service
    `data-foundry-pyspark-runner`, region `asia-south1`, revision
-   `data-foundry-pyspark-runner-00002-wgs`,100% traffic, full registry URI and digest
+   **disabled** `data-foundry-pyspark-runner-00003-c2j`,100% traffic, full registry URI and digest
    `sha256:2f34f2fae6595ec71f25e12dd74fa6795f19f49d741654d699334058483b1b49`.
+   This same-image containment baseline has `PYSPARK_EXECUTION_ENABLED=false`
+   and an empty upstream runner URL. Refresh its exact root receipt/T0 before
+   any operation; never restore enabled00002 execution as rollback.
+   Root's verified supported-request window is November19
+   10:15:35.032811–10:15:35.780686UTC: canonical Core503 with no correctness,
+   correlated to disabled003 at10:15:35.521703UTC (insert
+   `6afecc4700080fd03819f1fa`). Health aliases and the PDF02 editor return200.
+   This pause is verified; it is not restored validation or instant termination
+   of old in-flight work. Recheck this safe baseline immediately before rollout.
    Retain1CPU/2GiB,30s request timeout,max3 and the existing token binding. Current
    concurrency80 is not80-JVM capacity evidence. Confirm container port matches
    this image's8000 and the explicit single worker. No token value is needed.
@@ -127,6 +137,8 @@ Cloud action. Root/CEO remains the sole provider-session executor.
    service spec from an incomplete fragment. Preview availability, existing
    deployment/build permissions and template setup remain operator prerequisites;
    no new service, IAM grant or secret rotation is proposed.
+   Execution may be enabled explicitly on this reviewed no-traffic sandbox
+   candidate only. Keep disabled00003-c2j serving100% until restoration acceptance.
 
 4. In the exact isolated runtime, verify default Debian runtime discovery and
    actual Python/Spark/JVM startup; dummy-only parent-env/private-file/other-
@@ -162,8 +174,8 @@ Cloud action. Root/CEO remains the sole provider-session executor.
    traffic through the normal release path and verifies canonical PDF02 Run
    sample plus Submit using an existing owned QA session, preserving drafts and
    access rules. Ananya alone supplies verified retry steps and obtains customer
-   confirmation. Rollback restores recorded00002-wgs100% and its immutable image/
-   prior revision configuration. With no traffic shifted, discard the failed
+   confirmation. Rollback restores disabled00003-c2j100%, the same immutable image,
+   execution=false and empty upstream configuration. With no traffic shifted, discard the failed
    candidate after confirmed cleanup. No Vercel-only revert can roll back the
    external worker.
 
@@ -171,7 +183,7 @@ Cloud action. Root/CEO remains the sole provider-session executor.
    gcloud run services update-traffic data-foundry-pyspark-runner \
      --account="$OPS053_VERIFIED_OWNER" --project=tdfpyspark \
      --region=asia-south1 \
-     --to-revisions=data-foundry-pyspark-runner-00002-wgs=100
+     --to-revisions=data-foundry-pyspark-runner-00003-c2j=100
    ```
 
 For every management command use the verified owner account explicitly and
@@ -179,6 +191,9 @@ the existing project/region. Current target binding and management
 authentication were restored by the CEO; this does not authorize a build or
 revision. Use the exact account confirmed in the root receipt, never the cached
 expired identity, and do not repeat login/help probes from this Engineering task.
+The existing successful build region is `global` and the existing source bucket
+is `tdfpyspark_cloudbuild` (US), both CEO-verified. The command uses that existing
+bucket explicitly; create no bucket, registry or API during preflight.
 
 #### Separate local child-environment mitigation
 
