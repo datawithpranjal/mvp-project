@@ -140,6 +140,16 @@ async function main() {
         const html = test.html(); assert.match(html, /Checking unavailable/); assert.match(html, /try again shortly/);
         assert(!/needs work|Wrong answer|Synthetic executed check|>fail<|>pass</i.test(html));
       }
+      const accountWarning = "Result shown, but it could not be saved to your account. Please retry submit.";
+      const accountNotice = harness("503", { workspaceMessage: accountWarning });
+      await accountNotice.run(action); cases++;
+      assert.equal(accountNotice.state.result.status, "unavailable");
+      assert.equal(accountNotice.state.result.passed, null);
+      assert.equal(accountNotice.state.workspaceMessage, accountWarning, "An outage must preserve the existing account-save warning");
+      assert.equal(accountNotice.state.attempts.length, 0); assert.equal(accountNotice.state.saves.length, 0);
+      assert.equal(accountNotice.state.drafts.length, 0); assert.equal(accountNotice.context.pendingAttemptRef.current, accountNotice.pending);
+      assert.equal(accountNotice.state.running, false); accountNotice.assertRequest(action); accountNotice.assertEditor();
+      assert.match(accountNotice.html(), /Checking unavailable/);
       for (const variant of ["wrong", "correct"] as const) {
         const test = harness(variant); await test.run(action); cases++;
         assert.equal(test.state.result.passed, variant === "correct"); assert.equal(test.state.result.status, undefined);
@@ -180,7 +190,8 @@ async function main() {
     assert.equal(locked.state.requests.length, 0); assert.equal(locked.state.result, null); locked.assertEditor();
     console.log(JSON.stringify({
       action_cases: cases, actual_handlers_and_renderer: true, http503_transport_decode_ungraded: true,
-      stale_graded_banner_cleared: true, no_fabricated_tests_or_outage_attempt_save: true,
+      stale_graded_banner_cleared: true, existing_account_save_warning_preserved: true,
+      no_fabricated_tests_or_outage_attempt_save: true,
       actual_wrong_correct_sample_full_preserved: true, request_payload_auth_and_no_auto_retry_preserved: true,
       guest_member_premium_boundaries_preserved: true, http401_403_and_sql_scope_preserved: true,
       editor_draft_and_focus_references_unchanged: true,

@@ -1088,7 +1088,11 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
         message: error instanceof Error ? error.message : "Code execution failed."
       };
       setResult(failedResult);
-      if (selectedLab.validationMode === "pyspark" && failedResult.status === "unavailable") setWorkspaceMessage("");
+      if (selectedLab.validationMode === "pyspark" && failedResult.status === "unavailable") {
+        setWorkspaceMessage((current) =>
+          current.startsWith("Not correct yet.") || current.startsWith("Correct.") ? "" : current
+        );
+      }
       const presentation = pythonIntroError(selectedLab, answer, phase, error);
       if (presentation) setPythonError({ result: failedResult, presentation });
     } finally {
@@ -1204,7 +1208,11 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
         table: { columns: [], rows: [] }
       };
       setResult(failedResult);
-      if (selectedLab.validationMode === "pyspark" && failedResult.status === "unavailable") setWorkspaceMessage("");
+      if (selectedLab.validationMode === "pyspark" && failedResult.status === "unavailable") {
+        setWorkspaceMessage((current) =>
+          current.startsWith("Not correct yet.") || current.startsWith("Correct.") ? "" : current
+        );
+      }
       const presentation = pythonIntroError(selectedLab, answer, phase, error);
       if (presentation) setPythonError({ result: failedResult, presentation });
     } finally {
