@@ -61,6 +61,125 @@ prove validation readiness.
 
 ### November 19 PDF-lab incident candidate
 
+#### Local same-service sandbox candidate and operator preflight
+
+The isolated execution candidate wires the worker to the supported Cloud Run
+sandbox CLI. It selects only the `pyspark-executor` template and mounts one
+generated request subdirectory from the `pyspark-requests` memory volume as
+read-only `/input`. The clean executor image copies only the generic program,
+runtime helper and Spark dependency list. It contains no listener application,
+catalogue, private solution or expected-output fixture. The listener keeps
+grading expectations; the execution payload contains only output schema, input
+rows and case context. Existing API actual/expected response fields are
+preserved, including hidden-mode fields; this does not make that API a
+confidential-oracle interface.
+
+Missing launcher, template/mount errors and malformed output fail unavailable
+without ordinary-Python fallback. Each submission runs in a new named sandbox
+and requires successful forced deletion before a result is accepted. Uncertain
+deletion quarantines the listener against further launches; an app-only restart
+is not proof of cleanup. One admission slot and one explicit Uvicorn worker
+bound this code to one active validation per listener instance. This is not a
+capacity or denial-of-service guarantee. No egress-enabling flag or host-root
+mount is supplied. Local mocks verify this command contract only; they cannot
+verify the provider boundary.
+
+Google documents this as a Preview feature requiring a new second-generation
+revision. Templates share the existing instance CPU/memory. See the
+[service configuration](https://docs.cloud.google.com/run/docs/configuring/services/sandboxes),
+[CLI lifecycle and flags](https://docs.cloud.google.com/run/docs/reference/sandbox-cli),
+and [untrusted-code boundaries](https://docs.cloud.google.com/run/docs/code-execution#security-boundaries-for-untrusted-code).
+Enabling the launcher alone does not select this executor or a clean image.
+
+The following is a proposed operator sequence, not authorization or an executed
+Cloud action. Root/CEO remains the sole provider-session executor.
+
+1. Match the reviewed exact Git source archive/hash and both build destinations.
+   Use `cloudbuild.pyspark-sandbox.yaml` to build the listener and clean execution
+   images from that archive. Record source/build ID, resolved Python/base/JRE/
+   Spark versions, image labels and immutable digests. Floating dependency ranges
+   mean local Java11/Spark3.5.1 tests do not certify the built images. A revision
+   label alone is not proof of matching build input.
+
+   ```sh
+   gcloud builds submit "$OPS053_SOURCE_ARCHIVE" \
+     --account="$OPS053_VERIFIED_OWNER" --project=tdfpyspark \
+     --region="$OPS053_BUILD_REGION" \
+     --config=cloudbuild.pyspark-sandbox.yaml \
+     --substitutions="_SOURCE_REVISION=$OPS053_SOURCE_REVISION,_WORKER_IMAGE=$OPS053_WORKER_IMAGE,_EXECUTOR_IMAGE=$OPS053_EXECUTOR_IMAGE"
+   ```
+
+2. Before any revision, root records the currently verified service
+   `data-foundry-pyspark-runner`, region `asia-south1`, revision
+   `data-foundry-pyspark-runner-00002-wgs`,100% traffic, full registry URI and digest
+   `sha256:2f34f2fae6595ec71f25e12dd74fa6795f19f49d741654d699334058483b1b49`.
+   Retain1CPU/2GiB,30s request timeout,max3 and the existing token binding. Current
+   concurrency80 is not80-JVM capacity evidence. Confirm container port matches
+   this image's8000 and the explicit single worker. No token value is needed.
+
+3. After separate guarded approval, create a no-traffic revision on that same
+   service with launcher enabled, one clean template pinned by digest, and one
+   in-memory `pyspark-requests` volume mounted only in the listener at
+   `/mnt/pyspark-requests`. Do not mount the listener root or all request folders
+   in the template. The CLI supplies the single readonly request subpath.
+   Preserve authentication/IAM and secret binding through the provider's safe
+   update path. Do not export plaintext env values or replace the complete
+   service spec from an incomplete fragment. Preview availability, existing
+   deployment/build permissions and template setup remain operator prerequisites;
+   no new service, IAM grant or secret rotation is proposed.
+
+4. In the exact isolated runtime, verify default Debian runtime discovery and
+   actual Python/Spark/JVM startup; dummy-only parent-env/private-file/other-
+   request denial; metadata-token access never attempted; noncredential metadata
+   and outbound reachability denied; loopback Python-to-JVM works; timeout,
+   output-overflow and explicit deletion leave no surviving sandbox. Report
+   booleans, status and duration only. A failed deletion must quarantine admission
+   and block promotion until root verifies cleanup or retires the instance.
+
+5. Route an approved isolated backend preview to the no-traffic revision while
+   retaining its existing private token binding without reading it. The exact
+   reported Free lab is `pyspark-pdf-02-shuffle-storm-after-a-big-join`. Post its
+   public inclusive-threshold reference and strict-threshold wrong answer in
+   both `sample` and `hidden` modes, serially. Require HTTP200, remote engine,
+   nonempty consistent results and correct/wrong verdicts. Retain PDF01 and older
+   core/sales checks. Both PDF02 API modes remain Free; the UI Submit sign-in
+   requirement is separate. Check adjacent Premium guest401/nonmember403 without
+   grants. No customer session is needed.
+
+   ```sh
+   curl --fail-with-body -H 'Content-Type: application/json' \
+     --data-binary @pdf02-reference-sample.json \
+     "$OPS053_BACKEND_PREVIEW/api/v1/pyspark/validate/pyspark-pdf-02-shuffle-storm-after-a-big-join"
+   ```
+
+   The other three requests change the JSON mode to `hidden` and/or the public
+   reference's `>=` comparison to `>`. Never send an internal runner token from
+   this probe. Record first and immediate-repeat duration/startup evidence under
+   the unchanged25s process and30s Cloud/proxy budgets; do not widen them merely
+   to resolve this404. Actual template compatibility/deadline failure keeps HOLD.
+
+6. Only after exact Product/Engineering and CEO runtime acceptance, root changes
+   traffic through the normal release path and verifies canonical PDF02 Run
+   sample plus Submit using an existing owned QA session, preserving drafts and
+   access rules. Ananya alone supplies verified retry steps and obtains customer
+   confirmation. Rollback restores recorded00002-wgs100% and its immutable image/
+   prior revision configuration. With no traffic shifted, discard the failed
+   candidate after confirmed cleanup. No Vercel-only revert can roll back the
+   external worker.
+
+   ```sh
+   gcloud run services update-traffic data-foundry-pyspark-runner \
+     --account="$OPS053_VERIFIED_OWNER" --project=tdfpyspark \
+     --region=asia-south1 \
+     --to-revisions=data-foundry-pyspark-runner-00002-wgs=100
+   ```
+
+For every management command use the verified owner account explicitly and
+the existing project/region. Current target binding and management
+authentication were restored by the CEO; this does not authorize a build or
+revision. Use the exact account confirmed in the root receipt, never the cached
+expired identity, and do not repeat login/help probes from this Engineering task.
+
 #### Separate local child-environment mitigation
 
 The follow-up environment candidate replaces inherited listener variables with a

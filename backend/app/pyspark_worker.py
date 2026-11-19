@@ -9,6 +9,7 @@ from fastapi import FastAPI, Header, HTTPException, status
 
 from app.schemas.pyspark_validation import PysparkValidationRequest, PysparkValidationResponse
 from app.services.pyspark_specs import PYSPARK_SPECS
+from app.services.pyspark_sandbox import CloudRunSandboxExecutor, sandbox_listener_quarantined
 from app.services.pyspark_validation_service import (
     PysparkValidationConfigurationError,
     PysparkValidationError,
@@ -18,7 +19,7 @@ from app.services.pyspark_validation_service import (
 
 
 app = FastAPI(title="PySpark execution worker", docs_url=None, redoc_url=None, openapi_url=None)
-service = PysparkValidationService()
+service = PysparkValidationService(sandbox_executor=CloudRunSandboxExecutor())
 CATALOG_SHA256 = hashlib.sha256(
     json.dumps(sorted(PYSPARK_SPECS), separators=(",", ":")).encode("utf-8")
 ).hexdigest()
@@ -30,6 +31,8 @@ def healthcheck() -> dict[str, str | int]:
     return {
         "status": "ok",
         "runner_contract": "tdf-pyspark-worker-v1",
+        "execution_backend": "cloud-run-sandbox-template",
+        "admission_quarantined": sandbox_listener_quarantined(),
         "supported_lab_count": len(PYSPARK_SPECS),
         "catalog_sha256": CATALOG_SHA256,
     }

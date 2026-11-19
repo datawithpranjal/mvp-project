@@ -1,0 +1,32 @@
+# Build-only proposal. No Cloud Run service, configuration, IAM or traffic mutation.
+# The operator must match _SOURCE_REVISION to the reviewed tracked-only archive.
+steps:
+  - name: python:3.12-slim
+    entrypoint: python
+    args:
+      - -c
+      - "import re,sys; assert re.fullmatch(r'[0-9a-f]{40}', sys.argv[1]), 'Exact source revision required'"
+      - ${_SOURCE_REVISION}
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - docker/pyspark-runner.Dockerfile
+      - --label
+      - org.opencontainers.image.revision=${_SOURCE_REVISION}
+      - -t
+      - ${_WORKER_IMAGE}
+      - .
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - docker/pyspark-executor.Dockerfile
+      - --label
+      - org.opencontainers.image.revision=${_SOURCE_REVISION}
+      - -t
+      - ${_EXECUTOR_IMAGE}
+      - .
+images:
+  - ${_WORKER_IMAGE}
+  - ${_EXECUTOR_IMAGE}

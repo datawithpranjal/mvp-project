@@ -18,4 +18,4 @@ COPY backend/app ./app
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.pyspark_worker:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.pyspark_worker:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

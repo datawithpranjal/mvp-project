@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import datetime as dt
+from decimal import Decimal
 import os
 import re
 import signal
@@ -23,6 +25,7 @@ from app.services.pyspark_environment import (
     PysparkRuntimePaths,
     build_child_environment,
 )
+from app.services.pyspark_sandbox import CloudRunSandboxExecutor, SandboxUnavailable
 
 
 class PysparkValidationError(RuntimeError):
@@ -58,9 +61,13 @@ DISALLOWED_CODE_PATTERNS: list[tuple[re.Pattern[str], str]] = [
 
 
 class PysparkValidationService:
-    def __init__(self, *, runtime_paths: PysparkRuntimePaths | None = None) -> None:
+    def __init__(
+        self, *, runtime_paths: PysparkRuntimePaths | None = None,
+        sandbox_executor: CloudRunSandboxExecutor | None = None,
+    ) -> None:
         self.settings = get_settings()
         self._runtime_paths = runtime_paths
+        self._sandbox_executor = sandbox_executor
 
     def validate(
         self,
@@ -195,6 +202,9 @@ class PysparkValidationService:
         if not spec.output_columns or not cases:
             return []
 
+        if self._sandbox_executor is not None:
+            return self._run_sandbox(spec, code, cases)
+
         with tempfile.TemporaryDirectory(prefix="data-foundry-pyspark-", dir="/tmp") as tmp:
             tmp_path = Path(tmp)
             submission_path = tmp_path / "submission.py"
@@ -236,6 +246,85 @@ class PysparkValidationService:
             raise PysparkValidationConfigurationError(
                 "The PySpark worker returned an invalid result. No correctness result was produced."
             ) from exc
+
+    def _run_sandbox(
+        self, spec: PysparkSpec, code: str, cases: list[PysparkCase],
+    ) -> list[PysparkTestResult]:
+        # Expected outputs and grading stay in the trusted listener, never its execution image/input.
+        payload = {
+            "output_columns": list(spec.output_columns),
+            "output_variable_names": list(spec.output_variable_names),
+            "cases": [
+                {
+                    "inputs": [
+                        {
+                            "name": table.name, "rows": table.rows,
+                            "timestamp_columns": list(table.timestamp_columns),
+                        }
+                        for table in case.inputs
+                    ],
+                    "context": case.context,
+                }
+                for case in cases
+            ],
+        }
+        try:
+            result = self._sandbox_executor.execute(
+                code=code, payload=payload, timeout=self.settings.pyspark_timeout_seconds,
+            )
+        except SandboxUnavailable as exc:
+            raise PysparkValidationConfigurationError(
+                "The PySpark sandbox is unavailable. No correctness result was produced."
+            ) from exc
+
+        try:
+            if not isinstance(result, dict) or set(result) != {"cases"}:
+                raise ValueError("Invalid sandbox evidence")
+            returned_cases = result["cases"]
+            if not isinstance(returned_cases, list) or len(returned_cases) != len(cases):
+                raise ValueError("Missing case evidence")
+            tests = []
+            for case, returned in zip(cases, returned_cases):
+                if not isinstance(returned, dict) or set(returned) != {"rows", "error"}:
+                    raise ValueError("Invalid case evidence")
+                rows, error = returned["rows"], returned["error"]
+                if not isinstance(rows, list) or any(
+                    not isinstance(row, list) or len(row) != len(spec.output_columns) for row in rows
+                ) or (error is not None and not isinstance(error, str)):
+                    raise ValueError("Invalid output evidence")
+                expected = self._normalize_sandbox_rows(case.expected_rows)
+                actual = self._normalize_sandbox_rows(rows)
+                passed = error is None and actual == expected
+                tests.append(PysparkTestResult(
+                    name=case.name, passed=passed,
+                    message=error if error is not None else (
+                        "Output matched expected aggregate." if passed else
+                        "Output mismatch. Check the expected grain, filters, deduplication, and projected columns."
+                    ),
+                    actual_output={"columns": list(spec.output_columns), "column_types": [], "rows": actual},
+                    expected_output={"columns": list(spec.output_columns), "column_types": [], "rows": expected},
+                ))
+            return tests
+        except (KeyError, TypeError, ValueError) as exc:
+            raise PysparkValidationConfigurationError(
+                "The PySpark sandbox returned invalid output. No correctness result was produced."
+            ) from exc
+
+    @staticmethod
+    def _normalize_sandbox_rows(rows: list[list]) -> list[list]:
+        def normalize(value):
+            if isinstance(value, Decimal):
+                value = float(value)
+            if isinstance(value, float):
+                return round(value, 2)
+            if isinstance(value, dt.datetime):
+                return value.isoformat(sep=" ")[:19]
+            if isinstance(value, dt.date):
+                return value.isoformat()[:10]
+            return value
+
+        normalized = [[normalize(value) for value in row] for row in rows]
+        return sorted(normalized, key=lambda row: json.dumps(row, sort_keys=True))
 
     @staticmethod
     def _run_worker(
