@@ -312,6 +312,14 @@ function pysparkUnavailableResult(lab: CodingLab, error: unknown): LabRunResult 
   };
 }
 
+function clearPysparkGradingMessage(message: string): string {
+  const incorrectSuffix = "Not correct yet. Review the result details, fix the answer, and submit again.";
+  if (message.endsWith(incorrectSuffix)) {
+    return message.slice(0, -incorrectSuffix.length).trimEnd();
+  }
+  return message.startsWith("Not correct yet.") || message.startsWith("Correct.") ? "" : message;
+}
+
 async function runPysparkLab(
   lab: CodingLab,
   answer: string,
@@ -1089,9 +1097,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
       };
       setResult(failedResult);
       if (selectedLab.validationMode === "pyspark" && failedResult.status === "unavailable") {
-        setWorkspaceMessage((current) =>
-          current.startsWith("Not correct yet.") || current.startsWith("Correct.") ? "" : current
-        );
+        setWorkspaceMessage(clearPysparkGradingMessage);
       }
       const presentation = pythonIntroError(selectedLab, answer, phase, error);
       if (presentation) setPythonError({ result: failedResult, presentation });
@@ -1209,9 +1215,7 @@ export function BrowserCodingLab({ track }: { track: CodingLabTrack }) {
       };
       setResult(failedResult);
       if (selectedLab.validationMode === "pyspark" && failedResult.status === "unavailable") {
-        setWorkspaceMessage((current) =>
-          current.startsWith("Not correct yet.") || current.startsWith("Correct.") ? "" : current
-        );
+        setWorkspaceMessage(clearPysparkGradingMessage);
       }
       const presentation = pythonIntroError(selectedLab, answer, phase, error);
       if (presentation) setPythonError({ result: failedResult, presentation });

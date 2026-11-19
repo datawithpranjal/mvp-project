@@ -12,7 +12,7 @@ const source = ts.createSourceFile(String(file), fs.readFileSync(file, "utf8"), 
 const required = ["queryResultToBrowserTable", "runPysparkLab", "getAttemptKey", "requireLoginForValidation", "submitLab", "runSampleCheck", "ResultPanel", "MiniResultTable"];
 const declarations = new Map<string, ts.FunctionDeclaration>();
 function visit(node: ts.Node) {
-  if (ts.isFunctionDeclaration(node) && node.name && [...required, "pysparkUnavailableResult"].includes(node.name.text)) {
+  if (ts.isFunctionDeclaration(node) && node.name && [...required, "pysparkUnavailableResult", "clearPysparkGradingMessage"].includes(node.name.text)) {
     assert(!declarations.has(node.name.text), `Ambiguous actual function ${node.name.text}`);
     declarations.set(node.name.text, node);
   }
@@ -33,7 +33,7 @@ const privateError = "synthetic-private-response-detail";
 const authMessage = "Synthetic access/session response";
 let cases = 0;
 
-function harness(variant: Variant, options: { member?: boolean; free?: boolean; locked?: boolean; workspaceMessage?: string; sql?: boolean } = {}) {
+function harness(variant: Variant, options: { member?: boolean; free?: boolean; locked?: boolean; workspaceMessage?: string; sql?: boolean; practiceGuidance?: boolean; saveFailure?: boolean } = {}) {
   const member = options.member ?? true;
   const state: any = {
     result: null, mode: null, running: false, workspaceMessage: options.workspaceMessage ?? "",
@@ -44,7 +44,8 @@ function harness(variant: Variant, options: { member?: boolean; free?: boolean; 
   const focused = { id: "synthetic-action-trigger", focus: () => { state.focusCalls++; } };
   const selectedLab = {
     id: "synthetic-pyspark", slug, title: "Synthetic check", track: options.sql ? "sql" : "pyspark",
-    validationMode: options.sql ? "sql" : "pyspark", isFree: options.free ?? true, tables: []
+    validationMode: options.sql ? "sql" : "pyspark", isFree: options.free ?? true, tables: [],
+    ...(options.practiceGuidance ? { practiceGuidance: {} } : {})
   };
   const pending = { slug, answer: code, key: "synthetic-existing-attempt-key" };
   const setter = (key: string) => (value: any) => { state[key] = typeof value === "function" ? value(state[key]) : value; };
@@ -70,6 +71,7 @@ function harness(variant: Variant, options: { member?: boolean; free?: boolean; 
     recordCodingLabAttempt: (...args: unknown[]) => { state.attempts.push(args); return { [slug]: { attempted: true } }; },
     saveLearnerAttempt: async (...args: any[]) => {
       state.saves.push(args);
+      if (options.saveFailure) throw new Error("Synthetic account-save failure");
       return { item: { latest_result: args[3].result, completed: args[3].passed } };
     },
     codingProgressFromRemote: (item: unknown) => item,
@@ -175,6 +177,39 @@ async function main() {
       assert.equal(sql.state.result.message, "Synthetic SQL service failure"); assert.equal(sql.state.result.status, undefined);
       assert.equal(sql.state.workspaceMessage, "Existing SQL context"); assert.equal(sql.state.requests.length, 0); sql.assertEditor();
     }
+    // Obtain the combined warning from the real preceding Submit flow, not a copied assembler.
+    const priorWrongSubmit = harness("wrong", { practiceGuidance: true, saveFailure: true });
+    await priorWrongSubmit.run("submit"); cases++;
+    const accountWarning = "Result shown, but it could not be saved to your account. Please retry submit.";
+    const incorrectSuffix = "Not correct yet. Review the result details, fix the answer, and submit again.";
+    const combinedWarning = priorWrongSubmit.state.workspaceMessage;
+    assert.equal(combinedWarning, `${accountWarning} ${incorrectSuffix}`);
+    assert.equal(priorWrongSubmit.state.result.passed, false);
+    assert.equal(priorWrongSubmit.state.attempts.length, 1); assert.equal(priorWrongSubmit.state.saves.length, 1);
+    priorWrongSubmit.assertRequest("submit"); priorWrongSubmit.assertEditor();
+    for (const action of ["sample", "submit"] as const) {
+      for (const variant of ["503", "transport", "decode"] as const) {
+        for (const prefix of ["", "Other workspace context. "]) {
+          const test = harness(variant, { workspaceMessage: prefix + combinedWarning, practiceGuidance: true, saveFailure: true });
+          const progressBefore = { [slug]: { previous: "synthetic progress" } };
+          const remoteBefore = { [slug]: { previous: "synthetic remote progress" } };
+          test.state.progress = progressBefore; test.state.remoteProgress = remoteBefore;
+          await test.run(action); cases++;
+          assert.equal(test.state.result.status, "unavailable"); assert.equal(test.state.result.passed, null);
+          assert.equal(test.state.workspaceMessage, prefix + accountWarning, `${action}/${variant}: remove only the stale grade suffix`);
+          assert(!test.state.workspaceMessage.includes(incorrectSuffix));
+          for (const key of ["pysparkResults", "pythonResults", "sqlResults", "score"]) assert.equal(test.state.result[key], undefined);
+          assert.equal(test.state.attempts.length, 0); assert.equal(test.state.saves.length, 0); assert.equal(test.state.drafts.length, 0);
+          assert.equal(test.state.progress, progressBefore); assert.equal(test.state.remoteProgress, remoteBefore);
+          assert.equal(test.context.pendingAttemptRef.current, test.pending);
+          assert(!test.state.usage.some((event: any) => /submitted|completed/.test(event.name)));
+          assert(!test.state.events.some((event: any) => /submitted|completed/.test(event.name)));
+          assert.equal(test.state.running, false); test.assertRequest(action); test.assertEditor();
+          const html = test.html(); assert.match(html, /Checking unavailable/); assert.match(html, /try again shortly/);
+          assert(!/needs work|Wrong answer|Synthetic executed check|>fail<|>pass</i.test(html));
+        }
+      }
+    }
     const guestSubmit = harness("correct", { member: false }); await guestSubmit.run("submit"); cases++;
     assert.equal(guestSubmit.state.requests.length, 0); assert.equal(guestSubmit.state.authOpen, true);
     assert.equal(guestSubmit.state.drafts.length, 1); assert.equal(guestSubmit.state.intents[0].action, "submit");
@@ -191,6 +226,7 @@ async function main() {
     console.log(JSON.stringify({
       action_cases: cases, actual_handlers_and_renderer: true, http503_transport_decode_ungraded: true,
       stale_graded_banner_cleared: true, existing_account_save_warning_preserved: true,
+      actual_prior_submit_combined_warning_suffix_removed_only: true,
       no_fabricated_tests_or_outage_attempt_save: true,
       actual_wrong_correct_sample_full_preserved: true, request_payload_auth_and_no_auto_retry_preserved: true,
       guest_member_premium_boundaries_preserved: true, http401_403_and_sql_scope_preserved: true,
