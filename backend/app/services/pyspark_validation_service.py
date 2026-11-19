@@ -5,7 +5,6 @@ import os
 import re
 import signal
 import subprocess
-import sys
 import tempfile
 import textwrap
 from pathlib import Path
@@ -19,6 +18,11 @@ from app.schemas.pyspark_validation import (
     PysparkValidationResponse,
 )
 from app.services.pyspark_specs import PYSPARK_SPECS, PysparkCase, PysparkSpec
+from app.services.pyspark_environment import (
+    PysparkRuntimeConfigurationError,
+    PysparkRuntimePaths,
+    build_child_environment,
+)
 
 
 class PysparkValidationError(RuntimeError):
@@ -54,8 +58,9 @@ DISALLOWED_CODE_PATTERNS: list[tuple[re.Pattern[str], str]] = [
 
 
 class PysparkValidationService:
-    def __init__(self) -> None:
+    def __init__(self, *, runtime_paths: PysparkRuntimePaths | None = None) -> None:
         self.settings = get_settings()
+        self._runtime_paths = runtime_paths
 
     def validate(
         self,
@@ -190,7 +195,7 @@ class PysparkValidationService:
         if not spec.output_columns or not cases:
             return []
 
-        with tempfile.TemporaryDirectory(prefix="data-foundry-pyspark-") as tmp:
+        with tempfile.TemporaryDirectory(prefix="data-foundry-pyspark-", dir="/tmp") as tmp:
             tmp_path = Path(tmp)
             submission_path = tmp_path / "submission.py"
             runner_path = tmp_path / "runner.py"
@@ -199,14 +204,15 @@ class PysparkValidationService:
                 self._runner_script(spec=spec, cases=cases, submission_path=submission_path),
                 encoding="utf-8",
             )
-            env = {
-                **os.environ,
-                "PYSPARK_PYTHON": sys.executable,
-                "SPARK_LOCAL_HOSTNAME": "127.0.0.1",
-            }
+            try:
+                env = build_child_environment(tmp_path, self._runtime_paths)
+            except PysparkRuntimeConfigurationError as exc:
+                raise PysparkValidationConfigurationError(
+                    "The PySpark execution runtime is unavailable. No correctness result was produced."
+                ) from exc
             try:
                 completed = self._run_worker(
-                    [sys.executable, str(runner_path)],
+                    [env["PYSPARK_PYTHON"], str(runner_path)],
                     cwd=str(tmp_path),
                     env=env,
                     timeout=self.settings.pyspark_timeout_seconds,

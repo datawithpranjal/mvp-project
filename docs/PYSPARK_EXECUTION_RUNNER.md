@@ -61,6 +61,41 @@ prove validation readiness.
 
 ### November 19 PDF-lab incident candidate
 
+#### Separate local child-environment mitigation
+
+The follow-up environment candidate replaces inherited listener variables with a
+fresh dictionary for each learner subprocess. Python, Java and installed Spark
+paths are resolved only when local execution is requested; a proxy-only backend
+does not need a local runtime. The runtime uses the absolute interpreter path,
+the installed Spark package and a real Java home derived from `/usr/bin/java`.
+Missing runtime files fail unavailable without falling back to the parent
+environment. The worker image's Debian JRE layout still requires image proof.
+
+The child receives only controlled executable/library paths, Python/Spark
+controls, UTF-8 locale settings, and request-owned home/temp/Spark directories
+with mode0700 under `/tmp`. No parent application/cloud/database credentials,
+proxy settings, arbitrary Python/Java/Spark launch options or gateway settings
+are forwarded. No TZ value is forwarded or set. Dropping an inherited TZ may
+change a JVM's default timezone; local supported-lab checks do not establish
+container timezone equivalence. Grading fixtures and comparison code are
+unchanged. The parent API retains its existing token and entitlement behavior.
+
+Local tests can inject an immutable runtime descriptor using test-only command
+options for an explicit Java home and narrow import root. These selectors are
+not request fields or production environment overrides. A local dependency
+selector does not establish the container's runtime or isolation.
+
+This removes direct environment forwarding only. Learner Python and Spark/JVM
+still require a separately verified filesystem, process, identity and network
+boundary. Parent-state, shared-file and cloud-identity exposure are not ruled
+out by environment filtering. Keep deployment HOLD until that boundary, current
+runner target binding and management access are verified. The original
+`cbd809ed5fbf612dca3714b4175ecab838f380f8` candidate remains frozen; this is a
+separate reversible local child change, with no live fix or security-isolation
+claim.
+
+#### Original incident evidence (frozen cbd809e)
+
 Canonical synthetic probes returned remote success for the original sales
 scenario and the older duplicate-rerun lab, but Free PDF01 returned HTTP 503
 wrapping runner HTTP 404. The actual signed-in app reproduced the same error.

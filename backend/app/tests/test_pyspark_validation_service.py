@@ -1,5 +1,6 @@
 import os
 import subprocess
+import sys
 
 import httpx
 import pytest
@@ -14,6 +15,21 @@ daily_sales = (raw_sales.withColumn("business_date", F.to_date("sale_ts_utc"))
     .dropDuplicates(["order_id"]).groupBy("business_date")
     .agg(F.count("order_id").alias("order_count"), F.sum("amount").alias("gross_sales")))
 '''
+
+
+@pytest.fixture(autouse=True)
+def isolate_mocked_worker_classification_from_local_runtime(request, monkeypatch):
+    if request.function.__name__ == "test_sales_real_spark":
+        return
+
+    from app.services import pyspark_validation_service
+
+    # Runtime validation has separate coverage; these cases replace the worker process.
+    monkeypatch.setattr(
+        pyspark_validation_service,
+        "build_child_environment",
+        lambda request_dir, runtime=None: {"PYSPARK_PYTHON": sys.executable},
+    )
 
 
 def local_service():
