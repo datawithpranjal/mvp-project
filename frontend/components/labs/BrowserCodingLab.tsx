@@ -313,11 +313,14 @@ function pysparkUnavailableResult(lab: CodingLab, error: unknown): LabRunResult 
 }
 
 function clearPysparkGradingMessage(message: string): string {
-  const incorrectSuffix = "Not correct yet. Review the result details, fix the answer, and submit again.";
-  if (message.endsWith(incorrectSuffix)) {
-    return message.slice(0, -incorrectSuffix.length).trimEnd();
-  }
-  return message.startsWith("Not correct yet.") || message.startsWith("Correct.") ? "" : message;
+  const gradedSuffixes = [
+    "Not correct yet. Review the result details, fix the answer, and submit again.",
+    "Your query matched the tested datasets. Continue when you are ready; this is practice, not proof of independent mastery.",
+    "Correct. Passed full validation and edge-case checks. Use Next question when you are ready.",
+    "Correct. Passed full validation and edge-case checks."
+  ];
+  const suffix = gradedSuffixes.find((grade) => message.endsWith(grade));
+  return suffix ? message.slice(0, -suffix.length).trimEnd() : message;
 }
 
 async function runPysparkLab(
